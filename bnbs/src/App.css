@@ -1,0 +1,21 @@
+.App-table {
+  font-size: 15px;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 60%;
+  color: #666;
+}
+
+.App-td {
+  width: 14%;
+}
+
+.App-td4 {
+  width: 18%;
+}
+
+html {
+  scrollbar-gutter: stable;
+}

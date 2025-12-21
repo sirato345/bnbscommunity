@@ -1,0 +1,20 @@
+.CsvUploader-upload-btn {
+  padding: 10px 20px;
+  margin-top: 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+
+.CsvUploader-file-input {
+  display: none;
+}
+
+.CsvUploader-div {
+  height: 100px;
+  width: 100%;
+  margin-top: 15%;
+  text-align: center;
+}

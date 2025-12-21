@@ -1,0 +1,147 @@
+.Table-table {
+  font-size: 15px;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 60%;
+  border: 1px solid #ead7ca;
+  margin-bottom: 10px;
+}
+
+.Table-th, Table-th1, Table-th2, Table-th3, Table-th4, Table-th5 {
+  height: 30px;
+  border: 1px solid #ead7ca;
+  background-color: #caeae0;
+  padding: 0 1em 0;
+}
+
+.Table-th1 {
+  border: 1px solid #ead7ca;
+  width: 6%;
+}
+
+.Table-th2 {
+  border: 1px solid #ead7ca;
+  width: 60%;
+}
+
+.Table-th3 {
+  border: 1px solid #ead7ca;
+  width: 12%;
+}
+
+.Table-th4 {
+  border: 1px solid #ead7ca;
+  width: 12%;
+}
+
+.Table-th5 {
+  border: 1px solid #ead7ca;
+  width: 10%;
+}
+
+.Table-tr {
+  border: 1px solid #ead7ca;
+  background-color: #f5fafe;
+}
+
+.Table-td, Table-td1, Table-td2, Table-td3, Table-td4, Table-td5 {
+  height: 20px;
+  border: 1px solid #ead7ca;
+  padding: 0 1em 0;
+}
+
+.Table-td1 {
+  border: 1px solid #ead7ca;
+  width: 6%;
+  text-align: center;
+}
+
+.Table-td2 {
+  border: 1px solid #ead7ca;
+  padding-left: 5px;
+  width: 62%;
+}
+
+.Table-td3 {
+  border: 1px solid #ead7ca;
+  width: 12%;
+  text-align: center;
+}
+
+.Table-td4 {
+  border: 1px solid #ead7ca;
+  width: 12%;
+  text-align: center;
+}
+
+.Table-td5 {
+  border: 1px solid #ead7ca;
+  width: 8%;
+  text-align: center;
+  color: gold;
+  font: 900;
+  font-weight: bolder;
+}
+
+.Table-search-area {
+  width: 60%;
+  height: 24px;
+  margin: 0 auto;
+}
+
+.Table-search-tr {
+  height: 12px;
+  vertical-align: middle;
+}
+
+.Table-search-td1 {
+  height: 24px;
+  vertical-align: right;
+}
+
+.Table-search-td2 {
+  height: 24px;
+  vertical-align: middle;
+}
+
+.Table-total1 {
+  font-size: 15px;
+  padding-left: 5px;
+  margin-top: 0px;
+  width: 300px;
+  font-weight: bold;
+  color: black;
+  text-align: left;
+}
+
+.Table-total2 {
+  font-size: 15px;
+  padding-left: 5px;
+  margin-top: 0px;
+  width: 300px;
+  font-weight: bold;
+  color: black;
+  text-align: left;
+}
+
+.Table-search-input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px 0 0 4px;
+  outline: none;
+  width: 325px;
+  margin-left: 5px;
+}
+
+.Table-search-btn {
+  padding: 10px 20px;
+  margin: 3px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+

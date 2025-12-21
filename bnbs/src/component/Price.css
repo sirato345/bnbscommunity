@@ -1,0 +1,62 @@
+.Price-table {
+  font-size: 15px;
+  font-weight: bold;
+  color: black;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 15%;
+  margin-bottom: 10px;
+  width: 210px;
+  height: 180px;
+  margin-top: 10px;
+}
+
+.Price-search-btn {
+  padding: 10px 20px;
+  margin: 5px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+
+.Price-tr {
+  height: 30px;
+}
+
+.Price-tr2 {
+  height: 15px;
+}
+
+.Price-td {
+  display: flex;
+  align-items: center;  /* 垂直居中 */
+  justify-content: left; /* 水平居中 */
+  flex-wrap: wrap; /* 允许多行 */
+  margin-left: 4px;
+  padding-top: 2px;
+}
+
+.Price-td2 {
+  padding-left: 19px;
+  padding-top: 12px;
+}
+
+.Price-span {
+  margin-left: 6px;
+}
+
+.Price-span2 {
+  margin-left: 23px;
+}
+
+.Price-span3 {
+  margin-left: 4px;
+}
+
+.Price-span4 {
+  padding-bottom: 14px;
+}
