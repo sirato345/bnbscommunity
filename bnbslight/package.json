@@ -14,7 +14,6 @@
     "react": "^19.2.1",
     "react-chartjs-2": "^5.3.1",
     "react-csv": "^2.2.2",
-    "react-csv-reader": "^4.0.0",
     "react-dom": "^19.2.1",
     "react-papaparse": "^4.4.0",
     "react-router-dom": "^7.10.1",
