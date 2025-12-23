@@ -1,0 +1,26 @@
+.Chart-lable {
+  text-align: center;
+  font-size: 15px;
+  border-collapse: collapse;
+  margin: 0 auto;
+  font-weight: bold;
+  color: black;
+}
+
+.Chart-div, Chart-div1, Chart-div2, Chart-div3 {
+  padding: 0px;
+  width: 100%;
+}
+
+.Chart-div1 {
+  height: 200px;
+}
+
+.Chart-div2 {
+  height: 170px;
+}
+
+.Chart-div3 {
+  height: 20px;
+  margin-bottom: 3px;
+}
