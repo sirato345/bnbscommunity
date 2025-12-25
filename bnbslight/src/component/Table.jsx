@@ -107,7 +107,7 @@ function Table(props) {
                 <input
                   type="text"
                   name="address"
-                  className="Table-search-input"
+                  className="Table-search-input-mobile"
                   placeholder="33d30"
                 ></input>
               </td>

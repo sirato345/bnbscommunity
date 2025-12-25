@@ -153,7 +153,7 @@ function Price() {
           <tr className="Price-tr">
             <td></td>
             <td className="Price-td2">
-              <button onClick={refresh} className="Price-search-btn">
+              <button onClick={refresh} className="Price-search-btn-mobile">
                 Update
               </button>
             </td>
