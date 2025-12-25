@@ -1,5 +1,6 @@
 import "./Chart.css";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { isMobile, BrowserView, MobileView } from "react-device-detect";
 
 function Chart(props) {
   var data;
@@ -62,38 +63,77 @@ function Chart(props) {
   };
 
   return (
-    <div className="Chart-div1">
-      <div className="Chart-div2">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={0}
-              outerRadius={80}
-              labelLine={false}
-              label={renderCustomizedLabel}
-              paddingAngle={0}
-              dataKey="value"
-              startAngle={90}
-              endAngle={450}
-            >
-              {data.map((entry, index) => (
-                <Cell
-                  key={entry.name}
-                  fill={entry.color}
-                  stroke="#fff"
-                  strokeWidth={2}
-                />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="Chart-div3">
-        <p className="Chart-lable">{data[0].name}</p>
-      </div>
+    <div>
+      <BrowserView>
+        <div className="Chart-div1">
+          <div className="Chart-div2">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={0}
+                  outerRadius={80}
+                  labelLine={false}
+                  label={renderCustomizedLabel}
+                  paddingAngle={0}
+                  dataKey="value"
+                  startAngle={90}
+                  endAngle={450}
+                >
+                  {data.map((entry, index) => (
+                    <Cell
+                      key={entry.name}
+                      fill={entry.color}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="Chart-div3">
+            <p className="Chart-lable">{data[0].name}</p>
+          </div>
+        </div>
+      </BrowserView>
+      <MobileView>
+        <div className="Chart-div1">
+          <div className="Chart-div2">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={0}
+                  outerRadius={60}
+                  labelLine={false}
+                  label={renderCustomizedLabel}
+                  paddingAngle={0}
+                  dataKey="value"
+                  startAngle={90}
+                  endAngle={450}
+                >
+                  {data.map((entry, index) => (
+                    <Cell
+                      key={entry.name}
+                      fill={entry.color}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="Chart-div3">
+            <p className="Chart-lable">{data[0].name}</p>
+          </div>
+        </div>
+      </MobileView>
     </div>
   );
 }

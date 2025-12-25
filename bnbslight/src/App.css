@@ -19,3 +19,21 @@
 html {
   scrollbar-gutter: stable;
 }
+
+.App-table-mobile {
+  font-size: 15px;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 100%;
+  color: #666;
+}
+
+.App-td-mobile {
+  width: 50%;
+}
+
+.App-td4-mobile {
+  width: 50%;
+}

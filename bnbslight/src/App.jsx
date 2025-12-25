@@ -6,7 +6,7 @@ import Chart from "./component/Chart";
 import Price from "./component/Price";
 import Papa from "papaparse";
 import { useWorker } from "@koale/useworker";
-import { isMobile, BrowserView, MobileView  } from "react-device-detect"
+import { isMobile, BrowserView, MobileView } from "react-device-detect";
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
@@ -22,7 +22,9 @@ function App() {
       line.push(i + 1);
       line.push(csvData[i].HolderAddress);
       // 有逗号分割的，是字符串，没有分割的，被解析成数字类型，所以不加String会出错
-      let count = Math.floor(parseFloat(String(csvData[i].Balance).replace(",", "")));
+      let count = Math.floor(
+        parseFloat(String(csvData[i].Balance).replace(",", ""))
+      );
       line.push(count);
       let percent = (count / TOTAL_COUNT) * 100;
       line.push(String(percent.toFixed(5)) + " %");
@@ -37,7 +39,6 @@ function App() {
   const divRef = useRef(null);
   useEffect(() => {
     if (divRef.current) {
-
       const GetData = async () => {
         try {
           const response = await fetch(
@@ -76,24 +77,36 @@ function App() {
     <div ref={divRef}>
       {data && (
         <div>
-          <table className="App-table">
-            <tr className="App-tr">
-              <td className="App-td">
-                <Chart data={data} userCount={10}></Chart>
-              </td>
-              <BrowserView>
+          <BrowserView>
+            <table className="App-table">
+              <tr className="App-tr">
+                <td className="App-td">
+                  <Chart data={data} userCount={10}></Chart>
+                </td>
                 <td className="App-td">
                   <Chart data={data} userCount={50}></Chart>
                 </td>
                 <td className="App-td">
                   <Chart data={data} userCount={100}></Chart>
                 </td>
-              </BrowserView>
-              <td className="App-td4">
-                <Price></Price>
-              </td>
-            </tr>
-          </table>
+                <td className="App-td4">
+                  <Price></Price>
+                </td>
+              </tr>
+            </table>
+          </BrowserView>
+          <MobileView>
+            <table className="App-table-mobile">
+              <tr className="App-tr">
+                <td className="App-td-mobile">
+                  <Chart data={data} userCount={10}></Chart>
+                </td>
+                <td className="App-td4-mobile">
+                  <Price></Price>
+                </td>
+              </tr>
+            </table>
+          </MobileView>
           <Table data={data}></Table>
         </div>
       )}
