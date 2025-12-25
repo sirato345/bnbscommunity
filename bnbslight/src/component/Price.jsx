@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import BNBLogo from "../image/BNB.png";
 import BNBsLogo from "../image/BNBs.png";
 import "./Price.css";
+import { BrowserView, MobileView } from "react-device-detect";
 
 function Price() {
   const [bnbsPrice, setBNBsPrice] = React.useState(null);
@@ -24,7 +25,6 @@ function Price() {
   });
 
   const getBNBsPrice = async () => {
-
     // 方法2：使用allOrigins（纯前端）
     const fetchWithAllOrigins = async (url) => {
       const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
@@ -66,51 +66,100 @@ function Price() {
 
   return (
     <div ref={divRef}>
-      <table className="Price-table">
-        <tr className="Price-tr2"></tr>
-        <tr className="Price-tr">
-          <td className="Price-td">
-            <img src={BNBLogo} alt="BNBLogo"></img>
-            <span className="Price-span"> BNB</span>
-          </td>
-          <td>
-            <span className="Price-span4">{bnbPrice} $</span>
-          </td>
-        </tr>
-        <tr className="Price-tr">
-          <td className="Price-td">
-            <img src={BNBsLogo} alt="BNBsLogo"></img>
-            <span className="Price-span"> BNBs</span>
-          </td>
-          <td>
-            <span className="Price-span4">{bnbsPrice} $</span>
-          </td>
-        </tr>
-        <tr className="Price-tr">
-          <td>
-            <span className="Price-span2">1 BNB = </span>
-          </td>
-          <td>
-            <span>{rate} BNBs</span>
-          </td>
-        </tr>
-        <tr className="Price-tr">
-          <td>
-            <span className="Price-span3">MarketCap</span>
-          </td>
-          <td>
-            <span>{marketCap} $</span>
-          </td>
-        </tr>
-        <tr className="Price-tr">
-          <td></td>
-          <td className="Price-td2">
-            <button onClick={refresh} className="Price-search-btn">
-              Update
-            </button>
-          </td>
-        </tr>
-      </table>
+      <BrowserView>
+        <table className="Price-table">
+          <tr className="Price-tr2"></tr>
+          <tr className="Price-tr">
+            <td className="Price-td">
+              <img src={BNBLogo} alt="BNBLogo"></img>
+              <span className="Price-span"> BNB</span>
+            </td>
+            <td>
+              <span className="Price-span4">{bnbPrice} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td className="Price-td">
+              <img src={BNBsLogo} alt="BNBsLogo"></img>
+              <span className="Price-span"> BNBs</span>
+            </td>
+            <td>
+              <span className="Price-span4">{bnbsPrice} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td>
+              <span className="Price-span2">1 BNB = </span>
+            </td>
+            <td>
+              <span>{rate} BNBs</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td>
+              <span className="Price-span3">MarketCap</span>
+            </td>
+            <td>
+              <span>{marketCap} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td></td>
+            <td className="Price-td2">
+              <button onClick={refresh} className="Price-search-btn">
+                Update
+              </button>
+            </td>
+          </tr>
+        </table>
+      </BrowserView>
+      <MobileView>
+        <table className="Price-table">
+          <tr className="Price-tr2"></tr>
+          <tr className="Price-tr">
+            <td className="Price-td">
+              <img src={BNBLogo} alt="BNBLogo"></img>
+              <span className="Price-span"> BNB</span>
+            </td>
+            <td>
+              <span className="Price-span4">{bnbPrice} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td className="Price-td">
+              <img src={BNBsLogo} alt="BNBsLogo"></img>
+              <span className="Price-span"> BNBs</span>
+            </td>
+            <td>
+              <span className="Price-span4">{bnbsPrice} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td>
+              <span className="Price-span2">1 BNB = </span>
+            </td>
+            <td>
+              <span>{rate} BNBs</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td>
+              <span className="Price-span3">MarketCap</span>
+            </td>
+            <td>
+              <span>{marketCap} $</span>
+            </td>
+          </tr>
+          <tr className="Price-tr">
+            <td></td>
+            <td className="Price-td2">
+              <button onClick={refresh} className="Price-search-btn">
+                Update
+              </button>
+            </td>
+          </tr>
+        </table>
+      </MobileView>
     </div>
   );
 }

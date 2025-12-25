@@ -6,7 +6,7 @@ import Chart from "./component/Chart";
 import Price from "./component/Price";
 import Papa from "papaparse";
 import { useWorker } from "@koale/useworker";
-import { isMobile, BrowserView, MobileView } from "react-device-detect";
+import { BrowserView, MobileView } from "react-device-detect";
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面

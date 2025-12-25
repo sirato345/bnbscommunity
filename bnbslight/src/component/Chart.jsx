@@ -1,6 +1,6 @@
 import "./Chart.css";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { isMobile, BrowserView, MobileView } from "react-device-detect";
+import { BrowserView, MobileView } from "react-device-detect";
 
 function Chart(props) {
   var data;

@@ -1,7 +1,7 @@
 import "./Table.css";
 import React from "react";
 import { useEffect, useRef } from "react";
-import { isMobile, BrowserView, MobileView  } from "react-device-detect"
+import { BrowserView, MobileView  } from "react-device-detect"
 
 function Table(props) {
   const [data, setData] = React.useState([]);
@@ -90,7 +90,7 @@ function Table(props) {
             </table>
           </div>
         </BrowserView>
-        <MobileView query="(max-width: 767px)">
+        <MobileView>
           <table className="Table-search-area">
             <tr className="Table-search-tr">
               <td colspan="2" className="Table-total1">
