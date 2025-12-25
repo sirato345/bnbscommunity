@@ -109,7 +109,7 @@ function Chart(props) {
                   cx="50%"
                   cy="50%"
                   innerRadius={0}
-                  outerRadius={60}
+                  outerRadius={66}
                   labelLine={false}
                   label={renderCustomizedLabel}
                   paddingAngle={0}
