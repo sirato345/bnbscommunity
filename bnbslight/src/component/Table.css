@@ -164,7 +164,7 @@
   border-radius: 4px 0 0 4px;
   outline: none;
   width: 240px;
-  margin-left: 4px;
+  margin-left: 1px;
 }
 
 .Table-th-mobile Table-th1-mobile, Table-th2-mobile, Table-th3-mobile {
@@ -175,17 +175,26 @@
 }
 
 .Table-th1-mobile {
+  height: 30px;
   border: 1px solid #ead7ca;
+  background-color: #caeae0;
+  padding: 0 1em 0;
   width: 6%;
 }
 
 .Table-th2-mobile {
+  height: 30px;
   border: 1px solid #ead7ca;
+  background-color: #caeae0;
+  padding: 0 1em 0;
   width: 72%;
 }
 
 .Table-th3-mobile {
+  height: 30px;
   border: 1px solid #ead7ca;
+  background-color: #caeae0;
+  padding: 0 1em 0;
   width: 22%;
 }
 
@@ -197,19 +206,28 @@
 }
 
 .Table-td1-mobile {
+  height: 40px;
   border: 1px solid #ead7ca;
+  padding: 0 1em 0;
+  overflow-wrap: break-word;
   width: 6%;
   text-align: center;
 }
 
 .Table-td2-mobile {
+  height: 40px;
   border: 1px solid #ead7ca;
+  padding: 0 1em 0;
+  overflow-wrap: break-word;
   padding-left: 5px;
   width: 72%;
 }
 
 .Table-td3-mobile {
+  height: 40px;
   border: 1px solid #ead7ca;
+  padding: 0 1em 0;
+  overflow-wrap: break-word;
   width: 22%;
   text-align: center;
 }
