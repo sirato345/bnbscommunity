@@ -1,6 +1,7 @@
 import "./Table.css";
 import React from "react";
 import { useEffect, useRef } from "react";
+import { isMobile, BrowserView, MobileView  } from "react-device-detect"
 
 function Table(props) {
   const [data, setData] = React.useState([]);
@@ -38,57 +39,110 @@ function Table(props) {
   return (
     <div ref={divRef}>
       <form onSubmit={handleSubmit} method="post">
-        <table className="Table-search-area">
-          <tr className="Table-search-tr">
-            <td className="Table-total1">
-              <span>
-                BNBs total holders: {props.data.length}
-              </span>
-            </td>
-            <td rowSpan="2" className="Table-search-td1">
-              <input
-                type="text"
-                name="address"
-                className="Table-search-input"
-                placeholder="33d30"
-              ></input>
-            </td>
-            <td rowSpan="2" className="Table-search-td2">
-              <button type="submit" className="Table-search-btn">
-                Search
-              </button>
-            </td>
-          </tr>
-          <tr className="Table-search-tr">
-            <td className="Table-total2">
-              <span>BNBs total amount: 21000000</span>
-            </td>
-          </tr>
-        </table>
-
-        <div>
-          <table className="Table-table">
-            <thead className="Table-th">
-              <th className="Table-th1">No.</th>
-              <th className="Table-th2">Address</th>
-              <th className="Table-th3">Amount</th>
-              <th className="Table-th4">Holding Ratio</th>
-              <th className="Table-th5">Comment</th>
-            </thead>
-            {data.map((item, index) => (
-              <tr className="Table-tr" key={index}>
-                <td className="Table-td1">{item[0]}</td>
-                <td className="Table-td2">{item[1]}</td>
-                <td className="Table-td3">{item[2]}</td>
-                <td className="Table-td4">{item[3]}</td>
-                <td className="Table-td5">
-                  {POOL.includes(item[1]) ? "LP" : ""}
-                  {CREATOR.includes(item[1]) ? "Creator" : ""}
-                </td>
-              </tr>
-            ))}
+        <BrowserView>
+          <table className="Table-search-area">
+            <tr className="Table-search-tr">
+              <td className="Table-total1">
+                <span>BNBs total holders: {props.data.length}</span>
+              </td>
+              <td rowSpan="2" className="Table-search-td1">
+                <input
+                  type="text"
+                  name="address"
+                  className="Table-search-input"
+                  placeholder="33d30"
+                ></input>
+              </td>
+              <td rowSpan="2" className="Table-search-td2">
+                <button type="submit" className="Table-search-btn">
+                  Search
+                </button>
+              </td>
+            </tr>
+            <tr className="Table-search-tr">
+              <td className="Table-total2">
+                <span>BNBs total amount: 21000000</span>
+              </td>
+            </tr>
           </table>
-        </div>
+
+          <div>
+            <table className="Table-table">
+              <thead className="Table-th">
+                <th className="Table-th1">No.</th>
+                <th className="Table-th2">Address</th>
+                <th className="Table-th3">Amount</th>
+                <th className="Table-th4">Holding Ratio</th>
+                <th className="Table-th5">Comment</th>
+              </thead>
+              {data.map((item, index) => (
+                <tr className="Table-tr" key={index}>
+                  <td className="Table-td1">{item[0]}</td>
+                  <td className="Table-td2">{item[1]}</td>
+                  <td className="Table-td3">{item[2]}</td>
+                  <td className="Table-td4">{item[3]}</td>
+                  <td className="Table-td5">
+                    {POOL.includes(item[1]) ? "LP" : ""}
+                    {CREATOR.includes(item[1]) ? "Creator" : ""}
+                  </td>
+                </tr>
+              ))}
+            </table>
+          </div>
+        </BrowserView>
+        <MobileView query="(max-width: 767px)">
+          <table className="Table-search-area">
+            <tr className="Table-search-tr">
+              <td colspan="2" className="Table-total1">
+                <span>BNBs total holders: {props.data.length}</span>
+              </td>
+            </tr>
+            <tr className="Table-search-tr">
+              <td colspan="2" className="Table-total2">
+                <span>BNBs total amount: 21000000</span>
+              </td>
+            </tr>
+            <tr className="Table-search-tr">
+              <td className="Table-search-td1">
+                <input
+                  type="text"
+                  name="address"
+                  className="Table-search-input"
+                  placeholder="33d30"
+                ></input>
+              </td>
+              <td className="Table-search-td2">
+                <button type="submit" className="Table-search-btn">
+                  Search
+                </button>
+              </td>
+            </tr>
+          </table>
+
+          <div>
+            <table className="Table-table">
+              <thead className="Table-th">
+                <th className="Table-th1">No.</th>
+                <th className="Table-th2">Address</th>
+                <th className="Table-th3">Amount</th>
+                <th className="Table-th4">Holding Ratio</th>
+                <th className="Table-th5">Comment</th>
+              </thead>
+              {data.map((item, index) => (
+                <tr className="Table-tr" key={index}>
+                  <td className="Table-td1">{item[0]}</td>
+                  <td className="Table-td2">{item[1]}</td>
+                  <td className="Table-td3">{item[2]}</td>
+                  <td className="Table-td4">{item[3]}</td>
+                  <td className="Table-td5">
+                    {POOL.includes(item[1]) ? "LP" : ""}
+                    {CREATOR.includes(item[1]) ? "Creator" : ""}
+                  </td>
+                </tr>
+              ))}
+            </table>
+          </div>
+        </MobileView>
       </form>
     </div>
   );
