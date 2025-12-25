@@ -120,24 +120,17 @@ function Table(props) {
           </table>
 
           <div>
-            <table className="Table-table">
+            <table className="Table-table-mobile">
               <thead className="Table-th">
                 <th className="Table-th1">No.</th>
                 <th className="Table-th2">Address</th>
                 <th className="Table-th3">Amount</th>
-                <th className="Table-th4">Holding Ratio</th>
-                <th className="Table-th5">Comment</th>
               </thead>
               {data.map((item, index) => (
                 <tr className="Table-tr" key={index}>
                   <td className="Table-td1">{item[0]}</td>
                   <td className="Table-td2">{item[1]}</td>
                   <td className="Table-td3">{item[2]}</td>
-                  <td className="Table-td4">{item[3]}</td>
-                  <td className="Table-td5">
-                    {POOL.includes(item[1]) ? "LP" : ""}
-                    {CREATOR.includes(item[1]) ? "Creator" : ""}
-                  </td>
                 </tr>
               ))}
             </table>

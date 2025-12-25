@@ -6,6 +6,7 @@ import Chart from "./component/Chart";
 import Price from "./component/Price";
 import Papa from "papaparse";
 import { useWorker } from "@koale/useworker";
+import { isMobile, BrowserView, MobileView  } from "react-device-detect"
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
@@ -80,12 +81,14 @@ function App() {
               <td className="App-td">
                 <Chart data={data} userCount={10}></Chart>
               </td>
-              <td className="App-td">
-                <Chart data={data} userCount={50}></Chart>
-              </td>
-              <td className="App-td">
-                <Chart data={data} userCount={100}></Chart>
-              </td>
+              <BrowserView>
+                <td className="App-td">
+                  <Chart data={data} userCount={50}></Chart>
+                </td>
+                <td className="App-td">
+                  <Chart data={data} userCount={100}></Chart>
+                </td>
+              </BrowserView>
               <td className="App-td4">
                 <Price></Price>
               </td>

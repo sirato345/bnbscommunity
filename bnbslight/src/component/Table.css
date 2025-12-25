@@ -145,3 +145,13 @@
   cursor: pointer;
 }
 
+.Table-table-mobile {
+  font-size: 15px;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 100%;
+  border: 1px solid #ead7ca;
+  margin-bottom: 10px;
+}
