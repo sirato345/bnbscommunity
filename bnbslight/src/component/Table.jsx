@@ -121,16 +121,16 @@ function Table(props) {
 
           <div>
             <table className="Table-table-mobile">
-              <thead className="Table-th">
-                <th className="Table-th1">No.</th>
-                <th className="Table-th2">Address</th>
-                <th className="Table-th3">Amount</th>
+              <thead className="Table-th-mobile">
+                <th className="Table-th1-mobile">No.</th>
+                <th className="Table-th2-mobile">Address</th>
+                <th className="Table-th3-mobile">Amount</th>
               </thead>
               {data.map((item, index) => (
                 <tr className="Table-tr" key={index}>
-                  <td className="Table-td1">{item[0]}</td>
-                  <td className="Table-td2">{item[1]}</td>
-                  <td className="Table-td3">{item[2]}</td>
+                  <td className="Table-td1-mobile">{item[0]}</td>
+                  <td className="Table-td2-mobile">{item[1]}</td>
+                  <td className="Table-td3-mobile">{item[2]}</td>
                 </tr>
               ))}
             </table>

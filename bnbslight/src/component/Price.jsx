@@ -8,9 +8,9 @@ import { BrowserView, MobileView } from "react-device-detect";
 
 function Price() {
   const [bnbsPrice, setBNBsPrice] = React.useState(null);
+  const [marketCap, setMarketCap] = React.useState(null);
   const [bnbPrice, setBNBPrice] = React.useState(null);
   const [rate, setRate] = React.useState(null);
-  const [marketCap, setMarketCap] = React.useState(null);
 
   const BNBs_PRICE_API =
     "https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
@@ -34,7 +34,6 @@ function Price() {
       const response = await instance.get(allOriginsUrl);
       const contents = JSON.parse(response.data.contents);
       setBNBsPrice(contents.data.token_price.toFixed(6));
-      setRate(Math.trunc(bnbPrice / bnbsPrice));
       setMarketCap(Math.trunc(contents.data.circulate_mkt_cap));
       // allOrigins返回的数据结构是 { contents: "..." }
       return contents;
@@ -48,6 +47,7 @@ function Price() {
     instance.get(BNB_PRICE_API).then((res) => {
       console.log("Get BNB price:" + res.data["price"]);
       setBNBPrice(Number(res.data["price"]).toFixed(2));
+      setRate(Math.trunc(bnbPrice / bnbsPrice));
     });
   };
 
