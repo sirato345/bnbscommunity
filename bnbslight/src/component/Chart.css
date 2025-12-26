@@ -22,5 +22,15 @@
 
 .Chart-div3 {
   height: 20px;
+  width: 80px;
   margin-bottom: 3px;
+  display: flex;
+  margin-left: 50px;
+}
+
+.square {
+  width: 10px; /* 任意の幅 */
+  height: 10px;
+  border-radius: 3px;
+  margin-top: 5px;
 }
