@@ -35,10 +35,17 @@
   margin-top: 5px;
 }
 
+.Chart-square-mobile {
+  width: 10px; /* 任意の幅 */
+  height: 10px;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
 .Chart-div3-mobile {
   height: 20px;
   width: 70px;
   margin-bottom: 3px;
   display: flex;
-  margin-left: 25px;
+  margin-left: 30px;
 }
