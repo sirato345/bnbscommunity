@@ -96,7 +96,7 @@ function Chart(props) {
           </div>
           <div className="Chart-div3">
             <p className="Chart-lable">{data[0].name}</p>
-            <div className="square" style={{backgroundColor: data[0].color}}></div>
+            <div className="Chart-square" style={{backgroundColor: data[0].color}}></div>
           </div>
         </div>
       </BrowserView>
@@ -130,9 +130,9 @@ function Chart(props) {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="Chart-div3">
+          <div className="Chart-div3-mobile">
             <p className="Chart-lable">{data[0].name}</p>
-            <div className="square" style={{backgroundColor: data[0].color}}></div>
+            <div className="Chart-square" style={{backgroundColor: data[0].color}}></div>
           </div>
         </div>
       </MobileView>
