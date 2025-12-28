@@ -202,8 +202,8 @@
   height: 32px;
   border: 1px solid #ccc;
   padding: 0 1em 0;
-  width: 6%;
-  text-align: center;
+  width: 10%;
+  align-items: center;
 }
 
 .Table-td2-mobile {
@@ -219,7 +219,7 @@
   height: 32px;
   border: 1px solid #ccc;
   padding: 0 1em 0;
-  width: 22%;
+  width: 18%;
   text-align: center;
 }
 
