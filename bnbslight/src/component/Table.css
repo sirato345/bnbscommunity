@@ -179,8 +179,8 @@
   border: 1px solid #ccc;
   background-color: #caeae0;
   padding: 0 1em 0;
-  width: 10%;
-  align-items: center;
+  width: 8%;
+  text-align: center;
 }
 
 .Table-th2-mobile {
@@ -189,6 +189,7 @@
   background-color: #caeae0;
   padding: 0 1em 0;
   width: 72%;
+  text-align: center;
 }
 
 .Table-th3-mobile {
@@ -196,15 +197,16 @@
   border: 1px solid #ccc;
   background-color: #caeae0;
   padding: 0 1em 0;
-  width: 18%;
+  width: 20%;
+  text-align: center;
 }
 
 .Table-td1-mobile {
   height: 32px;
   border: 1px solid #ccc;
   padding: 0 1em 0;
-  width: 10%;
-  align-items: center;
+  width: 8%;
+  text-align: center;
 }
 
 .Table-td2-mobile {
@@ -220,7 +222,7 @@
   height: 32px;
   border: 1px solid #ccc;
   padding: 0 1em 0;
-  width: 18%;
+  width: 20%;
   text-align: center;
 }
 
