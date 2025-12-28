@@ -207,8 +207,6 @@
   padding: 0 1em 0;
   width: 8%;
   text-align: center;
-  display: flex;
-  justify-content: center; /* flex水平居中 */
 }
 
 .Table-td2-mobile {
