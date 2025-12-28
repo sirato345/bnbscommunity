@@ -223,7 +223,9 @@
   border: 1px solid #ccc;
   padding: 0 1em 0;
   width: 20%;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .Table-total1-mobile {
