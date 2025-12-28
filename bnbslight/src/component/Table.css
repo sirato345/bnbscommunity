@@ -179,7 +179,8 @@
   border: 1px solid #ccc;
   background-color: #caeae0;
   padding: 0 1em 0;
-  width: 6%;
+  width: 10%;
+  align-items: center;
 }
 
 .Table-th2-mobile {
@@ -195,7 +196,7 @@
   border: 1px solid #ccc;
   background-color: #caeae0;
   padding: 0 1em 0;
-  width: 22%;
+  width: 18%;
 }
 
 .Table-td1-mobile {
