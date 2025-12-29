@@ -16,9 +16,9 @@
   width: 18%;
 }
 
-html {
+/* html {
   scrollbar-gutter: stable;
-}
+} */
 
 .App-table-mobile {
   font-size: 15px;
