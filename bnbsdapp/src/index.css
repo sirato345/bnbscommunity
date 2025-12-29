@@ -22,8 +22,14 @@ a:hover {
   color: #535bf2;
 }
 
-html, body {
-  overflow: hidden; /* 完全禁用滚动 */
+/* 或者隐藏滚动条但保留滚动功能 */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
 }
 
 body {
@@ -32,6 +38,9 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+
+  overflow: auto; /* body 内容可滚动 */
+  height: 100vh;
 }
 
 h1 {
