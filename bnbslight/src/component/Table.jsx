@@ -128,7 +128,7 @@ function Table(props) {
               </thead>
               {data.map((item, index) => (
                 <tr className="Table-tr" key={index}>
-                  <td className="Table-td1-mobile">{Number(item[0])}</td>
+                  <td className="Table-td1-mobile"><span>{Number(item[0])}</span></td>
                   <td className="Table-td2-mobile">{item[1]}</td>
                   <td className="Table-td3-mobile">{item[2]}</td>
                 </tr>
