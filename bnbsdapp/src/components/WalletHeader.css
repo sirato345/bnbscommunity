@@ -1,0 +1,8 @@
+.WalletHeader-div {
+    display: flex;
+    align-items: center; /* 垂直方向中央揃え */
+}
+
+.WalletHeader-img {
+    margin-right: 5px;
+}
