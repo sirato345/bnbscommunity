@@ -6,6 +6,9 @@ import shutil
 app = FastAPI()
 
 origins = [
+    "http://localhost:3000",
+    "http://server.bnbscommunity.com",
+    "http://bnbchain.bnbscommunity.com",
     "https://localhost:3000",
     "https://server.bnbscommunity.com",
     "https://bnbchain.bnbscommunity.com",
@@ -13,7 +16,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

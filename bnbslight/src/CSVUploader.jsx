@@ -11,7 +11,7 @@ const CSVUploader = () => {
 
   // 基础配置
   const API_BASE_URL = "https://server.bnbscommunity.com";
-  // const API_BASE_URL = "http://localhost:8000";
+  // const API_BASE_URL = "https://localhost:8000";
 
   // 方案1：基本文件上传（正确的方式）
   const handleUpload = async () => {
