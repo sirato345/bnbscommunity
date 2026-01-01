@@ -6,7 +6,9 @@ import shutil
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",
+    "https://localhost:3000",
+    "https://server.bnbscommunity.com",
+    "https://bnbchain.bnbscommunity.com",
 ]
 
 app.add_middleware(
