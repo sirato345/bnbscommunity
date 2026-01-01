@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import "./CSVUploader.css"
-import Papa from 'papaparse';
+import "./CSVUploader.css";
+import Papa from "papaparse";
 
 const CSVUploader = () => {
   const [file, setFile] = useState(null);
@@ -10,7 +10,8 @@ const CSVUploader = () => {
   const navigate = useNavigate();
 
   // 基础配置
-  const API_BASE_URL = "http://localhost:8000";
+  const API_BASE_URL = "https://server.bnbscommunity.com";
+  // const API_BASE_URL = "http://localhost:8000";
 
   // 方案1：基本文件上传（正确的方式）
   const handleUpload = async () => {
@@ -22,13 +23,13 @@ const CSVUploader = () => {
       header: true, // 将第一行作为header，自动跳过
       skipEmptyLines: true,
       complete: (results) => {
-        console.log('解析结果:', results);
+        console.log("解析结果:", results);
         // results.data 已经去掉了第一行（header）
         setFile(results.data);
       },
       error: (error) => {
-        console.error('CSV解析错误:', error);
-      }
+        console.error("CSV解析错误:", error);
+      },
     });
 
     const formData = new FormData();
@@ -39,11 +40,15 @@ const CSVUploader = () => {
     setUploading(true);
 
     try {
-      await axios.post(
-        `${API_BASE_URL}/upload`,
-        formData
+      await axios.post(`${API_BASE_URL}/upload`, formData, {
+        // axios 会自动设置 multipart/form-data
+        headers: {
+          // 不要手动设置 Content-Type
+          Accept: "application/json",
+        },
+        timeout: 30000, // 30秒超时
         // 不要设置 headers，axios 会自动处理
-      );
+      });
       navigate("/");
     } catch (err) {
       console.error("上传失败:", err);

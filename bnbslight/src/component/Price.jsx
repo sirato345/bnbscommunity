@@ -1,8 +1,8 @@
 import React from "react";
 import axios from "axios";
 import { useEffect, useRef } from "react";
-import BNBLogo from "../image/BNB.png";
-import BNBsLogo from "../image/BNBs.png";
+import BNBLogo from "../image/BNB.jpg";
+import BNBsLogo from "../image/BNBs.jpg";
 import "./Price.css";
 import { BrowserView, MobileView } from "react-device-detect";
 
@@ -52,6 +52,10 @@ function Price() {
   };
 
   const refresh = (e) => {
+    setBNBsPrice("update");
+    setMarketCap("update");
+    setBNBPrice("update");
+    setRate("update");
     getBNBsPrice();
     getBNBPrice();
   };
@@ -92,7 +96,7 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{bnbsPrice === null ? "update" : rate} BNBs</span>
+              <span>{(bnbsPrice === null || isNaN(bnbsPrice)) ? "update" : rate} BNBs</span>
             </td>
           </tr>
           <tr className="Price-tr">

@@ -7,12 +7,15 @@ import Price from "./component/Price";
 import Papa from "papaparse";
 import { useWorker } from "@koale/useworker";
 import { BrowserView, MobileView } from "react-device-detect";
+import axios from "axios";
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
   const [data, setData] = React.useState(null);
   // const [workStatus, setWorkStatus] = useState(false);
 
+  const API_BASE_URL = "https://server.bnbscommunity.com";
+  // const API_BASE_URL = "http://localhost:8000";
   const TOTAL_COUNT = 21000000;
 
   const processCsvData = (csvData) => {
@@ -55,7 +58,6 @@ function App() {
             dynamicTyping: true,
             complete: (results) => {
               // setWorkStatus(true);
-              console.log(results.data);
               const processResult = processCsvData(results.data);
               // setWorkStatus(false);
               setData(processResult);
@@ -69,7 +71,16 @@ function App() {
           console.log("3.Failed reading csv file: " + err.message);
         }
       };
-      GetData();
+
+      axios
+        .get(API_BASE_URL)
+        .then((res) => {
+          setData(res.data);
+        })
+        .catch((error) => {
+          alert("Can not connect to server!");
+          GetData();
+        });
     }
   }, []);
 
