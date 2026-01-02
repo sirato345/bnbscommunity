@@ -143,7 +143,7 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{bnbsPrice === null ? "update" : rate} BNBs</span>
+              <span>{(bnbsPrice === null || isNaN(bnbsPrice)) ? "update" : rate} BNBs</span>
             </td>
           </tr>
           <tr className="Price-tr">

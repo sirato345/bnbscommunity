@@ -5,9 +5,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  overflow: auto; /* body 内容可滚动 */
-  height: 100vh;
 }
 
 code {
@@ -15,12 +12,7 @@ code {
     monospace;
 }
 
-/* 或者隐藏滚动条但保留滚动功能 */
+/* 一直表示滚动条 */
 html {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE 10+ */
-}
-
-html::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Edge */
+  overflow-y: scroll;
 }

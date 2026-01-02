@@ -6,16 +6,18 @@
   empty-cells: show;
   border-collapse: collapse;
   margin: 0 auto;
-  width: 15%;
+  width: 80%;
   margin-bottom: 10px;
-  width: 210px;
   height: 180px;
   margin-top: 10px;
 }
 
 .Price-search-btn {
   padding: 10px 20px;
-  margin: 5px;
+  margin-left: 1px;
+  margin-top: 5px;
+  margin-right: 5px;
+  margin-bottom: 5px;
   background-color: #4CAF50;
   color: white;
   border: none;

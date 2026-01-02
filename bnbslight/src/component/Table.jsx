@@ -41,11 +41,11 @@ function Table(props) {
       <form onSubmit={handleSubmit} method="post">
         <BrowserView>
           <table className="Table-search-area">
-            <tr className="Table-search-tr">
-              <td className="Table-total1">
+            <tr>
+              <td className="Table-search-td1">
                 <span>BNBs total holders: {props.data.length}</span>
               </td>
-              <td rowSpan="2" className="Table-search-td1">
+              <td rowSpan="2" className="Table-search-td2">
                 <input
                   type="text"
                   name="address"
@@ -53,14 +53,14 @@ function Table(props) {
                   placeholder="33d30"
                 ></input>
               </td>
-              <td rowSpan="2" className="Table-search-td2">
+              <td rowSpan="2" className="Table-search-td3">
                 <button type="submit" className="Table-search-btn">
                   Search
                 </button>
               </td>
             </tr>
-            <tr className="Table-search-tr">
-              <td className="Table-total2">
+            <tr>
+              <td className="Table-search-td1">
                 <span>BNBs total amount: 21000000</span>
               </td>
             </tr>
@@ -92,17 +92,17 @@ function Table(props) {
         </BrowserView>
         <MobileView>
           <table className="Table-search-area">
-            <tr className="Table-search-tr">
+            <tr>
               <td colspan="2" className="Table-total1-mobile">
                 <span>BNBs total holders: {props.data.length}</span>
               </td>
             </tr>
-            <tr className="Table-search-tr">
+            <tr>
               <td colspan="2" className="Table-total2-mobile">
                 <span>BNBs total amount: 21000000</span>
               </td>
             </tr>
-            <tr className="Table-search-tr">
+            <tr>
               <td className="Table-search-td1">
                 <input
                   type="text"
@@ -128,7 +128,7 @@ function Table(props) {
               </thead>
               {data.map((item, index) => (
                 <tr className="Table-tr" key={index}>
-                  <td className="Table-td1-mobile"><span>{Number(item[0])}</span></td>
+                  <td className="Table-td1-mobile">{item[0]}</td>
                   <td className="Table-td2-mobile">{item[1]}</td>
                   <td className="Table-td3-mobile">{item[2]}</td>
                 </tr>

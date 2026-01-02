@@ -87,7 +87,7 @@ function App() {
   return (
     <div ref={divRef}>
       {data && (
-        <div>
+        <div className="App-div">
           <BrowserView>
             <table className="App-table">
               <tr className="App-tr">
@@ -105,6 +105,7 @@ function App() {
                 </td>
               </tr>
             </table>
+            <Table data={data}></Table>
           </BrowserView>
           <MobileView>
             <table className="App-table-mobile">
@@ -117,8 +118,8 @@ function App() {
                 </td>
               </tr>
             </table>
+            <Table data={data}></Table>
           </MobileView>
-          <Table data={data}></Table>
         </div>
       )}
     </div>
