@@ -132,6 +132,7 @@
 .Table-table-mobile {
   font-size: 15px;
   /* table-layout: fixed; */
+  table-layout: fixed;
   empty-cells: show;
   border-collapse: collapse;
   margin: 0 auto;
