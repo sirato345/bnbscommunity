@@ -91,7 +91,7 @@ function Table(props) {
           </div>
         </BrowserView>
         <MobileView>
-          <table className="Table-search-area">
+          <table className="Table-search-area-mobile">
             <tr>
               <td colspan="2" className="Table-total1-mobile">
                 <span>BNBs total holders: {props.data.length}</span>

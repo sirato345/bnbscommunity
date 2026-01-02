@@ -139,6 +139,12 @@
   margin-bottom: 10px;
 }
 
+.Table-search-area-mobile {
+  /* width: 96%; */
+  height: 24px;
+  margin: 0 auto;
+}
+
 .Table-search-input-mobile {
   padding: 10px;
   border: 1px solid #ccc;
