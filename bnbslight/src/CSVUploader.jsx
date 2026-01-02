@@ -11,7 +11,7 @@ const CSVUploader = () => {
 
   // 基础配置
   const API_BASE_URL = "https://server.bnbscommunity.com";
-  // const API_BASE_URL = "https://localhost:8000";
+  // const API_BASE_URL = "http://localhost:8000";
 
   // 方案1：基本文件上传（正确的方式）
   const handleUpload = async () => {
@@ -40,15 +40,7 @@ const CSVUploader = () => {
     setUploading(true);
 
     try {
-      await axios.post(`${API_BASE_URL}/upload`, formData, {
-        // axios 会自动设置 multipart/form-data
-        headers: {
-          // 不要手动设置 Content-Type
-          Accept: "application/json",
-        },
-        timeout: 30000, // 30秒超时
-        // 不要设置 headers，axios 会自动处理
-      });
+      await axios.post(`${API_BASE_URL}/upload`, formData);
       navigate("/");
     } catch (err) {
       console.error("上传失败:", err);

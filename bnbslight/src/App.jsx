@@ -15,7 +15,7 @@ function App() {
   // const [workStatus, setWorkStatus] = useState(false);
 
   const API_BASE_URL = "https://server.bnbscommunity.com";
-  // const API_BASE_URL = "https://localhost:8000";
+  // const API_BASE_URL = "http://localhost:8000";
   const TOTAL_COUNT = 21000000;
 
   const processCsvData = (csvData) => {
