@@ -101,11 +101,6 @@
   text-align: left;
 }
 
-.Table-search-td2 {
-  height: 24px;
-  width: 50%;
-}
-
 .Table-search-td3 {
   height: 24px;
   width: 10%;
@@ -120,13 +115,18 @@
 }
 
 .Table-search-btn {
-  padding: 10px 20px;
-  margin: 3px;
+  padding: 10px;
+  margin-left: 1px;
+  margin-top: 5px;
+  margin-right: 5px;
+  margin-bottom: 5px;
   background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
+  width: 80px;
+  height: 36px;
 }
 
 .Table-table-mobile {
@@ -134,15 +134,14 @@
   empty-cells: show;
   border-collapse: collapse;
   margin: 0 auto;
-  /* width: 96%; */
   border: 1px solid #ccc;
   margin-bottom: 10px;
-
+  width: 100%;
   table-layout: fixed;
 }
 
 .Table-search-area-mobile {
-  /* width: 96%; */
+  width: 100%;
   height: 24px;
   margin: 0 auto;
 }
@@ -152,23 +151,31 @@
   border: 1px solid #ccc;
   border-radius: 4px 0 0 4px;
   outline: none;
-  width: 240px;
-  margin-left: 1px;
+  width: 91%;
+}
+
+.Table-col1-mobile {
+  width: 13%;
+}
+
+.Table-col2-mobile {
+  width: 68%;
+}
+
+.Table-col3-mobile {
+  width: 19%;
 }
 
 .Table-th-mobile Table-th1-mobile, Table-th2-mobile, Table-th3-mobile {
   height: 30px;
   border: 1px solid #ccc;
   background-color: #caeae0;
-  padding: 0 1em 0;
 }
 
 .Table-th1-mobile {
   height: 30px;
   border: 1px solid #ccc;
   background-color: #caeae0;
-  padding: 0 1em 0;
-  width: 8%;
   text-align: center;
 }
 
@@ -176,8 +183,6 @@
   height: 30px;
   border: 1px solid #ccc;
   background-color: #caeae0;
-  padding: 0 1em 0;
-  width: 72%;
   text-align: center;
 }
 
@@ -185,41 +190,32 @@
   height: 30px;
   border: 1px solid #ccc;
   background-color: #caeae0;
-  padding: 0 1em 0;
-  width: 20%;
   text-align: center;
 }
 
 .Table-td1-mobile {
   height: 32px;
   border: 1px solid #ccc;
-  padding: 0 1em 0;
-  width: 8%;
   text-align: center;
 }
 
 .Table-td2-mobile {
   height: 32px;
   border: 1px solid #ccc;
-  padding: 0 1em 0;
-  overflow-wrap: break-word;
+  word-break: break-word;
   padding-left: 5px;
-  width: 72%;
 }
 
 .Table-td3-mobile {
   height: 32px;
   border: 1px solid #ccc;
-  padding: 0 1em 0;
-  width: 20%;
   text-align: center;
 }
 
 .Table-total1-mobile {
   font-size: 15px;
-  padding-left: 4px;
   margin-top: 0px;
-  width: 40%;
+  width: 100%;
   font-weight: bold;
   color: black;
   text-align: left;
@@ -227,10 +223,44 @@
 
 .Table-total2-mobile {
   font-size: 15px;
-  padding-left: 4px;
   margin-top: 0px;
-  width: 40%;
+  width: 100%;
   font-weight: bold;
   color: black;
   text-align: left;
+}
+
+.Table-search-col1-mobile {
+  width: 75%;
+}
+
+.Table-search-col2-mobile {
+  width: 25%;
+}
+
+.Table-search-td1-mobile {
+  font-size: 15px;
+  margin-top: 0px;
+  font-weight: bold;
+  color: black;
+  text-align: left;
+}
+
+.Table-search-td2-mobile {
+  height: 24px;
+}
+
+.Table-search-btn-mobile {
+  padding: 10px;
+  margin-left: 2px;
+  margin-top: 5px;
+  margin-right: 5px;
+  margin-bottom: 5px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  width: 80px;
+  height: 36px;
 }

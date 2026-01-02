@@ -92,6 +92,10 @@ function Table(props) {
         </BrowserView>
         <MobileView>
           <table className="Table-search-area-mobile">
+            <colgroup>
+              <col className="Table-search-col1-mobile"></col>
+              <col className="Table-search-col2-mobile"></col>
+            </colgroup>
             <tr>
               <td colspan="2" className="Table-total1-mobile">
                 <span>BNBs total holders: {props.data.length}</span>
@@ -103,7 +107,7 @@ function Table(props) {
               </td>
             </tr>
             <tr>
-              <td className="Table-search-td1">
+              <td className="Table-search-td1-mobile">
                 <input
                   type="text"
                   name="address"
@@ -111,8 +115,8 @@ function Table(props) {
                   placeholder="33d30"
                 ></input>
               </td>
-              <td className="Table-search-td2">
-                <button type="submit" className="Table-search-btn">
+              <td className="Table-search-td2-mobile">
+                <button type="submit" className="Table-search-btn-mobile">
                   Search
                 </button>
               </td>
@@ -121,6 +125,11 @@ function Table(props) {
 
           <div>
             <table className="Table-table-mobile">
+              <colgroup>
+                <col className="Table-col1-mobile"></col>
+                <col className="Table-col2-mobile"></col>
+                <col className="Table-col3-mobile"></col>
+              </colgroup>
               <thead className="Table-th-mobile">
                 <th className="Table-th1-mobile">No.</th>
                 <th className="Table-th2-mobile">Address</th>

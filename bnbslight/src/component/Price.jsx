@@ -118,7 +118,11 @@ function Price() {
         </table>
       </BrowserView>
       <MobileView>
-        <table className="Price-table">
+        <table className="Price-table-mobile">
+          <colgroup>
+            <col className="Price-col1-mobile"></col>
+            <col className="Price-col2-mobile"></col>
+          </colgroup>
           <tr className="Price-tr2"></tr>
           <tr className="Price-tr">
             <td className="Price-td">

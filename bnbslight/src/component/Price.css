@@ -13,8 +13,8 @@
 }
 
 .Price-search-btn {
-  padding: 10px 20px;
-  margin-left: 1px;
+  padding: 10px;
+  margin-left: 2px;
   margin-top: 5px;
   margin-right: 5px;
   margin-bottom: 5px;
@@ -23,6 +23,8 @@
   border: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
+  width: 80px;
+  height: 36px;
 }
 
 .Price-tr {
@@ -63,14 +65,39 @@
   padding-bottom: 14px;
 }
 
+.Price-table-mobile {
+  font-size: 15px;
+  font-weight: bold;
+  color: black;
+  table-layout: fixed;
+  empty-cells: show;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 90%;
+  margin-bottom: 10px;
+  height: 180px;
+  margin-top: 10px;
+}
+
 .Price-search-btn-mobile {
-  padding: 10px 20px;
+  padding: 10px;
+  margin-left: 2px;
   margin-top: 5px;
+  margin-right: 5px;
   margin-bottom: 5px;
-  margin-right: 20px;
   background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
+  width: 80px;
+  height: 36px;
+}
+
+.Price-col1-mobile {
+  width: 43%;
+}
+
+.Price-col2-mobile {
+  width: 47%;
 }
