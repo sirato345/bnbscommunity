@@ -87,38 +87,42 @@ function App() {
   return (
     <div ref={divRef}>
       {data && (
-        <div className="App-div">
+        <div>
           <BrowserView>
-            <table className="App-table">
-              <tr className="App-tr">
-                <td className="App-td">
-                  <Chart data={data} userCount={10}></Chart>
-                </td>
-                <td className="App-td">
-                  <Chart data={data} userCount={50}></Chart>
-                </td>
-                <td className="App-td">
-                  <Chart data={data} userCount={100}></Chart>
-                </td>
-                <td className="App-td4">
-                  <Price></Price>
-                </td>
-              </tr>
-            </table>
-            <Table data={data}></Table>
+            <div className="App-div">
+              <table className="App-table">
+                <tr className="App-tr">
+                  <td className="App-td">
+                    <Chart data={data} userCount={10}></Chart>
+                  </td>
+                  <td className="App-td">
+                    <Chart data={data} userCount={50}></Chart>
+                  </td>
+                  <td className="App-td">
+                    <Chart data={data} userCount={100}></Chart>
+                  </td>
+                  <td className="App-td4">
+                    <Price></Price>
+                  </td>
+                </tr>
+              </table>
+              <Table data={data}></Table>
+            </div>
           </BrowserView>
           <MobileView>
-            <table className="App-table-mobile">
-              <tr className="App-tr">
-                <td className="App-td-mobile">
-                  <Chart data={data} userCount={10}></Chart>
-                </td>
-                <td className="App-td4-mobile">
-                  <Price></Price>
-                </td>
-              </tr>
-            </table>
-            <Table data={data}></Table>
+            <div className="App-div-mobile">
+              <table className="App-table-mobile">
+                <tr className="App-tr">
+                  <td className="App-td-mobile">
+                    <Chart data={data} userCount={10}></Chart>
+                  </td>
+                  <td className="App-td4-mobile">
+                    <Price></Price>
+                  </td>
+                </tr>
+              </table>
+              <Table data={data}></Table>
+            </div>
           </MobileView>
         </div>
       )}
