@@ -23,9 +23,10 @@
 }
 
 .App-div-mobile {
-  width: 98%;
+  width: '96vw';
+  height: '100vh';
   align-items: center;
-  margin-left: 1%;
+  margin-left: 2%;
 }
 
 .App-table-mobile {
@@ -33,7 +34,7 @@
   empty-cells: show;
   border-collapse: collapse;
   margin: 0 auto;
-  width: 100%;
+  width: '100vw';
   color: #666;
 }
 
