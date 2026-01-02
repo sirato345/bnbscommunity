@@ -134,7 +134,7 @@
   empty-cells: show;
   border-collapse: collapse;
   margin: 0 auto;
-  width: '100vw';
+  /* width: 96%; */
   border: 1px solid #ccc;
   margin-bottom: 10px;
 }
