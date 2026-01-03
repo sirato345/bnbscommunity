@@ -18,7 +18,7 @@ function Price() {
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
   // 调整axios配置
   const instance = axios.create({
-    timeout: 30000, // 增加超时时间
+    timeout: 20000, // 增加超时时间
     headers: {
       "Content-Type": "application/json",
     },
@@ -47,15 +47,13 @@ function Price() {
     instance.get(BNB_PRICE_API).then((res) => {
       console.log("Get BNB price:" + res.data["price"]);
       setBNBPrice(Number(res.data["price"]).toFixed(2));
-      setRate(Math.trunc(bnbPrice / bnbsPrice));
+      if (bnbsPrice != null && !isNaN(bnbsPrice)) {
+        setRate(Math.trunc(bnbPrice / bnbsPrice));
+      }
     });
   };
 
   const refresh = (e) => {
-    setBNBsPrice("update");
-    setMarketCap("update");
-    setBNBPrice("update");
-    setRate("update");
     getBNBsPrice();
     getBNBPrice();
   };
@@ -125,7 +123,7 @@ function Price() {
           </colgroup>
           <tr className="Price-tr2-mobile"></tr>
           <tr className="Price-tr">
-            <td className="Price-td">
+            <td className="Price-td-mobile">
               <img src={BNBLogo} alt="BNBLogo"></img>
               <span className="Price-span"> BNB</span>
             </td>
@@ -134,7 +132,7 @@ function Price() {
             </td>
           </tr>
           <tr className="Price-tr">
-            <td className="Price-td">
+            <td className="Price-td-mobile">
               <img src={BNBsLogo} alt="BNBsLogo"></img>
               <span className="Price-span"> BNBs</span>
             </td>

@@ -28,7 +28,7 @@
 }
 
 .Price-tr {
-  height: 30px;
+  height: 35px;
 }
 
 .Price-tr2 {
@@ -75,13 +75,13 @@
   margin: 0 auto;
   width: 90%;
   margin-bottom: 10px;
-  height: 180px;
+  height: 190px;
   margin-top: 10px;
 }
 
 .Price-search-btn-mobile {
   padding: 10px;
-  margin-left: 2px;
+  margin-left: 3px;
   margin-top: 0px;
   margin-right: 5px;
   margin-bottom: 5px;
@@ -104,4 +104,13 @@
 
 .Price-tr2-mobile {
   height: 0px;
+}
+
+.Price-td-mobile {
+  display: flex;
+  align-items: center;  /* 垂直居中 */
+  justify-content: left; /* 水平居中 */
+  flex-wrap: wrap; /* 允许多行 */
+  margin-left: 0px;
+  padding-top: 2px;
 }

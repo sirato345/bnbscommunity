@@ -84,7 +84,6 @@ function App() {
           setData(res.data);
         })
         .catch((error) => {
-          alert("Can not connect to server!");
           GetData();
         });
     }
