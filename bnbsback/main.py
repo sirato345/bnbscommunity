@@ -54,5 +54,5 @@ def Hello():
 @app.post("/upload")
 async def Upload(file: UploadFile = File(...)):        
     # 保存文件
-    with open("csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
+    with open("tmp/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
