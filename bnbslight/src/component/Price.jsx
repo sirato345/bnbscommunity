@@ -7,10 +7,10 @@ import "./Price.css";
 import { BrowserView, MobileView } from "react-device-detect";
 
 function Price() {
-  const [bnbsPrice, setBNBsPrice] = React.useState(null);
-  const [marketCap, setMarketCap] = React.useState(null);
   const [bnbPrice, setBNBPrice] = React.useState(null);
+  const [bnbsPrice, setBNBsPrice] = React.useState(null);
   const [rate, setRate] = React.useState(null);
+  const [marketCap, setMarketCap] = React.useState(null);
 
   const BNBs_PRICE_API =
     "https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
@@ -18,69 +18,55 @@ function Price() {
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
   // 调整axios配置
   const instance = axios.create({
-    timeout: 10000, // 增加超时时间
+    timeout: 20000, // 增加超时时间
     headers: {
       "Content-Type": "application/json",
     },
   });
 
-  const getBNBsPrice = async () => {
-    // 方法2：使用allOrigins（纯前端）
-    const fetchWithAllOrigins = async (url) => {
-      const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-        url
-      )}`;
-      const allOriginsUrl2 = `https://corsproxy.io/get?url=${encodeURIComponent(
-        url
-      )}`;
-
-      var response;
-      try {
-        response = await instance.get(allOriginsUrl);
-      } catch (error) {
-        console.log("timeout1");
-        try {
-          response = await instance.get(allOriginsUrl2);
-        } catch (error) {
-          console.log("timeout2");
-        }
-      }
-      if (response === null) {
-        return null;
-      } else {
-        const contents = JSON.parse(response.data.contents);
-        setBNBsPrice(contents.data.token_price.toFixed(6));
-        setMarketCap(Math.trunc(contents.data.circulate_mkt_cap));
-        // allOrigins返回的数据结构是 { contents: "..." }
-        return contents;
-      }
-    };
-
-    // 示例：获取GitHub用户信息
-    fetchWithAllOrigins(BNBs_PRICE_API).then((data) => console.log(data));
-  };
-
-  const getBNBPrice = async () => {
-    instance.get(BNB_PRICE_API).then((res) => {
-      console.log("Get BNB price:" + res.data["price"]);
-      setBNBPrice(Number(res.data["price"]).toFixed(2));
-      if (bnbsPrice != null && !isNaN(bnbsPrice)) {
-        setRate(Math.trunc(bnbPrice / bnbsPrice));
-      }
+  const refresh = async () => {
+    const allOriginsUrl1 = `https://corsproxy.io/get?url=${encodeURIComponent(
+      BNBs_PRICE_API
+    )}`;
+    const allOriginsUrl2 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
+      BNBs_PRICE_API
+    )}`;
+    await instance.get(BNB_PRICE_API).then((res) => {
+      var bnbPriceTmp = Number(res.data["price"]).toFixed(2);
+      setBNBPrice(bnbPriceTmp);
+      
+      instance
+        .get(allOriginsUrl1)
+        .then((res) => {
+          console.log("✅ 成功进入 then");
+          const contents = JSON.parse(JSON.stringify(res.data.data));
+          var bnbsPriceTmp = contents.token_price.toFixed(6);
+          setBNBsPrice(bnbsPriceTmp);
+          setMarketCap(Math.trunc(contents.circulate_mkt_cap));
+          setRate(Math.trunc(bnbPriceTmp / bnbsPriceTmp));
+        })
+        .catch((error) => {
+          console.log("❌ 进入 catch");
+          instance.get(allOriginsUrl2).then((res) => {
+            const contents = JSON.parse(JSON.stringify(res.data.data));
+            var bnbsPriceTmp = contents.token_price.toFixed(6);
+            setBNBsPrice(bnbsPriceTmp);
+            setMarketCap(Math.trunc(contents.circulate_mkt_cap));
+            setRate(Math.trunc(bnbPriceTmp / bnbsPriceTmp));
+          });
+        });
     });
   };
 
-  const refresh = (e) => {
-    getBNBsPrice();
-    getBNBPrice();
-  };
-
   const divRef = useRef(null);
+  const excuteOnce = useRef(false);
   useEffect(() => {
-    if (divRef.current) {
-      getBNBsPrice();
-      getBNBPrice();
+    // 防止重复请求
+    if (excuteOnce.current) {
+      return;
     }
+    refresh();
+    excuteOnce.current = true;
   });
 
   return (
@@ -94,7 +80,9 @@ function Price() {
               <span className="Price-span"> BNB</span>
             </td>
             <td>
-              <span className="Price-span4">{bnbPrice === null ? "update" : bnbPrice} $</span>
+              <span className="Price-span4">
+                {bnbPrice === null ? "update" : bnbPrice} $
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -103,7 +91,9 @@ function Price() {
               <span className="Price-span"> BNBs</span>
             </td>
             <td>
-              <span className="Price-span4">{bnbsPrice === null ? "update" : bnbsPrice} $</span>
+              <span className="Price-span4">
+                {bnbsPrice === null ? "update" : bnbsPrice} $
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -111,7 +101,9 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{(bnbsPrice === null || isNaN(bnbsPrice)) ? "update" : rate} BNBs</span>
+              <span>
+                {(rate === null || isNaN(rate)) ? "update" : rate} BNBs
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -145,7 +137,9 @@ function Price() {
               <span className="Price-span"> BNB</span>
             </td>
             <td>
-              <span className="Price-span4">{bnbPrice === null ? "update" : bnbPrice} $</span>
+              <span className="Price-span4">
+                {bnbPrice === null ? "update" : bnbPrice} $
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -154,7 +148,9 @@ function Price() {
               <span className="Price-span"> BNBs</span>
             </td>
             <td>
-              <span className="Price-span4">{bnbsPrice === null ? "update" : bnbsPrice} $</span>
+              <span className="Price-span4">
+                {bnbsPrice === null ? "update" : bnbsPrice} $
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -162,7 +158,9 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{(bnbsPrice === null || isNaN(bnbsPrice)) ? "update" : rate} BNBs</span>
+              <span>
+                {(rate === null || isNaN(rate)) ? "update" : rate} BNBs
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
