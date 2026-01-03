@@ -111,7 +111,7 @@ function Price() {
               <span className="Price-span3">MarketCap</span>
             </td>
             <td>
-              <span>{bnbsPrice === null ? "update" : marketCap} $</span>
+              <span>{marketCap === null ? "update" : marketCap} $</span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -168,7 +168,7 @@ function Price() {
               <span className="Price-span3">MarketCap</span>
             </td>
             <td>
-              <span>{bnbsPrice === null ? "update" : marketCap} $</span>
+              <span>{marketCap === null ? "update" : marketCap} $</span>
             </td>
           </tr>
           <tr className="Price-tr">
