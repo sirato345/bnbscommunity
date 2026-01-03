@@ -31,12 +31,21 @@ function Price() {
         url
       )}`;
 
-      const response = await instance.get(allOriginsUrl);
-      const contents = JSON.parse(response.data.contents);
-      setBNBsPrice(contents.data.token_price.toFixed(6));
-      setMarketCap(Math.trunc(contents.data.circulate_mkt_cap));
-      // allOrigins返回的数据结构是 { contents: "..." }
-      return contents;
+      var response;
+      try {
+        response = await instance.get(allOriginsUrl);
+      } catch (error) {
+        console.log("timeout");
+      }
+      if (response === null) {
+        return null;
+      } else {
+        const contents = JSON.parse(response.data.contents);
+        setBNBsPrice(contents.data.token_price.toFixed(6));
+        setMarketCap(Math.trunc(contents.data.circulate_mkt_cap));
+        // allOrigins返回的数据结构是 { contents: "..." }
+        return contents;
+      }
     };
 
     // 示例：获取GitHub用户信息
