@@ -18,7 +18,7 @@ function Price() {
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
   // 调整axios配置
   const instance = axios.create({
-    timeout: 20000, // 增加超时时间
+    timeout: 10000, // 增加超时时间
     headers: {
       "Content-Type": "application/json",
     },
@@ -30,12 +30,20 @@ function Price() {
       const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
         url
       )}`;
+      const allOriginsUrl2 = `https://corsproxy.io/get?url=${encodeURIComponent(
+        url
+      )}`;
 
       var response;
       try {
         response = await instance.get(allOriginsUrl);
       } catch (error) {
-        console.log("timeout");
+        console.log("timeout1");
+        try {
+          response = await instance.get(allOriginsUrl2);
+        } catch (error) {
+          console.log("timeout2");
+        }
       }
       if (response === null) {
         return null;
