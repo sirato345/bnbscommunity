@@ -12,11 +12,17 @@ import axios from "axios";
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
   const [data, setData] = React.useState(null);
+  const [chartFlg, setChartFlg] = React.useState(10);
   // const [workStatus, setWorkStatus] = useState(false);
 
   const API_BASE_URL = "https://server.bnbscommunity.com";
   // const API_BASE_URL = "http://localhost:8000";
   const TOTAL_COUNT = 21000000;
+
+  // 定义回调函数，接收子组件数据
+  const onGetChartFLg = (chartFlg) => {
+    setChartFlg(chartFlg);
+  };
 
   const processCsvData = (csvData) => {
     let processResult = [];
@@ -113,9 +119,21 @@ function App() {
             <div className="App-div-mobile">
               <table className="App-table-mobile">
                 <tr className="App-tr">
-                  <td className="App-td-mobile">
-                    <Chart data={data} userCount={10}></Chart>
-                  </td>
+                  {chartFlg === 10 ? (
+                    <td className="App-td-mobile">
+                      <Chart data={data} userCount={10} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                    </td>
+                  ) : null}
+                  {chartFlg === 50 ? (
+                    <td className="App-td-mobile">
+                      <Chart data={data} userCount={50} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                    </td>
+                  ) : null}
+                  {chartFlg === 100 ? (
+                    <td className="App-td-mobile">
+                      <Chart data={data} userCount={100} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                    </td>
+                  ) : null}
                   <td className="App-td4-mobile">
                     <Price></Price>
                   </td>
