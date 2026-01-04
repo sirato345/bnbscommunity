@@ -1,4 +1,5 @@
-import { LiFiWidget, WidgetConfig, WidgetFeeConfig } from '@lifi/widget'
+import { LiFiWidget, WidgetConfig, WidgetFeeConfig, WidgetSDKConfig } from '@lifi/widget'
+import type { RouteOptions } from '@lifi/sdk'
 
 // Basic advanced configuration
 const basicFeeConfig: WidgetFeeConfig = {
@@ -13,12 +14,24 @@ const basicFeeConfig: WidgetFeeConfig = {
   // 0.003	4.80	0.87（增加千分之三）
 };
 
+// Basic advanced configuration
+const routeOptions: RouteOptions = {
+  maxPriceImpact: 1,
+};
+
+// Basic advanced configuration
+const sdkConfig: WidgetSDKConfig = {
+  routeOptions: routeOptions,
+};
+
 const widgetConfig: WidgetConfig = {
   integrator: "BNBs",
   // Set fee parameter to 3%
   feeConfig: basicFeeConfig,
   // 禁用深色模式
   appearance: 'light',
+  // 低流动性对应
+  sdkConfig: sdkConfig,
   // 启用此选项后，将采用混合方法，有效地结合外部和内部钱包管理。
   // 这种设置可在集成商的自定义钱包菜单和组件的原生钱包菜单之间实现灵活的平衡，
   // 确保在所有生态系统中都能提供流畅的用户体验，即使外部支持不完善或正在过渡中。
