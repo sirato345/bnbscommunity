@@ -1,5 +1,8 @@
 import { LiFiWidget, WidgetConfig, WidgetFeeConfig, WidgetSDKConfig } from '@lifi/widget'
 import type { RouteOptions } from '@lifi/sdk'
+import { useWidgetEvents, WidgetEvent } from '@lifi/widget';
+import { useEffect } from 'react';
+import type { Route } from '@lifi/sdk';
 
 // Basic advanced configuration
 const basicFeeConfig: WidgetFeeConfig = {
@@ -39,11 +42,22 @@ const widgetConfig: WidgetConfig = {
     usePartialWalletManagement: true,
     forceInternalWalletManagement: true,
   },
-
-  // Other options...
 };
 
-export function App() {
+function App() {
+  const widgetEvents = useWidgetEvents();
+
+  useEffect(() => {
+    const onRouteExecutionCompleted = (route: Route) => {
+      console.log("fromAddress:" + route.fromAddress);
+      console.log("fromAmountUSD:" + route.fromAmountUSD);
+      console.log("fromChainId:" + route.fromChainId);
+    };
+    widgetEvents.on(WidgetEvent.RouteExecutionCompleted, onRouteExecutionCompleted);
+
+    return () => widgetEvents.all.clear();
+  }, [widgetEvents]);
+
   return (
     <div className="App-div">
       <LiFiWidget integrator="BNBs" config={widgetConfig} />
