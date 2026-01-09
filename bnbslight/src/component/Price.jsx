@@ -34,6 +34,7 @@ function Price() {
       return Number(res.data["price"]).toFixed(2);
     });
     setBNBPrice(bnbPrice);
+    return bnbPrice;
   };
 
   const getBNBsPrice = async (bnbPrice) => {
@@ -52,6 +53,10 @@ function Price() {
         setBNBsPrice(bnbsPrice);
         setMarketCap(Math.trunc(contents.circulate_mkt_cap));
         setRate(Math.trunc(bnbPrice / bnbsPrice));
+        console.log("bnbPrice:" + bnbPrice);
+        console.log("bnbsPrice:" + bnbsPrice);
+        console.log("marketCap:" + Math.trunc(contents.circulate_mkt_cap));
+        console.log("rate:" + Math.trunc(bnbPrice / bnbsPrice));
       });
     } catch (error) {
       console.log("❌ 进入 catch");
