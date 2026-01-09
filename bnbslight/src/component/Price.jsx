@@ -16,12 +16,6 @@ function Price() {
     "https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
   const BNB_PRICE_API =
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
-  const allOriginsUrl1 = `https://corsproxy.io/get?url=${encodeURIComponent(
-    BNBs_PRICE_API
-  )}`;
-  const allOriginsUrl2 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
-    BNBs_PRICE_API
-  )}`;
 
   // 调整axios配置
   const instance = axios.create({
@@ -47,6 +41,13 @@ function Price() {
   };
 
   const getBNBsInfo = async () => {
+    const random = Math.random();
+    const allOriginsUrl1 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
+      BNBs_PRICE_API + `?nocache=${random}`
+    )}`;
+    const allOriginsUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(
+      BNBs_PRICE_API + `?nocache=${random}`
+    )}`;
     try {
       // 不要使用.then()，因为是异步处理，需要回调
       const res = await instance.get(allOriginsUrl1);
