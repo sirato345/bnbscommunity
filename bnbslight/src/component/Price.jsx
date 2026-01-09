@@ -7,15 +7,22 @@ import "./Price.css";
 import { BrowserView, MobileView } from "react-device-detect";
 
 function Price() {
-  const [bnbPrice, setBNBPrice] = React.useState(null);
-  const [bnbsPrice, setBNBsPrice] = React.useState(null);
-  const [rate, setRate] = React.useState(null);
-  const [marketCap, setMarketCap] = React.useState(null);
+  const [bnbPriceForm, setBNBPrice] = React.useState(null);
+  const [bnbsPriceForm, setBNBsPrice] = React.useState(null);
+  const [rateForm, setRate] = React.useState(null);
+  const [marketCapForm, setMarketCap] = React.useState(null);
 
   const BNBs_PRICE_API =
     "https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
   const BNB_PRICE_API =
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
+  const allOriginsUrl1 = `https://corsproxy.io/get?url=${encodeURIComponent(
+    BNBs_PRICE_API
+  )}`;
+  const allOriginsUrl2 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
+    BNBs_PRICE_API
+  )}`;
+
   // 调整axios配置
   const instance = axios.create({
     timeout: 20000, // 增加超时时间
@@ -26,47 +33,41 @@ function Price() {
 
   const refresh = async () => {
     const bnbPrice = await getBNBPrice();
-    await getBNBsPrice(bnbPrice);
+    const [bnbsPrice, marketCap] = await getBNBsInfo();
+    setBNBPrice(bnbPrice);
+    setBNBsPrice(bnbsPrice);
+    setMarketCap(marketCap);
+    setRate(Math.trunc(bnbPrice / bnbsPrice));
   };
 
   const getBNBPrice = async () => {
-    const bnbPrice = await instance.get(BNB_PRICE_API).then((res) => {
-      return Number(res.data["price"]).toFixed(2);
-    });
-    setBNBPrice(bnbPrice);
+    const res = await instance.get(BNB_PRICE_API);
+    const bnbPrice = Number(res.data["price"]).toFixed(2);
     return bnbPrice;
   };
 
-  const getBNBsPrice = async (bnbPrice) => {
-    const allOriginsUrl1 = `https://corsproxy.io/get?url=${encodeURIComponent(
-      BNBs_PRICE_API
-    )}`;
-    const allOriginsUrl2 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
-      BNBs_PRICE_API
-    )}`;
-
+  const getBNBsInfo = async () => {
     try {
-      await instance.get(allOriginsUrl1).then((res) => {
-        console.log("✅ 成功进入 then");
-        const contents = JSON.parse(JSON.stringify(res.data.data));
-        const bnbsPrice = contents.token_price.toFixed(6);
-        setBNBsPrice(bnbsPrice);
-        setMarketCap(Math.trunc(contents.circulate_mkt_cap));
-        setRate(Math.trunc(bnbPrice / bnbsPrice));
-        console.log("bnbPrice:" + bnbPrice);
-        console.log("bnbsPrice:" + bnbsPrice);
-        console.log("marketCap:" + Math.trunc(contents.circulate_mkt_cap));
-        console.log("rate:" + Math.trunc(bnbPrice / bnbsPrice));
-      });
+      // 不要使用.then()，因为是异步处理，需要回调
+      const res = await instance.get(allOriginsUrl1);
+      console.log("✅ 成功进入 then");
+      const contents = JSON.parse(JSON.stringify(res.data.data));
+      const bnbsPrice = contents.token_price.toFixed(6);
+      const marketCap = Math.trunc(contents.circulate_mkt_cap);
+
+      console.log("bnbsPrice:" + bnbsPrice);
+      console.log("marketCap:" + marketCap);
+      return [bnbsPrice, marketCap];
     } catch (error) {
       console.log("❌ 进入 catch");
-      await instance.get(allOriginsUrl2).then((res) => {
-        const contents = JSON.parse(JSON.stringify(res.data.data));
-        const bnbsPrice = contents.token_price.toFixed(6);
-        setBNBsPrice(bnbsPrice);
-        setMarketCap(Math.trunc(contents.circulate_mkt_cap));
-        setRate(Math.trunc(bnbPrice / bnbsPrice));
-      });
+      const res = await instance.get(allOriginsUrl2);
+      const contents = JSON.parse(JSON.stringify(res.data.data));
+      const bnbsPrice = contents.token_price.toFixed(6);
+      const marketCap = Math.trunc(contents.circulate_mkt_cap);
+
+      console.log("bnbsPrice:" + bnbsPrice);
+      console.log("marketCap:" + marketCap);
+      return [bnbsPrice, marketCap];
     }
   };
 
@@ -93,7 +94,7 @@ function Price() {
             </td>
             <td>
               <span className="Price-span4">
-                {bnbPrice === null ? "update" : bnbPrice} $
+                {bnbPriceForm === null ? "update" : bnbPriceForm} $
               </span>
             </td>
           </tr>
@@ -104,7 +105,7 @@ function Price() {
             </td>
             <td>
               <span className="Price-span4">
-                {bnbsPrice === null ? "update" : bnbsPrice} $
+                {bnbsPriceForm === null ? "update" : bnbsPriceForm} $
               </span>
             </td>
           </tr>
@@ -113,7 +114,10 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{rate === null || isNaN(rate) ? "update" : rate} BNBs</span>
+              <span>
+                {rateForm === null || isNaN(rateForm) ? "update" : rateForm}{" "}
+                BNBs
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -121,7 +125,7 @@ function Price() {
               <span className="Price-span3">MarketCap</span>
             </td>
             <td>
-              <span>{marketCap === null ? "update" : marketCap} $</span>
+              <span>{marketCapForm === null ? "update" : marketCapForm} $</span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -148,7 +152,7 @@ function Price() {
             </td>
             <td>
               <span className="Price-span4">
-                {bnbPrice === null ? "update" : bnbPrice} $
+                {bnbPriceForm === null ? "update" : bnbPriceForm} $
               </span>
             </td>
           </tr>
@@ -159,7 +163,7 @@ function Price() {
             </td>
             <td>
               <span className="Price-span4">
-                {bnbsPrice === null ? "update" : bnbsPrice} $
+                {bnbsPriceForm === null ? "update" : bnbsPriceForm} $
               </span>
             </td>
           </tr>
@@ -168,7 +172,10 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>{rate === null || isNaN(rate) ? "update" : rate} BNBs</span>
+              <span>
+                {rateForm === null || isNaN(rateForm) ? "update" : rateForm}{" "}
+                BNBs
+              </span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -176,7 +183,7 @@ function Price() {
               <span className="Price-span3">MarketCap</span>
             </td>
             <td>
-              <span>{marketCap === null ? "update" : marketCap} $</span>
+              <span>{marketCapForm === null ? "update" : marketCapForm} $</span>
             </td>
           </tr>
           <tr className="Price-tr">
