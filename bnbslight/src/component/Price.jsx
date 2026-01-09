@@ -25,37 +25,44 @@ function Price() {
   });
 
   const refresh = async () => {
+    const bnbPrice = await getBNBPrice();
+    await getBNBsPrice(bnbPrice);
+  };
+
+  const getBNBPrice = async () => {
+    const bnbPrice = await instance.get(BNB_PRICE_API).then((res) => {
+      return Number(res.data["price"]).toFixed(2);
+    });
+    setBNBPrice(bnbPrice);
+  };
+
+  const getBNBsPrice = async (bnbPrice) => {
     const allOriginsUrl1 = `https://corsproxy.io/get?url=${encodeURIComponent(
       BNBs_PRICE_API
     )}`;
     const allOriginsUrl2 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
       BNBs_PRICE_API
     )}`;
-    await instance.get(BNB_PRICE_API).then((res) => {
-      var bnbPriceTmp = Number(res.data["price"]).toFixed(2);
-      setBNBPrice(bnbPriceTmp);
-      
-      instance
-        .get(allOriginsUrl1)
-        .then((res) => {
-          console.log("✅ 成功进入 then");
-          const contents = JSON.parse(JSON.stringify(res.data.data));
-          var bnbsPriceTmp = contents.token_price.toFixed(6);
-          setBNBsPrice(bnbsPriceTmp);
-          setMarketCap(Math.trunc(contents.circulate_mkt_cap));
-          setRate(Math.trunc(bnbPriceTmp / bnbsPriceTmp));
-        })
-        .catch((error) => {
-          console.log("❌ 进入 catch");
-          instance.get(allOriginsUrl2).then((res) => {
-            const contents = JSON.parse(JSON.stringify(res.data.data));
-            var bnbsPriceTmp = contents.token_price.toFixed(6);
-            setBNBsPrice(bnbsPriceTmp);
-            setMarketCap(Math.trunc(contents.circulate_mkt_cap));
-            setRate(Math.trunc(bnbPriceTmp / bnbsPriceTmp));
-          });
-        });
-    });
+
+    try {
+      await instance.get(allOriginsUrl1).then((res) => {
+        console.log("✅ 成功进入 then");
+        const contents = JSON.parse(JSON.stringify(res.data.data));
+        const bnbsPrice = contents.token_price.toFixed(6);
+        setBNBsPrice(bnbsPrice);
+        setMarketCap(Math.trunc(contents.circulate_mkt_cap));
+        setRate(Math.trunc(bnbPrice / bnbsPrice));
+      });
+    } catch (error) {
+      console.log("❌ 进入 catch");
+      await instance.get(allOriginsUrl2).then((res) => {
+        const contents = JSON.parse(JSON.stringify(res.data.data));
+        const bnbsPrice = contents.token_price.toFixed(6);
+        setBNBsPrice(bnbsPrice);
+        setMarketCap(Math.trunc(contents.circulate_mkt_cap));
+        setRate(Math.trunc(bnbPrice / bnbsPrice));
+      });
+    }
   };
 
   const divRef = useRef(null);
@@ -101,9 +108,7 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>
-                {(rate === null || isNaN(rate)) ? "update" : rate} BNBs
-              </span>
+              <span>{rate === null || isNaN(rate) ? "update" : rate} BNBs</span>
             </td>
           </tr>
           <tr className="Price-tr">
@@ -158,9 +163,7 @@ function Price() {
               <span className="Price-span2">1 BNB = </span>
             </td>
             <td>
-              <span>
-                {(rate === null || isNaN(rate)) ? "update" : rate} BNBs
-              </span>
+              <span>{rate === null || isNaN(rate) ? "update" : rate} BNBs</span>
             </td>
           </tr>
           <tr className="Price-tr">
