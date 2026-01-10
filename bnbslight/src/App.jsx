@@ -56,8 +56,8 @@ function App() {
   const initOnce = useRef(false);
   // 在 React 组件加载时获取数据，推荐使用 useEffect 配合空依赖数组来实现。
   useEffect(() => {
-    // 从服务器取得CSV
-    const getDataFromServer = async () => {
+    // 从前端取得CSV
+    const getDataFromFront = async () => {
       try {
         const response = await fetch(
           "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
@@ -87,8 +87,8 @@ function App() {
       }
     };
 
-    // 从前端取得CSV
-    const getDataFromFront = async () => {
+    // 从后端取得CSV
+    const getDataFromBack = async () => {
       const res = await instance.get(API_BASE_URL);
       setData(res.data);
     };
@@ -96,7 +96,7 @@ function App() {
     if (!initOnce.current) {
       initOnce.current = true;
       try {
-        getDataFromServer();
+        getDataFromBack();
         console.log("Get csv data from server.");
       } catch (error) {
         getDataFromFront();
