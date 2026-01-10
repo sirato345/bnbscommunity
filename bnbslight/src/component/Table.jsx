@@ -1,6 +1,6 @@
 import "./Table.css";
 import React from "react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { BrowserView, MobileView  } from "react-device-detect"
 
 function Table(props) {
@@ -29,15 +29,12 @@ function Table(props) {
     // form.reset();// 重置表单，form内容清空
   };
 
-  const divRef = useRef(null);
   useEffect(() => {
-    if (divRef.current) {
-      setData(props.data);
-    }
-  }, [props.data]);
+    setData(props.data);
+  }, [props.data]);// props.data每次变更都重新加载组件
 
   return (
-    <div ref={divRef}>
+    <div>
       <form onSubmit={handleSubmit} method="post">
         <BrowserView>
           <table className="Table-search-area">

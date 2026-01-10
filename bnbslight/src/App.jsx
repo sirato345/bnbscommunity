@@ -19,6 +19,14 @@ function App() {
   // const API_BASE_URL = "http://localhost:8000";
   const TOTAL_COUNT = 21000000;
 
+  // 调整axios配置
+  const instance = axios.create({
+    timeout: 20000, // 增加超时时间
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
   // 定义回调函数，接收子组件数据
   const onGetChartFLg = (chartFlg) => {
     setChartFlg(chartFlg);
@@ -45,52 +53,60 @@ function App() {
   // 异步处理启动
   useWorker(processCsvData);
 
-  const divRef = useRef(null);
+  const initOnce = useRef(false);
+  // 在 React 组件加载时获取数据，推荐使用 useEffect 配合空依赖数组来实现。
   useEffect(() => {
-    if (divRef.current) {
-      const GetData = async () => {
-        try {
-          const response = await fetch(
-            "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
-          );
-          if (!response.ok) {
-            console.log(`1.Can not read csv file! status: ${response.status}`);
-          }
-
-          const csvText = await response.text();
-
-          Papa.parse(csvText, {
-            header: true,
-            dynamicTyping: true,
-            complete: (results) => {
-              // setWorkStatus(true);
-              const processResult = processCsvData(results.data);
-              // setWorkStatus(false);
-              setData(processResult);
-            },
-            error: (err) => {
-              console.log("2.Can not parse csv file: " + err.message);
-            },
-          });
-          console.log("4.Reading csv file succeed!");
-        } catch (err) {
-          console.log("3.Failed reading csv file: " + err.message);
+    // 从服务器取得CSV
+    const getDataFromServer = async () => {
+      try {
+        const response = await fetch(
+          "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
+        );
+        if (!response.ok) {
+          console.log(`1.Can not read csv file! status: ${response.status}`);
         }
-      };
 
-      axios
-        .get(API_BASE_URL)
-        .then((res) => {
-          setData(res.data);
-        })
-        .catch((error) => {
-          GetData();
+        const csvText = await response.text();
+
+        Papa.parse(csvText, {
+          header: true,
+          dynamicTyping: true,
+          complete: (results) => {
+            // setWorkStatus(true);
+            const processResult = processCsvData(results.data);
+            // setWorkStatus(false);
+            setData(processResult);
+          },
+          error: (err) => {
+            console.log("2.Can not parse csv file: " + err.message);
+          },
         });
+        console.log("4.Reading csv file succeed!");
+      } catch (err) {
+        console.log("3.Failed reading csv file: " + err.message);
+      }
+    };
+
+    // 从前端取得CSV
+    const getDataFromFront = async () => {
+      const res = await instance.get(API_BASE_URL);
+      setData(res.data);
+    };
+
+    if (!initOnce.current) {
+      initOnce.current = true;
+      try {
+        getDataFromServer();
+        console.log("Get csv data from server.");
+      } catch (error) {
+        getDataFromFront();
+        console.log("Get csv data from front.");
+      }
     }
-  }, []);
+  }); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
 
   return (
-    <div ref={divRef}>
+    <div>
       {data && (
         <div>
           <BrowserView>
@@ -120,17 +136,32 @@ function App() {
                 <tr className="App-tr">
                   {chartFlg === 10 ? (
                     <td className="App-td-mobile">
-                      <Chart data={data} userCount={10} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                      <Chart
+                        data={data}
+                        userCount={10}
+                        chartFlg={chartFlg}
+                        callbacks={onGetChartFLg}
+                      ></Chart>
                     </td>
                   ) : null}
                   {chartFlg === 50 ? (
                     <td className="App-td-mobile">
-                      <Chart data={data} userCount={50} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                      <Chart
+                        data={data}
+                        userCount={50}
+                        chartFlg={chartFlg}
+                        callbacks={onGetChartFLg}
+                      ></Chart>
                     </td>
                   ) : null}
                   {chartFlg === 100 ? (
                     <td className="App-td-mobile">
-                      <Chart data={data} userCount={100} chartFlg={chartFlg} callbacks={onGetChartFLg}></Chart>
+                      <Chart
+                        data={data}
+                        userCount={100}
+                        chartFlg={chartFlg}
+                        callbacks={onGetChartFLg}
+                      ></Chart>
                     </td>
                   ) : null}
                   <td className="App-td4-mobile">

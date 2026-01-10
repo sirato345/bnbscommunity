@@ -8,7 +8,7 @@ import type { Route } from '@lifi/sdk';
 const basicFeeConfig: WidgetFeeConfig = {
   name: "BNBs DApp fee",
   logoURI: "BNBs.svg",
-  fee: 0,
+  fee: 0.0015,
   showFeePercentage: true,
   showFeeTooltip: true,
   // 0.000  2.18	基础费用（一个BNB，870u的情况下，约千分之二点五）
@@ -50,8 +50,18 @@ function App() {
   useEffect(() => {
     const onRouteExecutionCompleted = (route: Route) => {
       console.log("fromAddress:" + route.fromAddress);
+      console.log("toAddress:" + route.toAddress);
       console.log("fromAmountUSD:" + route.fromAmountUSD);
+      console.log("toAmountUSD:" + route.toAmountUSD);
       console.log("fromChainId:" + route.fromChainId);
+      console.log("toChainId:" + route.toChainId);
+      console.log("gasCostUSD:" + route.gasCostUSD);
+      // gasCostUSD maybe undefined
+      // console.log("fee:" + (Number(route.fromAmountUSD) - Number(route.toAmountUSD) - Number(route.gasCostUSD)));
+      // ChainId
+      // Bitcoin 20000000000001
+      // Solana 1151111081099710
+      // Sui 9270000000000000
     };
     widgetEvents.on(WidgetEvent.RouteExecutionCompleted, onRouteExecutionCompleted);
 

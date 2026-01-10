@@ -72,19 +72,18 @@ function Price() {
     }
   };
 
-  const divRef = useRef(null);
-  const excuteOnce = useRef(false);
+  const initOnce = useRef(false);
   useEffect(() => {
     // 防止重复请求
-    if (excuteOnce.current) {
+    if (initOnce.current) {
       return;
     }
     refresh();
-    excuteOnce.current = true;
+    initOnce.current = true;
   });
 
   return (
-    <div ref={divRef}>
+    <div>
       <BrowserView>
         <table className="Price-table">
           <tr className="Price-tr2"></tr>
