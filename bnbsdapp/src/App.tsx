@@ -8,7 +8,7 @@ import type { Route } from '@lifi/sdk';
 const basicFeeConfig: WidgetFeeConfig = {
   name: "BNBs DApp fee",
   logoURI: "BNBs.svg",
-  fee: 0.0025,
+  fee: 0,
   showFeePercentage: true,
   showFeeTooltip: true,
   // 0.000  2.18	基础费用（一个BNB，870u的情况下，约千分之二点五）
