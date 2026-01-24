@@ -7,7 +7,7 @@ import Price from "./component/Price";
 import Papa from "papaparse";
 import { useWorker } from "@koale/useworker";
 import { BrowserView, MobileView } from "react-device-detect";
-import axios from "axios";
+// import axios from "axios";
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
@@ -15,17 +15,17 @@ function App() {
   const [chartFlg, setChartFlg] = React.useState(10);
   // const [workStatus, setWorkStatus] = useState(false);
 
-  const API_BASE_URL = "https://server.bnbscommunity.com";
+  // const API_BASE_URL = "https://server.bnbscommunity.com";
   // const API_BASE_URL = "http://localhost:8000";
   const TOTAL_COUNT = 21000000;
 
   // 调整axios配置
-  const instance = axios.create({
-    timeout: 20000, // 增加超时时间
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  // const instance = axios.create({
+  //   timeout: 20000, // 增加超时时间
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //   },
+  // });
 
   // 定义回调函数，接收子组件数据
   const onGetChartFLg = (chartFlg) => {
