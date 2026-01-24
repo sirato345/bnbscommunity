@@ -88,20 +88,20 @@ function App() {
     };
 
     // 从后端取得CSV
-    const getDataFromBack = async () => {
-      const res = await instance.get(API_BASE_URL);
-      setData(res.data);
-    };
+    // const getDataFromBack = async () => {
+    //   const res = await instance.get(API_BASE_URL);
+    //   setData(res.data);
+    // };
 
     if (!initOnce.current) {
       initOnce.current = true;
-      try {
-        getDataFromBack();
-        console.log("Get csv data from server.");
-      } catch (error) {
+      // try {
+      //   getDataFromBack();
+      //   console.log("Get csv data from server.");
+      // } catch (error) {
         getDataFromFront();
-        console.log("Get csv data from front.");
-      }
+      //   console.log("Get csv data from front.");
+      // }
     }
   }); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
 
