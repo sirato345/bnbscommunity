@@ -34,8 +34,8 @@ SYMBOL_BTC = 'BTC/USDT'
 
 @app.get("/")
 def getSignals():
-    timeFrame: str
-    symbol: str
+    timeFrame = TIME_FRAME_1H
+    symbol = SYMBOL_BTC
     """
     主函数
     """
