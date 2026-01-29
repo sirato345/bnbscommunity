@@ -30,22 +30,23 @@ TOTAL_COUNT = 21000000
 KLINE_LIMIT = 100
 TIME_FRAME_1H = '1h'
 TIME_FRAME_4H = '4h'
-    
-@app.get("/getSignals")
+SYMBOL_BTC = 'BTC/USDT'
+
+@app.get("/")
 def getSignals(timeFrame: str, symbol: str):
     """
     主函数
     """
-    if (timeFrame != TIME_FRAME_1H or timeFrame != TIME_FRAME_4H):
-        return
+    if (timeFrame == None or timeFrame == ""):
+        timeFrame = TIME_FRAME_1H
     if (symbol == None or symbol == ""):
-        return
+        symbol = SYMBOL_BTC
     
     try:
         # 获取数据并计算指标
-        df = get_all_indicators(TIME_FRAME_1H, SYMBOL_BTC)
+        df = get_all_indicators(timeFrame, symbol)
         
-        display = getDisplay(SYMBOL_BTC, df)
+        display = getDisplay(symbol, df)
 
         print("数据获取和计算完成！")
         return display
