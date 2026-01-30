@@ -7,7 +7,7 @@ primary_region = "nrt"  # 修正注释：东京
   buildpacks = ["gcr.io/paketo-buildpacks/python"]
   
   [build.buildpacks.env]
-    BP_PYTHON_VERSION = "3.13.9"
+    BP_PYTHON_VERSION = "3.12.0"
 
 [env]
   PORT = "8080"
