@@ -5,23 +5,37 @@ import pandas as pd
 import pandas_ta as ta
 import math
 import uvicorn
+import time
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+# 应用启动时间
+start_time = time.time()
 
-# origins = [
-#     "http://127.0.0.1:8000",
-#     "http://localhost:3000",
-#     "http://server.bnbscommunity.com",
-#     "http://bnbchain.bnbscommunity.com",
-#     "https://127.0.0.1:8000",
-#     "https://localhost:3000",
-#     "https://server.bnbscommunity.com",
-#     "https://bnbchain.bnbscommunity.com",
-# ]
+# 生命周期管理
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时
+    print("🚀 应用启动中...")
+    yield
+    # 关闭时
+    print("🛑 应用关闭")
+
+app = FastAPI(lifespan=lifespan, title="BNBS Trading Signal API")
+
+origins = [
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://server.bnbscommunity.com",
+    "http://bnbchain.bnbscommunity.com",
+    "https://127.0.0.1:8000",
+    "https://localhost:3000",
+    "https://server.bnbscommunity.com",
+    "https://bnbchain.bnbscommunity.com",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=origins,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "Access-Control-Allow-Origin"]
@@ -32,6 +46,17 @@ KLINE_LIMIT = 100
 TIME_FRAME_1H = '1h'
 TIME_FRAME_4H = '4h'
 SYMBOL_BTC = 'BTC/USDT'
+
+# ✅ 添加健康检查端点
+@app.get("/health")
+async def health_check():
+    uptime = time.time() - start_time
+    return {
+        "status": "healthy",
+        "service": "bnbsserver",
+        "uptime_seconds": round(uptime, 2),
+        "version": "1.0.0"
+    }
 
 @app.get("/")
 def getSignals():

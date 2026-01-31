@@ -26,8 +26,8 @@ primary_region = "nrt"  # 修正注释：东京
   auto_stop_machines = true
   
   [[http_service.checks]]
-    interval = "300s"  # 延长到5分钟
-    timeout = "10s"
-    grace_period = "30s"
+    interval = "60s"  # 延长到5分钟
+    timeout = "15s"
+    grace_period = "90s"
     method = "GET"
     path = "/health"
