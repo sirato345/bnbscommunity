@@ -17,13 +17,13 @@ primary_region = "sjc"  # 美国圣何塞（推荐）
   cpus = 1
   memory = "512mb"
   # 关键：允许自动停止，但设置长延迟
-  auto_stop_delay = "6h"  # 6小时无流量才停止
+  # auto_stop_delay = "1h"  # 6小时无流量才停止
 
 [http_service]
   internal_port = 8080
   force_https = true
   # 改为 true，但配合 auto_stop_delay
-  auto_stop_machines = true
+  auto_stop_machines = false
   
   [[http_service.checks]]
     interval = "60s"  # 延长到5分钟

@@ -59,9 +59,7 @@ async def health_check():
     }
 
 @app.get("/")
-def getSignals():
-    timeFrame = TIME_FRAME_1H
-    symbol = SYMBOL_BTC
+def getSignals(timeFrame: str,symbol: str):
     """
     主函数
     """
@@ -86,10 +84,10 @@ def get_all_indicators(timeFrame, symbol):
     """
     获取数据并计算所有指标
     """
-    print("正在从Binance获取数据...")
+    print("正在从exchange获取数据...")
     
     # 1. 获取数据
-    df = get_binance_data(timeFrame, symbol)
+    df = get_exchange_data(timeFrame, symbol)
     
     print(f"获取到 {symbol}  {timeFrame}  {len(df)} 条数据")
     print(f"时间范围: {df.index[0]} 到 {df.index[-1]}")
@@ -108,9 +106,9 @@ def get_all_indicators(timeFrame, symbol):
     
     return df
 
-def get_binance_data(timeFrame, symbol):
+def get_exchange_data(timeFrame, symbol):
     """
-    从Binance获取BTC/USDT小时线数据
+    获取BTC/USDT小时线数据
     """
     exchange = ccxt.okx({
         'rateLimit': 1200,
