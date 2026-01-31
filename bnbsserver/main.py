@@ -112,13 +112,68 @@ def get_binance_data(timeFrame, symbol):
     """
     从Binance获取BTC/USDT小时线数据
     """
-    exchange = ccxt.binance({
+    exchange = ccxt.okx({
         'rateLimit': 1200,
         'enableRateLimit': True,
+        'timeout': 20000,
         'options': {
             'defaultType': 'spot',
         }
     })
+
+    # EXCHANGES = {
+    #     'kucoin': {
+    #         'class': ccxt.kucoin,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000
+    #         },
+    #         'supported_pairs': ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT']
+    #     },
+    #     'bybit': {
+    #         'class': ccxt.bybit,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000
+    #         }
+    #     },
+    #     'gateio': {
+    #         'class': ccxt.gateio,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000
+    #         }
+    #     },
+    #     'okx': {
+    #         'class': ccxt.okx,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000
+    #         }
+    #     },
+    #     'huobi': {
+    #         'class': ccxt.huobi,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000
+    #         }
+    #     },
+    #     'coinbase': {
+    #         'class': ccxt.coinbase,
+    #         'config': {
+    #             'rateLimit': 1000,
+    #             'enableRateLimit': True,
+    #             'timeout': 10000,
+    #             'apiKey': '',  # Coinbase 可能需要 API Key
+    #             'secret': '',
+    #         }
+    #     }
+    # }
     
     # 获取BTC/USDT小时K线数据
     ohlcv = exchange.fetch_ohlcv(
