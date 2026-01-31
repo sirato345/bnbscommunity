@@ -7,7 +7,7 @@ primary_region = "sjc"  # 美国圣何塞（推荐）
 
 [env]
   PORT = "8080"
-  TZ = "Asia/Tokyo"
+  TZ = "America/Los_Angeles"
   PYTHON_VERSION = "3.12"
   PYTHONUNBUFFERED = "true"
   PYTHONDONTWRITEBYTECODE = "true"
