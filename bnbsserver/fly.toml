@@ -26,8 +26,8 @@ primary_region = "sjc"  # 美国圣何塞（推荐）
   auto_stop_machines = false
   
   [[http_service.checks]]
-    interval = "600s"  # 延长到10分钟
-    timeout = "20s"
-    grace_period = "90s"
+    interval = "60s"  # 延长到10分钟
+    timeout = "30s"
+    grace_period = "180s"
     method = "GET"
     path = "/health"

@@ -50,12 +50,11 @@ SYMBOL_BTC = 'BTC/USDT'
 # ✅ 添加健康检查端点
 @app.get("/health")
 async def health_check():
-    uptime = time.time() - start_time
     return {
         "status": "healthy",
-        "service": "bnbsserver",
-        "uptime_seconds": round(uptime, 2),
-        "version": "1.0.0"
+        "service": "running",  # 只要服务在运行就返回健康
+        "startup": True,       # 标记为启动阶段
+        "timestamp": time.time()
     }
 
 @app.get("/")
