@@ -227,4 +227,4 @@ def is_number(value):
     
 if __name__ == '__main__':
     # 关键：监听 0.0.0.0（所有网络接口）
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=8080)

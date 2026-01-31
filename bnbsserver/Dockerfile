@@ -5,7 +5,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 设置环境变量（与 fly.toml 保持一致）
-ENV PORT=8000
+ENV PORT=8080
 ENV TZ=Asia/Tokyo
 ENV PYTHONUNBUFFERED=true
 ENV PYTHONDONTWRITEBYTECODE=true
@@ -15,10 +15,11 @@ EXPOSE 8080
 
 # 复制当前目录所有文件到容器中
 COPY . .
+RUN pip install fastapi uvicorn
 
 # 安装依赖（如果有 requirements.txt）
 RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
 
 # 运行应用
 # 假设你的主文件是 main.py，请根据实际情况修改
-CMD ["python", "main.py"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

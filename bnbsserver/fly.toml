@@ -6,7 +6,7 @@ primary_region = "nrt"  # 修正注释：东京
   dockerfile = "Dockerfile"
 
 [env]
-  PORT = "8000"
+  PORT = "8080"
   TZ = "Asia/Tokyo"
   PYTHON_VERSION = "3.12"
   PYTHONUNBUFFERED = "true"
