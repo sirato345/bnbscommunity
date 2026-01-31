@@ -1,0 +1,367 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import Image from 'next/image';
+
+// 定义数据类型
+interface CryptoData {
+  symbol: string;
+  timestamp: string;
+  price: string;
+  sar: string;
+  macd: string;
+  kdj: string;
+  kdjStatus: string;
+  timeframe: string;
+}
+
+// 配置要获取的数据源
+const DATA_SOURCES = [
+  { timeframe: '1h', symbol: 'BTC/USDT' },
+  { timeframe: '4h', symbol: 'BTC/USDT' },
+  { timeframe: '1h', symbol: 'ETH/USDT' },
+  { timeframe: '4h', symbol: 'ETH/USDT' },
+  { timeframe: '1h', symbol: 'BNB/USDT' },
+  { timeframe: '4h', symbol: 'BNB/USDT' },
+];
+
+export default function CryptoScreenerPage() {
+  const [data, setData] = useState<CryptoData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+
+  // 获取数据
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const promises = DATA_SOURCES.map(async (source) => {
+        try {
+          const response = await axios.get('https://bnbscommunity.fly.dev/', {
+            params: {
+              timeFrame: source.timeframe,
+              symbol: source.symbol,
+            },
+            timeout: 30000, // 10秒超时
+          });
+
+          // 处理返回的数据
+          const responseData = response.data;
+          let rawData: string[];
+          
+          // 检查返回数据格式
+          if (Array.isArray(responseData)) {
+            rawData = responseData;
+          } else {
+            throw new Error('未知的数据格式');
+          }
+
+          return {
+            symbol: rawData[0],
+            timestamp: rawData[1],
+            price: parseFloat(rawData[2]).toFixed(2),
+            sar: rawData[3],
+            macd: rawData[4],
+            kdj: rawData[5],
+            kdjStatus: rawData[6],
+            timeframe: source.timeframe,
+          } as CryptoData;
+        } catch (err) {
+          console.error(`获取 ${source.symbol} (${source.timeframe}) 数据失败:`, err);
+          // 返回一个错误占位数据
+          return {
+            symbol: source.symbol,
+            timestamp: new Date().toISOString(),
+            price: 'Update',
+            sar: 'Update',
+            macd: 'Update',
+            kdj: 'Update',
+            kdjStatus: 'Update',
+            timeframe: source.timeframe,
+          } as CryptoData;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      setData(results);
+      setLastUpdate(new Date().toLocaleTimeString());
+    } catch (err) {
+      setError('获取数据失败，请检查网络连接或API状态');
+      console.error('获取数据失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 计算两个时间框架的总看跌数量
+  function calculateSignal(data1h: CryptoData, data4h: CryptoData): string {
+    let signal;
+    // 计算每个时间框架的看跌数量
+    const bearishCount1h = [data1h.sar, data1h.macd, data1h.kdj].filter(v => v === '×').length;
+    const bearishCount4h = [data4h.sar, data4h.macd, data4h.kdj].filter(v => v === '×').length;
+    
+    const total = bearishCount1h + bearishCount4h;
+    if (total == 0) {
+      signal = "Buy";
+    } else if (total == 1) {
+      signal = "Warn";
+    } else {
+      signal = "Sell";
+    }
+    return signal;
+  }
+
+  // 初始加载
+  useEffect(() => {
+    fetchData();
+    
+    // 设置定时刷新（每60秒）
+    const interval = setInterval(fetchData, 600000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 按交易对分组显示
+  const groupBySymbol = (data: CryptoData[]) => {
+    const grouped: Record<string, CryptoData[]> = {};
+    data.forEach(item => {
+      if (!grouped[item.symbol]) {
+        grouped[item.symbol] = [];
+      }
+      grouped[item.symbol].push(item);
+    });
+    return grouped;
+  };
+
+  const groupedData = groupBySymbol(data);
+
+  // 指标样式映射
+  const getIndicatorStyle = (value: string) => {
+    switch (value) {
+      case '〇':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case '×':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case '超买':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case '超卖':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    }
+  };
+
+  return (
+    <div className="w-full md:w-3/5 md:mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* 标题区域 */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex ml-0.5">
+            <Image src="BNBs.svg" alt="Logo" width={32} height={32} /><span className='ml-2'>BNBs God&apos;s eye</span>
+          </h1>
+          
+          <div className="flex flex-wrap justify-end gap-4">
+            <div className="flex items-center gap-4">
+              {lastUpdate && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Last Update: {lastUpdate}
+                </span>
+              )}
+
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="flex items-center justify-center w-20 h-10 px-0 py-0 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 
+                  <svg className="h-9 w-9" viewBox="0 0 120 120">
+                    <defs>
+                      <linearGradient id="neon-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#00dbde" />
+                        <stop offset="100%" stop-color="#fc00ff" />
+                      </linearGradient>
+                      <filter id="neon-filter">
+                        <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                        <feMerge>
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="url(#neon-glow)" 
+                            stroke-width="3" stroke-dasharray="5,10" opacity="0.7">
+                      <animateTransform attributeName="transform" type="rotate" 
+                                        from="0 60 60" to="360 60 60" dur="3s" 
+                                        repeatCount="indefinite" />
+                    </circle>
+                    <g filter="url(#neon-filter)" className="transform-origin: 60px 60px">
+                      <animateTransform attributeName="transform" type="rotate" 
+                                        from="0 60 60" to="360 60 60" dur="1.5s" 
+                                        repeatCount="indefinite" />
+                      <path d="M60 25L75 45H65V55H55V45H45L60 25Z" 
+                            fill="url(#neon-glow)" opacity="0.9">
+                        <animate attributeName="opacity" values="0.7;1;0.7" dur="1s" 
+                                repeatCount="indefinite" />
+                      </path>
+                      <path d="M60 25L75 45H65V55H55V45H45L60 25Z" 
+                            fill="none" stroke="white" stroke-width="1" stroke-opacity="0.6">
+                        <animate attributeName="stroke-dashoffset" from="20" to="0" 
+                                dur="0.5s" repeatCount="indefinite" />
+                      </path>
+                    </g>
+                    <circle cx="85" cy="35" r="1.5" fill="#00dbde">
+                      <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+                      <animateTransform attributeName="transform" type="rotate" 
+                                        from="0 60 60" to="360 60 60" dur="4s" 
+                                        repeatCount="indefinite" />
+                    </circle>
+                  </svg> : 'Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
+            <div className="flex items-center">
+              <span className="text-red-600 dark:text-red-400">⚠️ {error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 数据表格 */}
+        <div className="grid gap-6">
+          {Object.entries(groupedData).map(([symbol, symbolData]) => (
+            <div key={symbol} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+              {/* 交易对标题 */}
+              <div className="px-2 py-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-x0.5 font-semibold text-gray-900 dark:text-white">
+                      {symbol}
+                    </h2>
+                  </div>
+                  <div className="text-x0.5 font-semibold text-gray-900 dark:text-white">
+                    Price: {symbolData[0]?.price || 'Update'}
+                  </div>
+                </div>
+              </div>
+
+              {/* 表格 */}
+              <div className="overflow-x-auto">
+                <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        TIME
+                      </th>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        SAR
+                      </th>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        MACD
+                      </th>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        KDJ
+                      </th>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        SIGNAL
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {/* 假设每个交易对正好有2个数据：1h和4h */}
+                    {symbolData.length >= 1 && (
+                      // 第一行：1h数据
+                      <tr className="bg-white dark:bg-gray-800">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                            {symbolData[0].timeframe}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].sar)}`}>
+                            {symbolData[0].sar}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].macd)}`}>
+                            {symbolData[0].macd}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].kdj)}`}>
+                            {symbolData[0].kdj}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getIndicatorStyle(symbolData[0].kdjStatus)}`}>
+                            {symbolData[0].kdjStatus}
+                          </span>
+                        </td>
+                        <td rowSpan={symbolData.length} className="px-6 py-4 whitespace-nowrap align-middle">
+                          <div className={`px-4 py-2 rounded-lg font-semibold text-center ${
+                              // 这里需要计算综合逻辑...
+                              calculateSignal(symbolData[0], symbolData[1])
+                             }`}>
+                            {calculateSignal(symbolData[0], symbolData[1])}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    
+                    {/* 第二行：4h数据 */}
+                    {symbolData.length >= 2 && (
+                      <tr className="bg-gray-50 dark:bg-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                            {symbolData[1].timeframe}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].sar)}`}>
+                            {symbolData[1].sar}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].macd)}`}>
+                            {symbolData[1].macd}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].kdj)}`}>
+                            {symbolData[1].kdj}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getIndicatorStyle(symbolData[1].kdjStatus)}`}>
+                            {symbolData[1].kdjStatus}
+                          </span>
+                        </td>
+                        {/* 注意：这里不需要 td，因为第一行的 rowSpan 已经覆盖了 */}
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 加载状态 */}
+        {loading && data.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
