@@ -4,7 +4,7 @@ import ccxt
 import pandas as pd
 import pandas_ta as ta
 import math
-import os
+import uvicorn
 
 app = FastAPI()
 
@@ -227,4 +227,4 @@ def is_number(value):
     
 if __name__ == '__main__':
     # 关键：监听 0.0.0.0（所有网络接口）
-    app.run(host='0.0.0.0', port=8000)
+    uvicorn.run(host='0.0.0.0', port=8000)
