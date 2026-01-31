@@ -5,7 +5,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 设置环境变量（与 fly.toml 保持一致）
-ENV PORT=8080
+ENV PORT=8000
 ENV TZ=Asia/Tokyo
 ENV PYTHONUNBUFFERED=true
 ENV PYTHONDONTWRITEBYTECODE=true

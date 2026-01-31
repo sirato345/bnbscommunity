@@ -226,7 +226,5 @@ def is_number(value):
         return False
     
 if __name__ == '__main__':
-    # 关键：使用 Fly.io 指定的 PORT 环境变量
-    port = int(os.environ.get("PORT", 8080))
     # 关键：监听 0.0.0.0（所有网络接口）
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=8000)
