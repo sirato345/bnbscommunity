@@ -1,28 +1,33 @@
-# fly.toml app configuration file generated for bnbscommunity on 2026-01-31T03:21:07Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
-app = 'bnbscommunity'
-primary_region = 'iad'
-console_command = '/code/manage.py shell'
+# fly.toml - 安全免费配置
+app = "bnbsserver"
+primary_region = "nrt"  # 修正注释：东京
 
 [build]
+  dockerfile = "Dockerfile"
 
 [env]
-  PORT = '8000'
+  PORT = "8080"
+  TZ = "Asia/Tokyo"
+  PYTHON_VERSION = "3.12"
+  PYTHONUNBUFFERED = "true"
+  PYTHONDONTWRITEBYTECODE = "true"
+
+# 明确指定使用免费配置
+[machine]
+  cpus = 1
+  memory = "512mb"
+  # 关键：允许自动停止，但设置长延迟
+  auto_stop_delay = "6h"  # 6小时无流量才停止
 
 [http_service]
-  internal_port = 8000
+  internal_port = 8080
   force_https = true
-
   # 改为 true，但配合 auto_stop_delay
   auto_stop_machines = true
   
   [[http_service.checks]]
     interval = "300s"  # 延长到5分钟
     timeout = "10s"
-    grace_period = "20s"
+    grace_period = "30s"
     method = "GET"
     path = "/health"
-
