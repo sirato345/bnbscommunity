@@ -1,6 +1,6 @@
 # fly.toml - 安全免费配置
 app = "bnbsserver"
-primary_region = "nrt"  # 修正注释：东京
+primary_region = "sjc"  # 美国圣何塞（推荐）
 
 [build]
   dockerfile = "Dockerfile"
