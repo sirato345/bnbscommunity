@@ -8,20 +8,20 @@ import os
 
 app = FastAPI()
 
-origins = [
-    "http://127.0.0.1:8000",
-    "http://localhost:3000",
-    "http://server.bnbscommunity.com",
-    "http://bnbchain.bnbscommunity.com",
-    "https://127.0.0.1:8000",
-    "https://localhost:3000",
-    "https://server.bnbscommunity.com",
-    "https://bnbchain.bnbscommunity.com",
-]
+# origins = [
+#     "http://127.0.0.1:8000",
+#     "http://localhost:3000",
+#     "http://server.bnbscommunity.com",
+#     "http://bnbchain.bnbscommunity.com",
+#     "https://127.0.0.1:8000",
+#     "https://localhost:3000",
+#     "https://server.bnbscommunity.com",
+#     "https://bnbchain.bnbscommunity.com",
+# ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    # allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "Access-Control-Allow-Origin"]
