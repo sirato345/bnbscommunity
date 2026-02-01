@@ -22,4 +22,4 @@ module.exports = {
   }
 };
 
-export default nextConfig;
+module.exports = nextConfig;

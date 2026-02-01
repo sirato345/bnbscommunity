@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,12 +23,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+ return (
+    <html lang="zh">
+      <body>
+        {/* 添加简单导航 */}
+        <nav style={{ padding: '20px', background: '#f0f0f0' }}>
+          <Link href="/">首页</Link>
+        </nav>
+        <main>{children}</main>
       </body>
     </html>
   );
