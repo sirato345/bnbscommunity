@@ -25,11 +25,11 @@ app = FastAPI(lifespan=lifespan, title="BNBS Trading Signal API")
 origins = [
     "http://127.0.0.1:8000",
     "http://localhost:3000",
-    "http://server.bnbscommunity.com",
+    "http://godseye.bnbscommunity.com",
     "http://bnbchain.bnbscommunity.com",
     "https://127.0.0.1:8000",
     "https://localhost:3000",
-    "https://server.bnbscommunity.com",
+    "https://godseye.bnbscommunity.com",
     "https://bnbchain.bnbscommunity.com",
 ]
 
