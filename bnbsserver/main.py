@@ -281,11 +281,11 @@ def getDisplay(symbol, df):
         KDJ = "×"
 
     if latest['K'] > 80 or latest['D'] > 80:
-        KDJ_OVER = "超买"
+        KDJ_OVER = "Overbought"
     elif latest['K'] < 20 or latest['D'] < 20:
-        KDJ_OVER = "超卖"
+        KDJ_OVER = "Oversell"
     else:
-        KDJ_OVER = "正常区间"
+        KDJ_OVER = "Normal"
 
     print(f"快线: {latest['MACD']:.4f}, 慢线: {latest['MACD_signal']:.4f}")
     print(f"K: {latest['K']:.2f}, D: {latest['D']:.2f}")
