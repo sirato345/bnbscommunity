@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
       fullUrl: true,
     },
   },
+
+  // Next.js 15 需要明确配置允许的来源
+  allowedDevOrigins: [
+    '*',                     // 允许所有来源（最简单）
+  ],
 };
 
 module.exports = {
