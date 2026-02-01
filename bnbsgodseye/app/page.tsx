@@ -104,12 +104,12 @@ export default function CryptoScreenerPage() {
     const bearishCount4h = [data4h.sar, data4h.macd, data4h.kdj].filter(v => v === '×').length;
     
     const total = bearishCount1h + bearishCount4h;
-    if (total == 0) {
-      signal = "Buy";
-    } else if (total == 1) {
+    if (total == 0 || total == 1) {
+      signal = "Up";
+    } else if (total == 2) {
       signal = "Warn";
     } else {
-      signal = "Sell";
+      signal = "Down";
     }
     return signal;
   }
