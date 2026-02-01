@@ -23,16 +23,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="BNBS Trading Signal API")
 
 origins = [
-    "http://127.0.0.1:8000",
     "http://localhost:3000",
-    "http://192.168.3.9:3000"
+    "http://192.168.3.9:3000",
     "http://godseye.bnbscommunity.com",
-    "http://bnbchain.bnbscommunity.com",
-    "https://127.0.0.1:8000",
+    "http://www.godseye.bnbscommunity.com",
     "https://localhost:3000",
-    "https://192.168.3.9:3000"
+    "https://192.168.3.9:3000",
     "https://godseye.bnbscommunity.com",
-    "https://bnbchain.bnbscommunity.com",
+    "https://www.godseye.bnbscommunity.com",
 ]
 
 app.add_middleware(
