@@ -154,7 +154,7 @@ export default function CryptoScreenerPage() {
   };
 
   return (
-    <div className="w-full md:w-3/5 md:mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-4">
+    <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-4">
       <div className="max-w-7xl mx-auto">
         {/* 标题区域 */}
         <div className="mb-5">
@@ -179,8 +179,8 @@ export default function CryptoScreenerPage() {
                   <svg className="h-9 w-9" viewBox="0 0 120 120">
                     <defs>
                       <linearGradient id="neon-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#00dbde" />
-                        <stop offset="100%" stop-color="#fc00ff" />
+                        <stop offset="0%" stopColor="#00dbde" />
+                        <stop offset="100%" stopColor="#fc00ff" />
                       </linearGradient>
                       <filter id="neon-filter">
                         <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
