@@ -45,7 +45,7 @@ export default function CryptoScreenerPage() {
               timeFrame: source.timeframe,
               symbol: source.symbol,
             },
-            timeout: 30000, // 10秒超时
+            timeout: 30000, // 30秒超时
           });
 
           // 处理返回的数据
@@ -154,10 +154,10 @@ export default function CryptoScreenerPage() {
   };
 
   return (
-    <div className="w-full md:w-3/5 md:mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+    <div className="w-full md:w-3/5 md:mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-4">
       <div className="max-w-7xl mx-auto">
         {/* 标题区域 */}
-        <div className="mb-8">
+        <div className="mb-5">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex ml-0.5">
             <Image src="BNBs.svg" alt="Logo" width={32} height={32} /><span className='ml-2'>BNBs God&apos;s eye</span>
           </h1>
@@ -233,7 +233,7 @@ export default function CryptoScreenerPage() {
         )}
 
         {/* 数据表格 */}
-        <div className="grid gap-6">
+        <div className="grid gap-4">
           {Object.entries(groupedData).map(([symbol, symbolData]) => (
             <div key={symbol} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
               {/* 交易对标题 */}
@@ -251,65 +251,77 @@ export default function CryptoScreenerPage() {
               </div>
 
               {/* 表格 */}
-              <div className="overflow-x-auto">
-                <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <div key={symbol} className="overflow-x-auto -mx-2">
+                <table className="w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed min-w-[640px] sm:min-w-0">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="w-[14%] sm:w-[14%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                         TIME
                       </th>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="w-[14%] sm:w-[14%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                         SAR
                       </th>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="w-[14%] sm:w-[14%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                         MACD
                       </th>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="w-[14%] sm:w-[14%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                         KDJ
                       </th>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Status
+                      <th className="w-[20%] sm:w-[20%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                        KDJ STATUS
                       </th>
-                      <th className="px-1 py-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="w-[24%] sm:w-[24%] px-1 py-1 text-center text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                         SIGNAL
                       </th>
                     </tr>
                   </thead>
+                  
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {/* 假设每个交易对正好有2个数据：1h和4h */}
                     {symbolData.length >= 1 && (
-                      // 第一行：1h数据
                       <tr className="bg-white dark:bg-gray-800">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          {/* 1.5倍放大：1h/4h标签 */}
+                          <span className="inline-flex items-center justify-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
                             {symbolData[0].timeframe}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].sar)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          {/* 1.5倍放大：SAR圆圈 */}
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].sar)}`}>
                             {symbolData[0].sar}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].macd)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          {/* 1.5倍放大：MACD圆圈 */}
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].macd)}`}>
                             {symbolData[0].macd}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[0].kdj)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          {/* 1.5倍放大：KDJ圆圈 */}
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].kdj)}`}>
                             {symbolData[0].kdj}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getIndicatorStyle(symbolData[0].kdjStatus)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          {/* Status标签也相应放大 */}
+                          <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${getIndicatorStyle(symbolData[0].kdjStatus)} truncate`}>
                             {symbolData[0].kdjStatus}
                           </span>
                         </td>
-                        <td rowSpan={symbolData.length} className="px-6 py-4 whitespace-nowrap align-middle">
-                          <div className={`px-4 py-2 rounded-lg font-semibold text-center ${
-                              // 这里需要计算综合逻辑...
-                              calculateSignal(symbolData[0], symbolData[1])
-                             }`}>
+                        <td 
+                          rowSpan={symbolData.length}
+                          className={`px-1 py-2 sm:px-2 sm:py-3 text-center align-middle ${
+                            calculateSignal(symbolData[0], symbolData[1]) === 'Warn' 
+                              ? 'animate-cell-pulse-yellow' 
+                              : calculateSignal(symbolData[0], symbolData[1]) === 'Down' 
+                              ? 'animate-cell-pulse-red'
+                              : calculateSignal(symbolData[0], symbolData[1]) === 'Up' 
+                              ? 'animate-cell-pulse-green'
+                              : ''
+                          }`}
+                        >
+                          <div className="px-2 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base font-semibold text-center truncate">
                             {calculateSignal(symbolData[0], symbolData[1])}
                           </div>
                         </td>
@@ -319,32 +331,31 @@ export default function CryptoScreenerPage() {
                     {/* 第二行：4h数据 */}
                     {symbolData.length >= 2 && (
                       <tr className="bg-gray-50 dark:bg-gray-900">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center justify-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
                             {symbolData[1].timeframe}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].sar)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[1].sar)}`}>
                             {symbolData[1].sar}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].macd)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[1].macd)}`}>
                             {symbolData[1].macd}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${getIndicatorStyle(symbolData[1].kdj)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[1].kdj)}`}>
                             {symbolData[1].kdj}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getIndicatorStyle(symbolData[1].kdjStatus)}`}>
+                        <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
+                          <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${getIndicatorStyle(symbolData[1].kdjStatus)} truncate`}>
                             {symbolData[1].kdjStatus}
                           </span>
                         </td>
-                        {/* 注意：这里不需要 td，因为第一行的 rowSpan 已经覆盖了 */}
                       </tr>
                     )}
                   </tbody>
