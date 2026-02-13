@@ -12,8 +12,8 @@ function App() {
   const [data, setData] = React.useState(null);
   const [chartFlg, setChartFlg] = React.useState(10);
 
-  // const API_BASE_URL = "https://bnbscommunity.fly.dev/csv";
-  const API_BASE_URL = "http://localhost:8000/csv";
+  const API_BASE_URL = "https://bnbscommunity.fly.dev/csv";
+  // const API_BASE_URL = "http://localhost:8000/csv";
 
   // 调整axios配置
   const instance = axios.create({
