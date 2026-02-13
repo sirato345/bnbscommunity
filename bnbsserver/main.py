@@ -355,7 +355,7 @@ def is_number(value):
 @app.get("/csv")
 def getCsv():
     datalist = []
-    with open("csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv") as csvfile:
+    with open("export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv") as csvfile:
         reader = csv.reader(csvfile)
 
         i = 0
@@ -382,7 +382,7 @@ def getCsv():
 @app.post("/upload")
 def upload(file: UploadFile = File(...)):        
     # 保存文件
-    with open("csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
+    with open("export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
 if __name__ == '__main__':
