@@ -41,7 +41,7 @@ function App() {
       initOnce.current = true;
       getDataFromBack();
     }
-  }, []); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
+  }); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
 
   return (
     <div>
