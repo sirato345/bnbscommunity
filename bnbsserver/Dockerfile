@@ -13,6 +13,12 @@ ENV PYTHONDONTWRITEBYTECODE=true
 # 暴露端口（与 fly.toml 的 internal_port 一致）
 EXPOSE 8080
 
+# 创建 csv 目录
+RUN mkdir -p /app/csv
+
+# 复制 CSV 文件
+COPY csv/*.csv /app/csv/
+
 # 复制当前目录所有文件到容器中
 COPY . .
 RUN pip install fastapi uvicorn
