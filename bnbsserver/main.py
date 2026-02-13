@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import ccxt
 import pandas as pd
@@ -7,6 +7,8 @@ import math
 import uvicorn
 import time
 from contextlib import asynccontextmanager
+import csv
+import shutil
 
 # 应用启动时间
 start_time = time.time()
@@ -27,10 +29,12 @@ origins = [
     "http://192.168.3.9:3000",
     "http://godseye.bnbscommunity.com",
     "http://www.godseye.bnbscommunity.com",
+    "http://bnbchain.bnbscommunity.com",
     "https://localhost:3000",
     "https://192.168.3.9:3000",
     "https://godseye.bnbscommunity.com",
     "https://www.godseye.bnbscommunity.com",
+    "https://bnbchain.bnbscommunity.com",
 ]
 
 app.add_middleware(
@@ -295,8 +299,6 @@ def calculate_sar(df):
         maximum = 0.2
     )
 
-    # sar = talib.SAR(df['high'], df['low'], acceleration = 0.02, maximum = 0.2)
-
     df['SAR_long'] = sar.iloc[:, 0]# 多头SAR（通常当价格上涨时显示）
     df['SAR_short'] = sar.iloc[:, 1]# 空头SAR（通常当价格下跌时显示）
     
@@ -338,7 +340,7 @@ def getDisplay(symbol, df):
         KDJ_OVER = "Normal"
 
     #时间，价格
-    return [symbol, df.index[-1], f"{latest['close']:.2f}", SAR, MACD, KDJ, KDJ_OVER]
+    return [symbol, df.index[-1], f"{latest['close']:.3f}", SAR, MACD, KDJ, KDJ_OVER]
 
 def is_number(value):
     """判断是否为数字的最简单方法"""
@@ -347,6 +349,41 @@ def is_number(value):
         return True
     except (ValueError, TypeError):
         return False
+    
+
+#CSVデータ取得
+@app.get("/csv")
+def getCsv():
+    datalist = []
+    with open("csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv") as csvfile:
+        reader = csv.reader(csvfile)
+
+        i = 0
+        for line in reader:
+            if (i == 0):
+                i = i + 1
+                continue
+            
+            newline = []
+            newline.append(i)
+            newline.append(line[0])
+
+            count = int(float(line[1].replace(",", "")))
+            newline.append(count)
+
+            percent = (count / TOTAL_COUNT) * 100
+            newline.append(f"{percent:.5f}%")
+
+            datalist.append(newline)
+            i = i + 1
+
+    return datalist
+
+@app.post("/upload")
+def upload(file: UploadFile = File(...)):        
+    # 保存文件
+    with open("csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
     
 if __name__ == '__main__':
     # 关键：监听 0.0.0.0（所有网络接口）

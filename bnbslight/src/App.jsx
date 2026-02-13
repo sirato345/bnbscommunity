@@ -4,106 +4,44 @@ import "./App.css";
 import Table from "./component/Table";
 import Chart from "./component/Chart";
 import Price from "./component/Price";
-import Papa from "papaparse";
-import { useWorker } from "@koale/useworker";
 import { BrowserView, MobileView } from "react-device-detect";
-// import axios from "axios";
+import axios from "axios";
 
 function App() {
   // 默认设置为null，否则连接不到server也会显示部分画面
   const [data, setData] = React.useState(null);
   const [chartFlg, setChartFlg] = React.useState(10);
-  // const [workStatus, setWorkStatus] = useState(false);
 
-  // const API_BASE_URL = "https://server.bnbscommunity.com";
-  // const API_BASE_URL = "http://localhost:8000";
-  const TOTAL_COUNT = 21000000;
+  // const API_BASE_URL = "https://bnbscommunity.fly.dev/csv";
+  const API_BASE_URL = "http://localhost:8000/csv";
 
   // 调整axios配置
-  // const instance = axios.create({
-  //   timeout: 20000, // 增加超时时间
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //   },
-  // });
+  const instance = axios.create({
+    timeout: 20000, // 增加超时时间
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
   // 定义回调函数，接收子组件数据
   const onGetChartFLg = (chartFlg) => {
     setChartFlg(chartFlg);
   };
 
-  const processCsvData = (csvData) => {
-    let processResult = [];
-    for (let i = 0; i < csvData.length - 1; i++) {
-      let line = [];
-      line.push(i + 1);
-      line.push(csvData[i].HolderAddress);
-      // 有逗号分割的，是字符串，没有分割的，被解析成数字类型，所以不加String会出错
-      let count = Math.floor(
-        parseFloat(String(csvData[i].Balance).replace(",", ""))
-      );
-      line.push(count);
-      let percent = (count / TOTAL_COUNT) * 100;
-      line.push(String(percent.toFixed(5)) + " %");
-      processResult.push(line);
-    }
-    return processResult;
-  };
-
-  // 异步处理启动
-  useWorker(processCsvData);
-
   const initOnce = useRef(false);
   // 在 React 组件加载时获取数据，推荐使用 useEffect 配合空依赖数组来实现。
   useEffect(() => {
-    // 从前端取得CSV
-    const getDataFromFront = async () => {
-      try {
-        const response = await fetch(
-          "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
-        );
-        if (!response.ok) {
-          console.log(`1.Can not read csv file! status: ${response.status}`);
-        }
-
-        const csvText = await response.text();
-
-        Papa.parse(csvText, {
-          header: true,
-          dynamicTyping: true,
-          complete: (results) => {
-            // setWorkStatus(true);
-            const processResult = processCsvData(results.data);
-            // setWorkStatus(false);
-            setData(processResult);
-          },
-          error: (err) => {
-            console.log("2.Can not parse csv file: " + err.message);
-          },
-        });
-        console.log("4.Reading csv file succeed!");
-      } catch (err) {
-        console.log("3.Failed reading csv file: " + err.message);
-      }
-    };
-
     // 从后端取得CSV
-    // const getDataFromBack = async () => {
-    //   const res = await instance.get(API_BASE_URL);
-    //   setData(res.data);
-    // };
+    const getDataFromBack = async () => {
+      const res = await instance.get(API_BASE_URL);
+      setData(res.data);
+    };
 
     if (!initOnce.current) {
       initOnce.current = true;
-      // try {
-      //   getDataFromBack();
-      //   console.log("Get csv data from server.");
-      // } catch (error) {
-        getDataFromFront();
-      //   console.log("Get csv data from front.");
-      // }
+      getDataFromBack();
     }
-  }); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
+  }, []); // 空数组代表只执行一次，无依赖数组则每次渲染都执行，需手动控制只执行一次
 
   return (
     <div>
