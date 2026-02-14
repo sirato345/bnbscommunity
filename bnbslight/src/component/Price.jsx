@@ -86,7 +86,7 @@ function Price() {
     }
     refresh();
     initOnce.current = true;
-  }, []); // 添加空依赖数组
+  }); // 添加空依赖数组
 
   return (
     <div>
