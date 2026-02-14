@@ -9,6 +9,7 @@ import time
 from contextlib import asynccontextmanager
 import csv
 import shutil
+from pathlib import Path
 
 # 应用启动时间
 start_time = time.time()
@@ -350,12 +351,16 @@ def is_number(value):
     except (ValueError, TypeError):
         return False
     
+BASE_DIR = Path(__file__).resolve().parent  # 当前文件所在目录
+CSV_DIR = BASE_DIR / "csv"
+CSV_DIR.mkdir(exist_ok=True)
 
 #CSVデータ取得
 @app.get("/csv")
 def getCsv():
     datalist = []
-    with open("/app/csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv") as csvfile:
+    file_path = CSV_DIR / "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
+    with open(file_path) as csvfile:
         reader = csv.reader(csvfile)
 
         i = 0
@@ -380,9 +385,10 @@ def getCsv():
     return datalist
 
 @app.post("/upload")
-def upload(file: UploadFile = File(...)):        
+def upload(file: UploadFile = File(...)):
+    file_path = CSV_DIR / "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"      
     # 保存文件
-    with open("/app/csv/export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv", "wb") as buffer:
+    with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
 if __name__ == '__main__':
