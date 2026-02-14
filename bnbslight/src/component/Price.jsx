@@ -164,7 +164,7 @@ function Price() {
             <tr className="Price-tr2-mobile"></tr>
             <tr className="Price-tr">
               <td className="Price-td-mobile">
-                <img src={BNBLogo} alt="BNBLogo"></img>
+                <img src={BNBLogo} alt="BNBLogo" class="circle-image"></img>
                 <span className="Price-span"> BNB</span>
               </td>
               <td>
@@ -175,7 +175,7 @@ function Price() {
             </tr>
             <tr className="Price-tr">
               <td className="Price-td-mobile">
-                <img src={BNBsLogo} alt="BNBsLogo"></img>
+                <img src={BNBsLogo} alt="BNBsLogo" class="circle-image"></img>
                 <span className="Price-span"> BNBs</span>
               </td>
               <td>
