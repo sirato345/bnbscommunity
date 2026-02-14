@@ -114,3 +114,49 @@
   margin-left: 0px;
   padding-top: 2px;
 }
+
+/* 按钮加载状态 - 居中 */
+.Price-search-btn,
+.Price-search-btn-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px; /* 确保按钮有足够宽度 */
+}
+
+/* 加载动画容器 - 居中 */
+.spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* 渐变彩色旋转圆圈 */
+.spinner::before {
+  content: '';
+  box-sizing: border-box;
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #ff6b6b;     /* 红色 */
+  border-right-color: #4ecdc4;    /* 青色 */
+  border-bottom-color: #45b7d1;    /* 蓝色 */
+  border-left-color: #f7b731;      /* 橙色 */
+  animation: spinner-rainbow 0.8s linear infinite;
+}
+
+@keyframes spinner-rainbow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.circle-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%; /* 关键：将正方形变为圆形 */
+    object-fit: cover; /* 确保图片填充整个容器，防止变形 */
+}
