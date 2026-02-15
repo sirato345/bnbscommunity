@@ -19,18 +19,18 @@ const CSVUploader = () => {
       return;
     }
 
-    Papa.parse(file, {
-      header: true, // 将第一行作为header，自动跳过
-      skipEmptyLines: true,
-      complete: (results) => {
-        console.log("解析结果:", results);
-        // results.data 已经去掉了第一行（header）
-        setFile(results.data);
-      },
-      error: (error) => {
-        console.error("CSV解析错误:", error);
-      },
-    });
+    // Papa.parse(file, {
+    //   header: true, // 将第一行作为header，自动跳过
+    //   skipEmptyLines: true,
+    //   complete: (results) => {
+    //     console.log("解析结果:", results);
+    //     // results.data 已经去掉了第一行（header）
+    //     setFile(results.data);
+    //   },
+    //   error: (error) => {
+    //     console.error("CSV解析错误:", error);
+    //   },
+    // });
 
     const formData = new FormData();
 
