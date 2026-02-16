@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     '*',                     // 允许所有来源（最简单）
   ],
+
+  // 兼容性配置
+  transpilePackages: ['class-variance-authority', 'clsx', 'tailwind-merge'],
+  
 };
 
 module.exports = {
@@ -24,7 +28,7 @@ module.exports = {
     return [
       // 避免使用通配符重定向到 _not-found
     ];
-  }
+  }, 
 };
 
 module.exports = nextConfig;

@@ -201,7 +201,7 @@ export default function CryptoScreenerPage() {
 
   return (
     <>
-      <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-4">
+      <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
           <div className="mb-5">
@@ -253,7 +253,7 @@ export default function CryptoScreenerPage() {
                                   repeatCount="indefinite" />
                         </path>
                         <path d="M60 25L75 45H65V55H55V45H45L60 25Z" 
-                              fill="none" stroke="white" strokeWidth="1" stroke-opacity="0.6">
+                              fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.6">
                           <animate attributeName="stroke-dashoffset" from="20" to="0" 
                                   dur="0.5s" repeatCount="indefinite" />
                         </path>
