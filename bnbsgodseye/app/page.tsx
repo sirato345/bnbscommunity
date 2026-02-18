@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
 import CryptoExtractor from './CryptoExtractor';
+import { BrowserView, MobileView } from "react-device-detect";
 
 // 定义数据类型
 interface CryptoData {
@@ -190,12 +191,22 @@ export default function CryptoScreenerPage() {
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case '×':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case '超买':
+      case 'Overbought':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case '超卖':
+      case 'Oversell':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    }
+  };
+
+  // 指标样式映射
+  const formatIndicator = (value: string) => {
+    switch (value) {
+      case 'Overbought':
+        return 'Over\nBought';
+      default:
+        return value;
     }
   };
 
@@ -399,9 +410,9 @@ export default function CryptoScreenerPage() {
                               {symbolData[1].kdj}
                             </span>
                           </td>
-                          <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${getIndicatorStyle(symbolData[1].kdjStatus)} truncate`}>
-                              {symbolData[1].kdjStatus}
+                          <td className="px-1 py-2 sm:px-2 sm:py-3 text-center">
+                            <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium inline-block text-center ${getIndicatorStyle(symbolData[1].kdjStatus)} whitespace-pre-wrap`}>
+                              {formatIndicator(symbolData[1].kdjStatus)}
                             </span>
                           </td>
                         </tr>
@@ -422,6 +433,10 @@ export default function CryptoScreenerPage() {
           )}
         </div>
       </div>
+      <MobileView>
+        <div className="h-[80px] bg-gray-50"></div>
+      </MobileView>
+      {/* 内容 */}
       <div className="fixed bottom-6 right-6 z-50">
         <CryptoExtractor onCallback={onAddCrypto} />
       </div>
