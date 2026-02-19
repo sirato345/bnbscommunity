@@ -5,6 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
 }
 
 code {
@@ -15,6 +16,7 @@ code {
 /* 一直表示滚动条 */
 html {
   overflow-y: scroll;
+  background-color: #ffffff;
 }
 
 /* 浏览器栏显示白色 */
