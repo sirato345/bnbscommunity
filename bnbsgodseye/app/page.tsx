@@ -191,24 +191,12 @@ export default function CryptoScreenerPage() {
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case '×':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'Overbought':
+      case 'OverBuy':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'Oversell':
+      case 'OverSell':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-    }
-  };
-
-  // 指标样式映射
-  const formatIndicator = (value: string) => {
-    switch (value) {
-      case 'Overbought':
-        return 'Over\nBought';
-      case 'Oversell':
-        return 'Over\nSell';
-      default:
-        return value;
     }
   };
 
@@ -366,7 +354,7 @@ export default function CryptoScreenerPage() {
                           </td>
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center">
                             <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium inline-block text-center ${getIndicatorStyle(symbolData[0].kdjStatus)} whitespace-pre-wrap`}>
-                              {formatIndicator(symbolData[0].kdjStatus)}
+                              {symbolData[0].kdjStatus}
                             </span>
                           </td>
                           <td 
@@ -413,7 +401,7 @@ export default function CryptoScreenerPage() {
                           </td>
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center">
                             <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium inline-block text-center ${getIndicatorStyle(symbolData[1].kdjStatus)} whitespace-pre-wrap`}>
-                              {formatIndicator(symbolData[1].kdjStatus)}
+                              {symbolData[1].kdjStatus}
                             </span>
                           </td>
                         </tr>

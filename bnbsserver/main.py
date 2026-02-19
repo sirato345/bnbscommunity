@@ -334,9 +334,9 @@ def getDisplay(symbol, df):
         KDJ = "×"
 
     if latest['K'] > 80 or latest['D'] > 80:
-        KDJ_OVER = "Overbought"
+        KDJ_OVER = "OverBuy"
     elif latest['K'] < 20 or latest['D'] < 20:
-        KDJ_OVER = "Oversell"
+        KDJ_OVER = "OverSell"
     else:
         KDJ_OVER = "Normal"
 
