@@ -77,7 +77,7 @@ body {
 
 /* globals.css 或类似的全局样式文件 */
 html, body {
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;  /* 允许下拉刷新，但减少底部闪烁 */
   background-color: #f9fafb; /* bg-gray-50 */
 }
 
