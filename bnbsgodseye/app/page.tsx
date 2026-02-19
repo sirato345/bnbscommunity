@@ -205,6 +205,8 @@ export default function CryptoScreenerPage() {
     switch (value) {
       case 'Overbought':
         return 'Over\nBought';
+      case 'Oversell':
+        return 'Over\nSell';
       default:
         return value;
     }
@@ -362,10 +364,9 @@ export default function CryptoScreenerPage() {
                               {symbolData[0].kdj}
                             </span>
                           </td>
-                          <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            {/* Status标签也相应放大 */}
-                            <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${getIndicatorStyle(symbolData[0].kdjStatus)} truncate`}>
-                              {symbolData[0].kdjStatus}
+                          <td className="px-1 py-2 sm:px-2 sm:py-3 text-center">
+                            <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium inline-block text-center ${getIndicatorStyle(symbolData[0].kdjStatus)} whitespace-pre-wrap`}>
+                              {formatIndicator(symbolData[0].kdjStatus)}
                             </span>
                           </td>
                           <td 
