@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./CSVUploader.css";
-import Papa from "papaparse";
+// import Papa from "papaparse";
 
 const CSVUploader = () => {
   const [file, setFile] = useState(null);
