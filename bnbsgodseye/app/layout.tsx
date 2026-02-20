@@ -13,7 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  icons: "BNBs.svg",
+  icons: {
+    icon: [
+      { 
+        url: 'BNBs.svg?v=' + Date.now(), // 添加时间戳
+        type: 'image/svg+xml',
+      },
+      ],
+    }, 
+  // icons: "BNBs.svg",
   title: "BNBs God's eye",
 };
 
