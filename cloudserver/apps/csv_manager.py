@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import csv
 import shutil
+import logging
 
+from pathlib import Path
 from django.conf import settings
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser
@@ -18,9 +20,15 @@ HOLDER_CSV = (
     / "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
 )
 
+logger = logging.getLogger(__name__)
 
 @api_view(["GET"])
 def get_csv(request: Request) -> Response:
+    logger.info(f"CSV_DIR: {settings.CSV_DIR}")
+    logger.info(f"CSV_DIR exists: {settings.CSV_DIR.exists()}")
+    logger.info(f"HOLDER_CSV: {HOLDER_CSV}")
+    logger.info(f"Current directory: {Path.cwd()}")
+    
     """GET /csv — トークンホルダー CSV の一覧を返す。"""
     if not HOLDER_CSV.exists():
         return Response({"error": "CSV file not found"}, status=404)
