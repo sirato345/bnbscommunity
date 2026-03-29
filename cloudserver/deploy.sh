@@ -2,7 +2,7 @@
 # deploy.sh — Cloud Run へのデプロイ手順
 set -e
 
-PROJECT_ID="cloudserver"
+PROJECT_ID="275599637949"
 REGION="asia-northeast1"
 REPO="bnbs-repo"
 SERVICE="bnbs-django"
