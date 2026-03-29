@@ -1,8 +1,18 @@
 #!/bin/bash
-# deploy.sh — Cloud Run へのデプロイ手順
+
+# deploy.sh は Google Cloud Run へのデプロイ用スクリプトです。以下の手順を自動化します：
+
+# Artifact Registry リポジトリ作成
+# Docker 認証設定
+# Docker イメージをビルド
+# イメージを Artifact Registry に push
+# Cloud Run にデプロイ
+# deploy.sh は ローカルマシンで実行します。
+# ./deploy.shで実行する
+
 set -e
 
-PROJECT_ID="275599637949"
+PROJECT_ID="project-717dce1d-b530-431a-b19"
 REGION="asia-northeast1"
 REPO="bnbs-repo"
 SERVICE="bnbs-django"
@@ -43,3 +53,5 @@ gcloud run services describe "${SERVICE}" \
   --region="${REGION}" \
   --format="value(status.url)" \
   --project="${PROJECT_ID}"
+
+read -p "Press Enter to continue..."
