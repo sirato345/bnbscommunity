@@ -17,7 +17,7 @@ from rest_framework.response import Response
 
 HOLDER_CSV = (
     settings.CSV_DIR
-    / "export-tokenholders-for-contract-0xC07ef1C7af6112C34A110809C6c8Efb343e63A64.csv"
+    / "export-tokenholders-for-contract-0xc07ef1c7af6112c34a110809c6c8efb343e63a64.csv"
 )
 
 logger = logging.getLogger(__name__)
