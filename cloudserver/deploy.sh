@@ -18,7 +18,7 @@ echo "▶ 2. Docker 認証設定"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
 echo "▶ 3. Docker ビルド"
-docker build -t "${IMAGE}" .
+docker build --no-cache -t "${IMAGE}" .
 
 echo "▶ 4. イメージを push"
 docker push "${IMAGE}"
