@@ -29,6 +29,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY . .
 
 RUN mkdir -p /app/csv
+COPY csv/ /app/csv/
 
 EXPOSE 8080
 
