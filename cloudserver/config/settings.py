@@ -11,6 +11,8 @@ SECRET_KEY    = os.environ.get("SECRET_KEY", "django-insecure-changeme-in-produc
 DEBUG = True   # 一時的に直接 True に変更
 ALLOWED_HOSTS = ["*"]
 
+APPEND_SLASH = False  # 允许不带斜杠的 URL，否则URL 末尾必须带斜杠，访问 /csv 会被重定向到 /csv/，导致前端请求失败
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
