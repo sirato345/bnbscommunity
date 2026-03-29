@@ -92,7 +92,7 @@ export default function CryptoScreenerPage() {
   async function getRemoteData(dataSource: DataSource[]) {
     const promises = dataSource.map(async (source) => {
       try {
-        const response = await axios.get('https://bnbscommunity.fly.dev/', {
+        const response = await axios.get('https://bnbs-django-275599637949.asia-northeast1.run.app/signals', {
         // const response = await axios.get('http://127.0.0.1:8000', {
           params: {
             timeFrame: source.timeframe,
