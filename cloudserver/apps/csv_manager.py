@@ -1,47 +1,65 @@
 """
 apps/csv_manager.py
-FastAPI の GET /csv と POST /upload を DRF へ移植
+Google Cloud Storage を使用した CSV の取得・アップロード
 """
 from __future__ import annotations
 
 import csv
-import shutil
 import logging
 
-from pathlib import Path
 from django.conf import settings
+from google.cloud import storage
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-HOLDER_CSV = (
-    settings.CSV_DIR
-    / "export-tokenholders-for-contract-0xc07ef1c7af6112c34a110809c6c8efb343e63a64.csv"
-)
+GCS_BUCKET = settings.GS_BUCKET_NAME
+GCS_BLOB   = "csv/export-tokenholders-for-contract-0xc07ef1c7af6112c34a110809c6c8efb343e63a64.csv"
 
 logger = logging.getLogger(__name__)
 
+def _get_gcs_client() -> storage.Client:
+    """Cloud Storage クライアントを返す（Cloud Run では認証不要）"""
+    return storage.Client()
+
+
+def _download_csv() -> str:
+    """GCS から CSV をテキストとしてダウンロードする"""
+    client = _get_gcs_client()
+    bucket = client.bucket(GCS_BUCKET)
+    blob   = bucket.blob(GCS_BLOB)
+    return blob.download_as_text(encoding="utf-8-sig")
+
+
+def _upload_csv(file_obj) -> None:
+    """GCS に CSV をアップロードする"""
+    client = _get_gcs_client()
+    bucket = client.bucket(GCS_BUCKET)
+    blob   = bucket.blob(GCS_BLOB)
+    blob.upload_from_file(file_obj, rewind=True)
+
+
 @api_view(["GET"])
 def get_csv(request: Request) -> Response:
-    logger.info(f"CSV_DIR: {settings.CSV_DIR}")
-    logger.info(f"CSV_DIR exists: {settings.CSV_DIR.exists()}")
-    logger.info(f"HOLDER_CSV: {HOLDER_CSV}")
-    logger.info(f"Current directory: {Path.cwd()}")
-    
-    """GET /csv — トークンホルダー CSV の一覧を返す。"""
-    if not HOLDER_CSV.exists():
+    """GET /csv — トークンホルダー CSV の一覧を返す"""
+    logger.info(f"GCS_BUCKET: {GCS_BUCKET}")
+    logger.info(f"GCS_BLOB:   {GCS_BLOB}")
+
+    try:
+        content = _download_csv()
+    except Exception as e:
+        logger.error(f"GCS download failed: {e}")
         return Response({"error": "CSV file not found"}, status=404)
 
-    data = []
-    with open(HOLDER_CSV, encoding="utf-8-sig") as f:
-        reader = csv.reader(f)
-        for i, line in enumerate(reader):
-            if i == 0:
-                continue    # ヘッダーをスキップ
-            count   = int(float(line[1].replace(",", "")))
-            percent = (count / settings.TOTAL_BNBS_COUNT) * 100
-            data.append([i, line[0], count, f"{percent:.5f}%"])
+    data   = []
+    reader = csv.reader(content.splitlines())
+    for i, line in enumerate(reader):
+        if i == 0:
+            continue    # ヘッダーをスキップ
+        count   = int(float(line[1].replace(",", "")))
+        percent = (count / settings.TOTAL_BNBS_COUNT) * 100
+        data.append([i, line[0], count, f"{percent:.5f}%"])
 
     return Response(data)
 
@@ -54,8 +72,10 @@ def upload_csv(request: Request) -> Response:
     if not file_obj:
         return Response({"error": "file field is required"}, status=400)
 
-    HOLDER_CSV.parent.mkdir(parents=True, exist_ok=True)
-    with open(HOLDER_CSV, "wb") as buf:
-        shutil.copyfileobj(file_obj, buf)
+    try:
+        _upload_csv(file_obj)
+    except Exception as e:
+        logger.error(f"GCS upload failed: {e}")
+        return Response({"error": "Upload failed"}, status=500)
 
     return Response({"message": "uploaded"})

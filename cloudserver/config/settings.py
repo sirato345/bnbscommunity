@@ -75,3 +75,9 @@ CSV_DIR          = BASE_DIR / "csv"
 TOTAL_BNBS_COUNT = 21_000_000
 KLINE_LIMIT      = 100
 CACHE_DURATION   = 60   # 秒
+
+
+# GCS 設定
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME", "bnbscommunity")
+GS_DEFAULT_ACL = None  # 非公開
