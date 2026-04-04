@@ -21,8 +21,7 @@ export const metadata: Metadata = {
       },
       ],
     }, 
-  // icons: "BNBs.svg",
-  title: "BNBs God's eye",
+  title: "BNBs AI Analyse",
 };
 
 export default function RootLayout({

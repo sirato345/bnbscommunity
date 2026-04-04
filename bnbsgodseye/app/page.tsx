@@ -206,8 +206,9 @@ export default function CryptoScreenerPage() {
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
           <div className="mb-5">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex ml-0.5">
-              <Image src="BNBs.svg" alt="Logo" width={32} height={32} /><span className='ml-2'>BNBs God&apos;s eye</span>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center ml-0.5">
+              <Image src="BNBs.svg" alt="Logo" width={32} height={32} className="w-8 h-8 rounded-full object-cover"/>
+              <span className='px-1 font-semibold text-[20px] text-black text-left'>BNBs AI Analyse</span>
             </h1>
             
             <div className="flex flex-wrap justify-end gap-4">
@@ -415,9 +416,11 @@ export default function CryptoScreenerPage() {
 
           {/* 加载状态 */}
           {loading && data.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+            <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+                <p className="text-gray-600">Loading...</p>
+              </div>
             </div>
           )}
         </div>
