@@ -13,7 +13,7 @@ export function WalletHeader() {
     >
       <Typography px={2} fontWeight={600} fontSize={20} color='black' textAlign='left'>
         <div className="WalletHeader-div">
-            <img src="BNBs.svg" className="WalletHeader-img"></img> BNBs AI Exchange
+            <img src="BNBs.svg" className="WalletHeader-img"></img> BNBs AI DEX
         </div>
       </Typography>
     </Box>
