@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
 import CryptoExtractor from './CryptoExtractor';
-import { BrowserView, MobileView } from "react-device-detect";
+import { MobileView } from "react-device-detect";
 
 // 定义数据类型
 interface CryptoData {
@@ -202,7 +202,7 @@ export default function CryptoScreenerPage() {
 
   return (
     <>
-      <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-4 min-h-screen">
+      <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-white p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
           <div className="mb-5">
@@ -423,7 +423,7 @@ export default function CryptoScreenerPage() {
         </div>
       </div>
       <MobileView>
-        <div className="h-[80px] bg-gray-50"></div>
+        <div className="h-[80px] bg-white"></div>
       </MobileView>
       {/* 内容 */}
       <div className="fixed bottom-6 right-6 z-50">

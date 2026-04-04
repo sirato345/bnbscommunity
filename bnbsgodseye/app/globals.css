@@ -23,12 +23,6 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
-}
-
 /* 红绿灯标准颜色动画 */
 @keyframes cellPulseRed {
   0% {
@@ -78,9 +72,12 @@ body {
 /* globals.css 或类似的全局样式文件 */
 html, body {
   overscroll-behavior-y: auto;  /* 允许下拉刷新，但减少底部闪烁 */
-  background-color: #f9fafb; /* bg-gray-50 */
+  background-color: #ffffff; /* 白色背景 */
 }
 
-.dark html, .dark body {
-  background-color: #111827; /* dark:bg-gray-900 */
+/* 移除深色模式，固定为白色背景 */
+body {
+  background: #ffffff;
+  color: #171717;
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
 }
