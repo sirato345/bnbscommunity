@@ -5,6 +5,7 @@ import axios from 'axios';
 import Image from 'next/image';
 import CryptoExtractor from './CryptoExtractor';
 import { MobileView } from "react-device-detect";
+import "./globals.css";
 
 // 定义数据类型
 interface CryptoData {
@@ -222,51 +223,37 @@ export default function CryptoScreenerPage() {
                 <button
                   onClick={() => fetchData()}
                   disabled={loading}
-                  className="flex items-center justify-center w-20 h-10 px-0 py-0 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex 
+                              items-center 
+                              justify-center 
+                              min-w-[80px]
+                              p-2.5 
+                              ml-[2px] 
+                              mt-[5px] 
+                              mr-[5px] 
+                              mb-[5px] 
+                              bg-[#4CAF50] 
+                              text-white 
+                              text-sm
+                              font-sans
+                              font-medium
+                              border-none 
+                              rounded-r-md 
+                              cursor-pointer 
+                              w-[80px] 
+                              h-9
+                              hover:bg-[#4CAF50]
+                              active:bg-[#4CAF50]
+                              transition-colors
+                              duration-200
+                              disabled:opacity-50
+                              disabled:cursor-not-allowed"
                 >
-                  {loading ? 
-                    <svg className="h-9 w-9" viewBox="0 0 120 120">
-                      <defs>
-                        <linearGradient id="neon-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#00dbde" />
-                          <stop offset="100%" stopColor="#fc00ff" />
-                        </linearGradient>
-                        <filter id="neon-filter">
-                          <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-                          <feMerge>
-                            <feMergeNode in="coloredBlur"/>
-                            <feMergeNode in="SourceGraphic"/>
-                          </feMerge>
-                        </filter>
-                      </defs>
-                      <circle cx="60" cy="60" r="50" fill="none" stroke="url(#neon-glow)" 
-                              strokeWidth="3" strokeDasharray="5,10" opacity="0.7">
-                        <animateTransform attributeName="transform" type="rotate" 
-                                          from="0 60 60" to="360 60 60" dur="3s" 
-                                          repeatCount="indefinite" />
-                      </circle>
-                      <g filter="url(#neon-filter)" className="transform-origin: 60px 60px">
-                        <animateTransform attributeName="transform" type="rotate" 
-                                          from="0 60 60" to="360 60 60" dur="1.5s" 
-                                          repeatCount="indefinite" />
-                        <path d="M60 25L75 45H65V55H55V45H45L60 25Z" 
-                              fill="url(#neon-glow)" opacity="0.9">
-                          <animate attributeName="opacity" values="0.7;1;0.7" dur="1s" 
-                                  repeatCount="indefinite" />
-                        </path>
-                        <path d="M60 25L75 45H65V55H55V45H45L60 25Z" 
-                              fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.6">
-                          <animate attributeName="stroke-dashoffset" from="20" to="0" 
-                                  dur="0.5s" repeatCount="indefinite" />
-                        </path>
-                      </g>
-                      <circle cx="85" cy="35" r="1.5" fill="#00dbde">
-                        <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
-                        <animateTransform attributeName="transform" type="rotate" 
-                                          from="0 60 60" to="360 60 60" dur="4s" 
-                                          repeatCount="indefinite" />
-                      </circle>
-                    </svg> : 'Update'}
+                  {loading ? (
+                  <span className="spinner"></span>
+                  ) : (
+                    "Update"
+                  )}
                 </button>
               </div>
             </div>
