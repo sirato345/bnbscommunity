@@ -1,0 +1,207 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+
+function useCounter(
+  target: number,
+  duration: number = 2000,
+  start: boolean = false,
+  initValue: number
+) {
+  const [count, setCount] = useState(initValue);
+
+  useEffect(() => {
+    if (!start) return;
+    let startTime: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(initValue + (target - initValue) * eased);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration, start, initValue]);
+
+  return count;
+}
+
+function formatInteger(value: number): string {
+  const n = Math.floor(value);
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(0) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+
+function formatPrice(value: number): string {
+  return value.toFixed(5);
+}
+
+function formatDefault(value: number): string {
+  if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
+  if (value >= 1_000) return (value / 1_000).toFixed(0) + 'K';
+  return Math.floor(value).toLocaleString();
+}
+
+type StatType = 'integer' | 'price' | 'default';
+
+interface StatConfig {
+  label: string;
+  value: number;
+  initValue: number;
+  prefix?: string;
+  suffix?: string;
+  type?: StatType;
+}
+
+function StatCard({ stat, start }: { stat: StatConfig; start: boolean }) {
+  const count = useCounter(stat.value, 2000, start, stat.initValue);
+  const formatted =
+    stat.type === 'integer' ? formatInteger(count)
+    : stat.type === 'price' ? formatPrice(count)
+    : formatDefault(count);
+
+  return (
+    <div className="minimal-card rounded-lg p-6 text-center transition-all duration-300 hover:scale-105">
+      <div
+        className="text-3xl lg:text-4xl font-black mb-1"
+        style={{
+          fontFamily: "'Orbitron', sans-serif",
+          background: 'linear-gradient(135deg, rgb(91, 127, 255) 0%, rgb(0, 208, 132) 100%)',
+          WebkitBackgroundClip: 'text',
+          backgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          color: 'transparent',
+        }}
+      >
+        {stat.prefix}{formatted}{stat.suffix}
+      </div>
+      <div className="text-sm" style={{ color: '#999', fontFamily: "'Noto Sans SC', sans-serif" }}>
+        {stat.label}
+      </div>
+    </div>
+  );
+}
+
+const BNBs_PRICE_API =
+  'https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64';
+
+const getBNBsInfo = async (): Promise<[number, number]> => {
+  const random = Math.random();
+  const allOriginsUrl1 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(BNBs_PRICE_API + `?nocache=${random}`)}`;
+  const allOriginsUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(BNBs_PRICE_API + `?nocache=${random}`)}`;
+  try {
+    const res = await fetch(allOriginsUrl1);
+    const json = await res.json();
+    const contents = json.data;
+    return [contents.token_price, Math.trunc(contents.circulate_mkt_cap)];
+  } catch {
+    const res = await fetch(allOriginsUrl2);
+    const json = await res.json();
+    const contents = JSON.parse(json.contents).data;
+    return [contents.token_price, Math.trunc(contents.circulate_mkt_cap)];
+  }
+};
+
+const BASE_STATS: StatConfig[] = [
+  { label: 'TOTAL SUPPLY', value: 21_000_000, initValue: 1_000_000, type: 'integer' },
+  { label: 'HOLDERS',      value: 3_953,      initValue: 1_000 },
+  { label: 'MARKET CAP',  value: 26_000,      initValue: 1_000, prefix: '$' },
+  { label: 'PRICE',       value: 0.00126,     initValue: 0.00001, prefix: '$', type: 'price' },
+];
+
+interface StatsProps {
+  logoSectionRef: React.RefObject<HTMLDivElement>;
+  statsSectionRef: React.RefObject<HTMLDivElement>;
+  statsInView: boolean;
+}
+
+export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: StatsProps) {
+  const [stats, setStats] = useState<StatConfig[]>(BASE_STATS);
+
+  useEffect(() => {
+    getBNBsInfo()
+      .then(([price, marketCap]) => {
+        setStats(prev => prev.map(s => {
+          if (s.label === 'PRICE')      return { ...s, value: price };
+          if (s.label === 'MARKET CAP') return { ...s, value: marketCap };
+          return s;
+        }));
+      })
+      .catch(console.error);
+  }, []);
+
+  return (
+    <div
+      className="w-1/2 flex flex-col"
+    >
+      {/* 上半分: Logo */}
+      <div
+        ref={logoSectionRef}
+        className="flex items-center justify-center"
+        style={{ height: '45%' }}
+      >
+        <div
+          className="relative w-40 h-40 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
+          style={{
+            background: 'radial-gradient(circle, rgba(91,127,255,0.1) 0%, rgba(248,249,250,0.8) 100%)',
+            border: '1px solid rgba(91,127,255,0.2)',
+            boxShadow: '0 0 60px rgba(91,127,255,0.1), inset 0 0 60px rgba(91,127,255,0.05)',
+          }}
+        >
+          <img
+            src="/logo-b.png"
+            alt="BNBs Token"
+            className="w-36 h-36 lg:w-48 lg:h-48 object-contain animate-float"
+          />
+        </div>
+      </div>
+
+      {/* 下半分: Stats */}
+      <section
+        ref={statsSectionRef}
+        className="flex flex-col items-center justify-center px-6 gap-6"
+        style={{ height: '50%' }}
+      >
+        <div className="w-full grid grid-cols-2 gap-x-2 gap-y-3">
+          {stats.map((stat) => (
+            <div key={stat.label} className="w-[calc(100%-16px)] mx-auto">
+              <StatCard stat={stat} start={statsInView} />
+            </div>
+          ))}
+        </div>
+
+                {/* Social links */}
+        <div className="flex items-center gap-6">
+          {/* X (Twitter) */}
+          <a
+            href="https://x.com/BNBS_BSC20"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:scale-110"
+            style={{ background: 'rgba(0,0,0,0.05)' }}
+            aria-label="X (Twitter)"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#111"/>
+            </svg>
+          </a>
+
+          {/* Telegram */}
+          <a
+            href="https://t.me/BNBSGlobalCommunity"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:scale-110"
+            style={{ background: 'rgba(0,122,204,0.08)' }}
+            aria-label="Telegram"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.686-1.685 7.944c-.126.57-.458.71-.927.44l-2.564-1.89-1.237 1.19c-.137.136-.252.252-.516.252l.185-2.614 4.762-4.302c.207-.184-.045-.286-.32-.102L7.67 14.383l-2.53-.79c-.55-.172-.56-.55.114-.814l9.875-3.808c.458-.165.858.112.8.715z" fill="#229ED9"/>
+            </svg>
+          </a>
+        </div>
+      </section>
+    </div>
+  );
+}
