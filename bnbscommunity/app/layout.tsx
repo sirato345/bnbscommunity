@@ -28,9 +28,8 @@ export default function RootLayout({
           rel="stylesheet" 
         />
       </head>
-      <body className=" bg-white overflow-hidden">
-        <Header />
-        <main className="pt-16 h-screen overflow-hidden">
+      <body className=" bg-white">
+        <main>
           {children}
         </main>
       </body>
