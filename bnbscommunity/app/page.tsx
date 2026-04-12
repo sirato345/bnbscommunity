@@ -5,7 +5,6 @@ import React from 'react';
 import Stats from '../components/Stats';
 import Timeline from '../components/Timeline';
 import Header from '../components/Header';
-import { BrowserView, MobileView } from "react-device-detect";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);

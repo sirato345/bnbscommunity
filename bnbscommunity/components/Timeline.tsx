@@ -4,6 +4,7 @@ import React from 'react';
 
 const TIMELINE = [
   { date: 'What is BNBs?',  desc: 'BNBs is the leading BNB Chain inscription, publicly minted on 2023 via the EVM platform (evm.ink). The inscription has been fully converted into a meme token on Pinklock. BNBs is an inscription meme token that combines a fair launch mechanism — inherited from the inscription model — with a meme-style swap trading mechanism.' },
+  { date: 'CA',  desc: '0xC07ef1C7af6112C34A110809C6c8Efb343e63A64' },
   { date: '2026.04',  desc: 'New official website launched: www.bnbscommunity.com' },
   { date: '2026.02',  desc: "BNBs' second real-world application — AI Analyse launched, capable of analyzing the trend strength of major tokens." },
   { date: '2025.12', desc: "BNBs' first real-world application — AI DEX — launched, enabling on-chain trading powered by AI. Transaction fees are only 0.3%, lower than the swap fees of most wallets and comparable to a CEX." },
