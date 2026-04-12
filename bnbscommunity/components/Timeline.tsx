@@ -3,6 +3,7 @@
 import React from 'react';
 
 const TIMELINE = [
+  { date: 'What is BNBs?',  desc: 'BNBs is the leading BNB Chain inscription, publicly minted on 2023 via the EVM platform (evm.ink). The inscription has been fully converted into a meme token on Pinklock. BNBs is an inscription meme token that combines a fair launch mechanism — inherited from the inscription model — with a meme-style swap trading mechanism.' },
   { date: '2026.04',  desc: 'New official website launched: www.bnbscommunity.com' },
   { date: '2026.02',  desc: "BNBs' second real-world application — AI Analyse launched, capable of analyzing the trend strength of major tokens." },
   { date: '2025.12', desc: "BNBs' first real-world application — AI DEX — launched, enabling on-chain trading powered by AI. Transaction fees are only 0.3%, lower than the swap fees of most wallets and comparable to a CEX." },
@@ -20,12 +21,18 @@ interface TimelineProps {
 }
 
 export default function Timeline({ sectionRef, inView }: TimelineProps) {
+  // 一度表示されたら、スクロールで画面外に出ても非表示に戻らないよう固定する
+  const hasBeenInView = React.useRef(false);
+  if (inView) hasBeenInView.current = true;
+  const visible = hasBeenInView.current;
+
   return (
     <section ref={sectionRef} className="w-1/2 py-4 pr-4" style={{ marginBottom: 20 }}>
       <div
         className="relative z-10"
         style={{ transform: 'scale(0.95)', transformOrigin: 'top left' }}
       >
+        
         <div className="relative">
 
           {/* Vertical line */}
@@ -38,8 +45,8 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
               width: '4px',
               background: 'linear-gradient(180deg, #5B7FFF 0%, #00D084 100%)',
               boxShadow: '0 0 20px rgba(91,127,255,0.3)',
-              transform: `translateX(-50%) scaleY(${inView ? 1 : 0})`,
-              transformOrigin: 'bottom',
+              transform: `translateX(-50%) scaleY(${visible ? 1 : 0})`,
+              transformOrigin: 'top',
               borderRadius: '2px',
               transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
               marginBottom: 20,
@@ -54,8 +61,8 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                   key={i}
                   className="relative"
                   style={{
-                    opacity: inView ? 1 : 0,
-                    transform: inView ? 'translateY(0)' : 'translateY(20px)',
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? 'translateY(0)' : 'translateY(20px)',
                     transition: `all 0.6s ease-out ${i * 0.1}s`,
                   }}
                 >

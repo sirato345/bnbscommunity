@@ -12,6 +12,7 @@
     "@fontsource/orbitron": "^5.2.8",
     "next": "14.2.0",
     "react": "^18",
+    "react-device-detect": "^2.2.3",
     "react-dom": "^18"
   },
   "devDependencies": {

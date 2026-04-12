@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 function useCounter(
   target: number,
@@ -139,7 +140,7 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
       <div
         ref={logoSectionRef}
         className="flex items-center justify-center"
-        style={{ height: '45%' }}
+        style={{ height: '47%' }}
       >
         <div
           className="relative w-40 h-40 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
@@ -172,19 +173,28 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
         </div>
 
                 {/* Social links */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
           {/* X (Twitter) */}
           <a
             href="https://x.com/BNBS_BSC20"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:scale-110"
-            style={{ background: 'rgba(0,0,0,0.05)' }}
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: '#111',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
             aria-label="X (Twitter)"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#111"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
             </svg>
+            X
           </a>
 
           {/* Telegram */}
@@ -192,14 +202,46 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
             href="https://t.me/BNBSGlobalCommunity"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:scale-110"
-            style={{ background: 'rgba(0,122,204,0.08)' }}
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: '#229ED9',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
             aria-label="Telegram"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.686-1.685 7.944c-.126.57-.458.71-.927.44l-2.564-1.89-1.237 1.19c-.137.136-.252.252-.516.252l.185-2.614 4.762-4.302c.207-.184-.045-.286-.32-.102L7.67 14.383l-2.53-.79c-.55-.172-.56-.55.114-.814l9.875-3.808c.458-.165.858.112.8.715z" fill="#229ED9"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.686-1.685 7.944c-.126.57-.458.71-.927.44l-2.564-1.89-1.237 1.19c-.137.136-.252.252-.516.252l.185-2.614 4.762-4.302c.207-.184-.045-.286-.32-.102L7.67 14.383l-2.53-.79c-.55-.172-.56-.55.114-.814l9.875-3.808c.458-.165.858.112.8.715z" fill="#fff"/>
             </svg>
+            TG
           </a>
+
+          {/* BUY ボタン */}
+          <Link
+            href="/ai-dex"
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: 'linear-gradient(135deg, #5B7FFF 0%, #00D084 100%)',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
+            aria-label="Buy BNBs"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9" cy="21" r="1.5" fill="#fff"/>
+              <circle cx="20" cy="21" r="1.5" fill="#fff"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.97-1.67L23 6H6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            BUY
+          </Link>
         </div>
       </section>
     </div>
