@@ -133,124 +133,117 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
   }, []);
 
   return (
-    <div>
-      <div className="hidden md:block">{/* PC */}
+    <div
+      className="w-1/2 flex flex-col"
+    >
+      {/* 上半分: Logo */}
+      <div
+        ref={logoSectionRef}
+        className="flex items-center justify-center"
+        style={{ height: '47%' }}
+      >
         <div
-          className="w-1/2 flex flex-col"
+          className="relative w-40 h-40 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
+          style={{
+            background: 'radial-gradient(circle, rgba(91,127,255,0.1) 0%, rgba(248,249,250,0.8) 100%)',
+            border: '1px solid rgba(91,127,255,0.2)',
+            boxShadow: '0 0 60px rgba(91,127,255,0.1), inset 0 0 60px rgba(91,127,255,0.05)',
+          }}
         >
-          {/* 上半分: Logo */}
-          <div
-            ref={logoSectionRef}
-            className="flex items-center justify-center"
-            style={{ height: '47%' }}
-          >
-            <div
-              className="relative w-40 h-40 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
-              style={{
-                background: 'radial-gradient(circle, rgba(91,127,255,0.1) 0%, rgba(248,249,250,0.8) 100%)',
-                border: '1px solid rgba(91,127,255,0.2)',
-                boxShadow: '0 0 60px rgba(91,127,255,0.1), inset 0 0 60px rgba(91,127,255,0.05)',
-              }}
-            >
-              <img
-                src="/logo-b.png"
-                alt="BNBs Token"
-                className="w-36 h-36 lg:w-48 lg:h-48 object-contain animate-float"
-              />
-            </div>
-          </div>
-
-          {/* 下半分: Stats */}
-          <section
-            ref={statsSectionRef}
-            className="flex flex-col items-center justify-center px-6 gap-6"
-            style={{ height: '50%' }}
-          >
-            <div className="w-full grid grid-cols-2 gap-x-2 gap-y-3">
-              {stats.map((stat) => (
-                <div key={stat.label} className="w-[calc(100%-16px)] mx-auto">
-                  <StatCard stat={stat} start={statsInView} />
-                </div>
-              ))}
-            </div>
-
-                    {/* Social links */}
-            <div className="flex items-center gap-3">
-              {/* X (Twitter) */}
-              <a
-                href="https://x.com/BNBS_BSC20"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
-                style={{
-                  background: '#111',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#fff',
-                  letterSpacing: '0.06em',
-                  fontFamily: "\'Orbitron\', sans-serif",
-                  whiteSpace: 'nowrap',
-                }}
-                aria-label="X (Twitter)"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
-                </svg>
-                X
-              </a>
-
-              {/* Telegram */}
-              <a
-                href="https://t.me/BNBSGlobalCommunity"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
-                style={{
-                  background: '#229ED9',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#fff',
-                  letterSpacing: '0.06em',
-                  fontFamily: "\'Orbitron\', sans-serif",
-                  whiteSpace: 'nowrap',
-                }}
-                aria-label="Telegram"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.686-1.685 7.944c-.126.57-.458.71-.927.44l-2.564-1.89-1.237 1.19c-.137.136-.252.252-.516.252l.185-2.614 4.762-4.302c.207-.184-.045-.286-.32-.102L7.67 14.383l-2.53-.79c-.55-.172-.56-.55.114-.814l9.875-3.808c.458-.165.858.112.8.715z" fill="#fff"/>
-                </svg>
-                TG
-              </a>
-
-              {/* BUY ボタン */}
-              <Link
-                href="/ai-dex"
-                className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
-                style={{
-                  background: 'linear-gradient(135deg, #5B7FFF 0%, #00D084 100%)',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#fff',
-                  letterSpacing: '0.06em',
-                  fontFamily: "\'Orbitron\', sans-serif",
-                  whiteSpace: 'nowrap',
-                }}
-                aria-label="Buy BNBs"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="9" cy="21" r="1.5" fill="#fff"/>
-                  <circle cx="20" cy="21" r="1.5" fill="#fff"/>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.97-1.67L23 6H6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                BUY
-              </Link>
-            </div>
-          </section>
+          <img
+            src="/logo-b.png"
+            alt="BNBs Token"
+            className="w-36 h-36 lg:w-48 lg:h-48 object-contain animate-float"
+          />
         </div>
       </div>
-      <div className="block md:hidden">{/* モバイル */}
-        
-      </div>
+
+      {/* 下半分: Stats */}
+      <section
+        ref={statsSectionRef}
+        className="flex flex-col items-center justify-center px-6 gap-6"
+        style={{ height: '50%' }}
+      >
+        <div className="w-full grid grid-cols-2 gap-x-2 gap-y-3">
+          {stats.map((stat) => (
+            <div key={stat.label} className="w-[calc(100%-16px)] mx-auto">
+              <StatCard stat={stat} start={statsInView} />
+            </div>
+          ))}
+        </div>
+
+                {/* Social links */}
+        <div className="flex items-center gap-3">
+          {/* X (Twitter) */}
+          <a
+            href="https://x.com/BNBS_BSC20"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: '#111',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
+            aria-label="X (Twitter)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" fill="#fff"/>
+            </svg>
+            X
+          </a>
+
+          {/* Telegram */}
+          <a
+            href="https://t.me/BNBSGlobalCommunity"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: '#229ED9',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
+            aria-label="Telegram"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.686-1.685 7.944c-.126.57-.458.71-.927.44l-2.564-1.89-1.237 1.19c-.137.136-.252.252-.516.252l.185-2.614 4.762-4.302c.207-.184-.045-.286-.32-.102L7.67 14.383l-2.53-.79c-.55-.172-.56-.55.114-.814l9.875-3.808c.458-.165.858.112.8.715z" fill="#fff"/>
+            </svg>
+            TG
+          </a>
+
+          {/* BUY ボタン */}
+          <Link
+            href="/ai-dex"
+            className="flex items-center justify-center gap-2 w-24 h-10 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{
+              background: 'linear-gradient(135deg, #5B7FFF 0%, #00D084 100%)',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '0.06em',
+              fontFamily: "\'Orbitron\', sans-serif",
+              whiteSpace: 'nowrap',
+            }}
+            aria-label="Buy BNBs"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9" cy="21" r="1.5" fill="#fff"/>
+              <circle cx="20" cy="21" r="1.5" fill="#fff"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.97-1.67L23 6H6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            BUY
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

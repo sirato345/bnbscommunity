@@ -5,6 +5,7 @@ import React from 'react';
 import Stats from '../components/Stats';
 import Timeline from '../components/Timeline';
 import Header from '../components/Header';
+import { BrowserView, MobileView } from "react-device-detect";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -30,32 +31,24 @@ export default function HomePage() {
   const { ref: historyRef, inView: historyInView } = useInView();
 
   return (
-    <div>
-      <div className="hidden md:block">{/* PC */}
-        <div className="h-screen overflow-hidden">
-          <Header />
+    // overflow-hidden でページ全体のスクロールを無効化
+    <div className="h-screen overflow-hidden">
+      <Header />
 
-          {/* Header 分を除いた高さでスクロール領域を作る */}
-          <div
-            className="flex overflow-y-auto"
-            style={{ height: `calc(100vh - ${HEADER_H}px)`, marginTop: HEADER_H }}
-          >
-            {/* 左カラム: Logo (上) + Stats (下) */}
-            <Stats
-              logoSectionRef={logoRef}
-              statsSectionRef={statsRef}
-              statsInView={statsInView}
-            />
+      {/* Header 分を除いた高さでスクロール領域を作る */}
+      <div
+        className="flex overflow-y-auto"
+        style={{ height: `calc(100vh - ${HEADER_H}px)`, marginTop: HEADER_H }}
+      >
+        {/* 左カラム: Logo (上) + Stats (下) */}
+        <Stats
+          logoSectionRef={logoRef}
+          statsSectionRef={statsRef}
+          statsInView={statsInView}
+        />
 
-            {/* 右カラム: Timeline */}
-            <Timeline sectionRef={historyRef} inView={historyInView}/>
-          </div>
-        </div>
-      </div>
-      <div className="block md:hidden">{/* モバイル */}
-        <Header />
-
-        
+        {/* 右カラム: Timeline */}
+        <Timeline sectionRef={historyRef} inView={historyInView}/>
       </div>
     </div>
   );

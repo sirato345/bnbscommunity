@@ -27,111 +27,104 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
   const visible = hasBeenInView.current;
 
   return (
-    <div>
-      <div className="hidden md:block">{/* PC */}
-        <section ref={sectionRef} className="w-1/2 py-4 pr-4" style={{ marginBottom: 20 }}>
+    <section ref={sectionRef} className="w-1/2 py-4 pr-4" style={{ marginBottom: 20 }}>
+      <div
+        className="relative z-10"
+        style={{ transform: 'scale(0.95)', transformOrigin: 'top left' }}
+      >
+        
+        <div className="relative">
+
+          {/* Vertical line */}
           <div
-            className="relative z-10"
-            style={{ transform: 'scale(0.95)', transformOrigin: 'top left' }}
-          >
-            
-            <div className="relative">
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: '12px',
+              width: '4px',
+              background: 'linear-gradient(180deg, #5B7FFF 0%, #00D084 100%)',
+              boxShadow: '0 0 20px rgba(91,127,255,0.3)',
+              transform: `translateX(-50%) scaleY(${visible ? 1 : 0})`,
+              transformOrigin: 'top',
+              borderRadius: '2px',
+              transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
+              marginBottom: 20,
+            }}
+          />
 
-              {/* Vertical line */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: '12px',
-                  width: '4px',
-                  background: 'linear-gradient(180deg, #5B7FFF 0%, #00D084 100%)',
-                  boxShadow: '0 0 20px rgba(91,127,255,0.3)',
-                  transform: `translateX(-50%) scaleY(${visible ? 1 : 0})`,
-                  transformOrigin: 'top',
-                  borderRadius: '2px',
-                  transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
-                  marginBottom: 20,
-                }}
-              />
-
-              <div className="space-y-[15px] pb-5">
-                {TIMELINE.map((item, i) => {
-                  const isEven = i % 2 === 0;
-                  return (
+          <div className="space-y-[15px] pb-5">
+            {TIMELINE.map((item, i) => {
+              const isEven = i % 2 === 0;
+              return (
+                <div
+                  key={i}
+                  className="relative"
+                  style={{
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? 'translateY(0)' : 'translateY(20px)',
+                    transition: `all 0.6s ease-out ${i * 0.1}s`,
+                  }}
+                >
+                  {/* Dot */}
+                  <div
+                    className="absolute z-20"
+                    style={{ left: '12px', top: '0px', transform: 'translateX(-50%)' }}
+                  >
                     <div
-                      key={i}
-                      className="relative"
+                      className="w-4 h-4 rounded-full"
                       style={{
-                        opacity: visible ? 1 : 0,
-                        transform: visible ? 'translateY(0)' : 'translateY(20px)',
-                        transition: `all 0.6s ease-out ${i * 0.1}s`,
+                        background: isEven ? '#5B7FFF' : '#00D084',
+                        boxShadow: isEven
+                          ? '0 0 16px rgba(91,127,255,0.6)'
+                          : '0 0 16px rgba(0,208,132,0.6)',
+                        border: '3px solid #FFFFFF',
+                      }}
+                    />
+                  </div>
+
+                  {/* Card */}
+                  <div style={{ paddingLeft: '38px' }}>
+                    <div
+                      className="minimal-card rounded-xl hover:shadow-lg transition-all duration-300"
+                      style={{
+                        background: isEven
+                          ? 'linear-gradient(135deg, #FFFFFF 0%, rgba(91,127,255,0.03) 100%)'
+                          : 'linear-gradient(135deg, #FFFFFF 0%, rgba(0,208,132,0.03) 100%)',
+                        border: isEven
+                          ? '1px solid rgba(91,127,255,0.2)'
+                          : '1px solid rgba(0,208,132,0.2)',
+                        padding: '14.4px 17.6px',
+                        width: '110%',
+                        maxWidth: 'calc(100% - 10px)',
+                        textAlign: 'left',
                       }}
                     >
-                      {/* Dot */}
                       <div
-                        className="absolute z-20"
-                        style={{ left: '12px', top: '0px', transform: 'translateX(-50%)' }}
+                        className="text-sm font-bold mb-1"
+                        style={{
+                          color: isEven ? '#5B7FFF' : '#00D084',
+                          fontFamily: "'Orbitron', sans-serif",
+                          letterSpacing: '0.05em',
+                        }}
                       >
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{
-                            background: isEven ? '#5B7FFF' : '#00D084',
-                            boxShadow: isEven
-                              ? '0 0 16px rgba(91,127,255,0.6)'
-                              : '0 0 16px rgba(0,208,132,0.6)',
-                            border: '3px solid #FFFFFF',
-                          }}
-                        />
+                        {item.date}
                       </div>
-
-                      {/* Card */}
-                      <div style={{ paddingLeft: '38px' }}>
-                        <div
-                          className="minimal-card rounded-xl hover:shadow-lg transition-all duration-300"
-                          style={{
-                            background: isEven
-                              ? 'linear-gradient(135deg, #FFFFFF 0%, rgba(91,127,255,0.03) 100%)'
-                              : 'linear-gradient(135deg, #FFFFFF 0%, rgba(0,208,132,0.03) 100%)',
-                            border: isEven
-                              ? '1px solid rgba(91,127,255,0.2)'
-                              : '1px solid rgba(0,208,132,0.2)',
-                            padding: '14.4px 17.6px',
-                            width: '110%',
-                            maxWidth: 'calc(100% - 10px)',
-                            textAlign: 'left',
-                          }}
-                        >
-                          <div
-                            className="text-sm font-bold mb-1"
-                            style={{
-                              color: isEven ? '#5B7FFF' : '#00D084',
-                              fontFamily: "'Orbitron', sans-serif",
-                              letterSpacing: '0.05em',
-                            }}
-                          >
-                            {item.date}
-                          </div>
-                          <p
-                            className="text-sm lg:text-base"
-                            style={{ color: '#666', lineHeight: 1.6, fontFamily: "'Noto Sans SC', sans-serif" }}
-                          >
-                            {item.desc}
-                          </p>
-                        </div>
-                      </div>
+                      <p
+                        className="text-sm lg:text-base"
+                        style={{ color: '#666', lineHeight: 1.6, fontFamily: "'Noto Sans SC', sans-serif" }}
+                      >
+                        {item.desc}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-
-            </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </section>
+
+        </div>
       </div>
-      <div className="block md:hidden">{/* モバイル */}
-        
-      </div>
-    </div>
+    </section>
   );
 }
