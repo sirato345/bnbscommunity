@@ -5,7 +5,6 @@ import React from 'react';
 import Stats from '../components/Stats';
 import Timeline from '../components/Timeline';
 import Header from '../components/Header';
-import { BrowserView, MobileView } from "react-device-detect";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -32,8 +31,7 @@ export default function HomePage() {
 
   return (
     <div>
-      <BrowserView>
-        // overflow-hidden でページ全体のスクロールを無効化
+      <div className="hidden md:block">{/* PC */}
         <div className="h-screen overflow-hidden">
           <Header />
 
@@ -53,10 +51,12 @@ export default function HomePage() {
             <Timeline sectionRef={historyRef} inView={historyInView}/>
           </div>
         </div>
-      </BrowserView>
-      <MobileView>
+      </div>
+      <div className="block md:hidden">{/* モバイル */}
+        <Header />
 
-      </MobileView>
+        
+      </div>
     </div>
   );
 }
