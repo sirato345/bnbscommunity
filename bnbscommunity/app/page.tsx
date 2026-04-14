@@ -1,11 +1,9 @@
 'use client';
 import './globals.css';
 import { useRef, useState, useEffect } from 'react';
-import React from 'react';
 import Stats from '../components/Stats';
 import Timeline from '../components/Timeline';
 import Header from '../components/Header';
-import { useMediaQuery } from 'react-responsive';
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -26,7 +24,6 @@ function useInView(threshold = 0.15) {
 const HEADER_H = 64;
 
 export default function HomePage() {
-  const isMobile = useMediaQuery({ maxWidth: 768 });
   const { ref: logoRef, inView: _logoInView } = useInView();
   const { ref: statsRef, inView: statsInView } = useInView();
   const { ref: historyRef, inView: historyInView } = useInView();
