@@ -10,7 +10,7 @@ const TIMELINE = [
   { date: '2025.12', desc: "BNBs' first real-world application — AI DEX — launched, enabling on-chain trading powered by AI. Transaction fees are only 0.3%, lower than the swap fees of most wallets and comparable to a CEX." },
   { date: '2025.07',  desc: 'The community mapped all inscriptions to meme on Pinklock, achieving full circulation of BNBs as a meme token.' },
   { date: '2024.12', desc: 'BNBs Swap launched; BNBs transitioned from a pure inscription to an inscription meme.' },
-  { date: '2024.06',  desc: 'Mr.Shirato took over the community and led its development.' },
+  { date: '2024.06',  desc: 'Mr.Bai took over the community and led its development.' },
   { date: '2024.03',  desc: 'Completed the inscription split, switching from per-contract trading to per-token trading.' },
   { date: '2023.12', desc: 'Reached a market cap of $40 million ($2 per token).' },
   { date: '2023.11.09', desc: 'BNBs inscription public mint, the BNBs community was established.' },
@@ -22,18 +22,17 @@ interface TimelineProps {
 }
 
 export default function Timeline({ sectionRef, inView }: TimelineProps) {
-  // 一度表示されたら、スクロールで画面外に出ても非表示に戻らないよう固定する
   const hasBeenInView = React.useRef(false);
   if (inView) hasBeenInView.current = true;
   const visible = hasBeenInView.current;
 
   return (
-    <section ref={sectionRef} className="w-1/2 py-4 pr-4" style={{ marginBottom: 20 }}>
+    // モバイル: w-full px-3 py-3 / PC(md以上): w-1/2 pr-4 py-4
+    <section ref={sectionRef} className="w-full md:w-1/2 py-3 md:py-4 px-3 md:px-0 md:pr-4" style={{ marginBottom: 20 }}>
       <div
         className="relative z-10"
         style={{ transform: 'scale(0.95)', transformOrigin: 'top left' }}
       >
-        
         <div className="relative">
 
           {/* Vertical line */}
@@ -54,7 +53,8 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
             }}
           />
 
-          <div className="space-y-[15px] pb-5">
+          {/* モバイル: space-y-[10px] / PC: space-y-[15px] */}
+          <div className="space-y-[10px] sm:space-y-[15px] pb-5">
             {TIMELINE.map((item, i) => {
               const isEven = i % 2 === 0;
               return (
@@ -72,8 +72,9 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                     className="absolute z-20"
                     style={{ left: '12px', top: '0px', transform: 'translateX(-50%)' }}
                   >
+                    {/* モバイル: w-3 h-3 / PC: w-4 h-4 */}
                     <div
-                      className="w-4 h-4 rounded-full"
+                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full"
                       style={{
                         background: isEven ? '#5B7FFF' : '#00D084',
                         boxShadow: isEven
@@ -85,7 +86,8 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                   </div>
 
                   {/* Card */}
-                  <div style={{ paddingLeft: '38px' }}>
+                  {/* モバイル: paddingLeft 28px / PC: 38px */}
+                  <div style={{ paddingLeft: 'clamp(28px, 6vw, 38px)' }}>
                     <div
                       className="minimal-card rounded-xl hover:shadow-lg transition-all duration-300"
                       style={{
@@ -95,14 +97,16 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                         border: isEven
                           ? '1px solid rgba(91,127,255,0.2)'
                           : '1px solid rgba(0,208,132,0.2)',
-                        padding: '14.4px 17.6px',
+                        // モバイル: padding小さめ / PC: 14.4px 17.6px
+                        padding: 'clamp(8px, 2vw, 14.4px) clamp(10px, 2.5vw, 17.6px)',
                         width: '110%',
                         maxWidth: 'calc(100% - 10px)',
                         textAlign: 'left',
                       }}
                     >
+                      {/* 日付ラベル: モバイル text-xs / PC text-sm */}
                       <div
-                        className="text-sm font-bold mb-1"
+                        className="text-xs sm:text-sm font-bold mb-1"
                         style={{
                           color: isEven ? '#5B7FFF' : '#00D084',
                           fontFamily: "'Orbitron', sans-serif",
@@ -111,9 +115,17 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                       >
                         {item.date}
                       </div>
+                      {/* 本文: モバイル text-xs / sm text-sm / lg text-base */}
                       <p
-                        className="text-sm lg:text-base"
-                        style={{ color: '#666', lineHeight: 1.6, fontFamily: "'Noto Sans SC', sans-serif" }}
+                        className="text-xs sm:text-sm lg:text-base"
+                        style={{
+                          color: '#666',
+                          lineHeight: 1.6,
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                          // 長いCA文字列などが画面外にはみ出さないよう折り返す
+                          wordBreak: 'break-all',
+                          overflowWrap: 'break-word',
+                        }}
                       >
                         {item.desc}
                       </p>

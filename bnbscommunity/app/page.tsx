@@ -5,6 +5,7 @@ import React from 'react';
 import Stats from '../components/Stats';
 import Timeline from '../components/Timeline';
 import Header from '../components/Header';
+import { useMediaQuery } from 'react-responsive';
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -25,8 +26,9 @@ function useInView(threshold = 0.15) {
 const HEADER_H = 64;
 
 export default function HomePage() {
-  const { ref: logoRef,    inView: _logoInView   } = useInView();
-  const { ref: statsRef,   inView: statsInView   } = useInView();
+  const isMobile = useMediaQuery({ maxWidth: 768 });
+  const { ref: logoRef, inView: _logoInView } = useInView();
+  const { ref: statsRef, inView: statsInView } = useInView();
   const { ref: historyRef, inView: historyInView } = useInView();
 
   return (
@@ -39,15 +41,17 @@ export default function HomePage() {
         className="flex overflow-y-auto"
         style={{ height: `calc(100vh - ${HEADER_H}px)`, marginTop: HEADER_H }}
       >
-        {/* 左カラム: Logo (上) + Stats (下) */}
-        <Stats
-          logoSectionRef={logoRef}
-          statsSectionRef={statsRef}
-          statsInView={statsInView}
-        />
+        <div className={isMobile ? "flex flex-col" : "flex"}>
+          {/* 左カラム: Logo (上) + Stats (下) */}
+          <Stats
+            logoSectionRef={logoRef}
+            statsSectionRef={statsRef}
+            statsInView={statsInView}
+          />
 
-        {/* 右カラム: Timeline */}
-        <Timeline sectionRef={historyRef} inView={historyInView}/>
+          {/* 右カラム: Timeline */}
+          <Timeline sectionRef={historyRef} inView={historyInView} />
+        </div>
       </div>
     </div>
   );
