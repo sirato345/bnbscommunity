@@ -41,7 +41,7 @@ export default function HomePage() {
         className="flex overflow-y-auto"
         style={{ height: `calc(100vh - ${HEADER_H}px)`, marginTop: HEADER_H }}
       >
-        <div className={isMobile ? "flex flex-col" : "flex"}>
+        <div className="flex flex-col md:flex-row">
           {/* 左カラム: Logo (上) + Stats (下) */}
           <Stats
             logoSectionRef={logoRef}
