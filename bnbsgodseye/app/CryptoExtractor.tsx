@@ -20,6 +20,7 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false); // 控制展开/折叠状态
+  const [maxDialogHeight, setMaxDialogHeight] = useState<number>(600);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +99,19 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
     }
   };
   
+  // iframeに埋め込まれた場合、実際の表示高さを取得して下切れを防ぐ
+  useEffect(() => {
+    const updateHeight = () => {
+      // window.innerHeightはiframe内では実際のiframe高さを返す
+      const availableHeight = window.innerHeight;
+      // 上下のマージン(24px × 2 = 48px)を引いた最大高さ
+      setMaxDialogHeight(Math.min(availableHeight - 48, 600));
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
   // 折叠/展开对话框
   const toggleDialog = () => {
     setIsExpanded(!isExpanded);
@@ -139,9 +153,18 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
         </button>
       )}
 
-      {/* 展开状态对话框 - 屏幕的四分之一大小，右下角 */}
+      {/* 展開状態ダイアログ - iframe対応: 100dvhで下切れを防止 */}
       {isExpanded && (
-        <div className="fixed bottom-6 right-6 z-50 w-[calc(100vw-3rem)] max-w-lg h-[calc(100vh-3rem)] max-h-150 animate-scale-in">
+        <div
+          className="fixed z-50 animate-scale-in"
+          style={{
+            bottom: '1.5rem',
+            right: '1.5rem',
+            width: 'calc(100vw - 3rem)',
+            maxWidth: '32rem',
+          height: `min(calc(100dvh - 3rem), ${maxDialogHeight}px)`,
+          }}
+        >
           <div className="w-full h-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
             {/* 对话框标题栏 */}
             <div className="border-b border-gray-200 p-4 bg-linear-to-r from-blue-50 to-purple-50 flex items-center justify-between shrink-0">
