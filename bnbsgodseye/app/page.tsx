@@ -422,9 +422,7 @@ export default function CryptoScreenerPage() {
         <div className="h-[80px] bg-white"></div>
       </MobileView>
       {/* 内容 */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <CryptoExtractor onCallback={onAddCrypto} />
-      </div>
+      <CryptoExtractor onCallback={onAddCrypto} />
     </>
   );
 }
