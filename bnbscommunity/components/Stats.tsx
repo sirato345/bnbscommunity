@@ -112,8 +112,8 @@ const getBNBsInfo = async (): Promise<[number, number]> => {
 const BASE_STATS: StatConfig[] = [
   { label: 'TOTAL SUPPLY', value: 21_000_000, initValue: 1_000_000, type: 'integer' },
   { label: 'HOLDERS', value: 3_953, initValue: 1_000 },
-  { label: 'MARKET CAP', value: 26_000, initValue: 1_000, prefix: '$' },
-  { label: 'PRICE', value: 0.00126, initValue: 0.00001, prefix: '$', type: 'price' },
+  { label: 'MARKET CAP', value: 1_000, initValue: 1_000, prefix: '$' },
+  { label: 'PRICE', value: 0.00001, initValue: 0.00001, prefix: '$', type: 'price' },
 ];
 
 interface StatsProps {
