@@ -94,8 +94,8 @@ function App() {
     tokens: {
       include: [
         {
-          chainId: 56,           // BSC の場合
-          address: "0xc07ef1c7af6112c34a110809c6c8efb343e63a64",
+          chainId: BSC_CHAIN_ID,           // BSC の場合
+          address: BNBs_TOKEN_ADDRESS,
           symbol: "BNBs",
           name: "BNBs Token",
           decimals: 18,
@@ -106,6 +106,9 @@ function App() {
     },
 
     chains: {
+      from: {
+        deny: [204],  // opBNB を除外
+      },
       to: {
         deny: [204],  // opBNB を除外
       },

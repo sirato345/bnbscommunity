@@ -125,17 +125,41 @@ interface StatsProps {
 export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: StatsProps) {
   const [stats, setStats] = useState<StatConfig[]>(BASE_STATS);
 
+  const fetchStatsData = async () => {
+    try {
+      const [price, marketCap] = await getBNBsInfo();
+      setStats(prev => prev.map(s => {
+        if (s.label === 'PRICE') return { ...s, value: price };
+        if (s.label === 'MARKET CAP') return { ...s, value: marketCap };
+        return s;
+      }));
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  // 1. 初始表示和刷新画面时获取数据
   useEffect(() => {
-    getBNBsInfo()
-      .then(([price, marketCap]) => {
-        setStats(prev => prev.map(s => {
-          if (s.label === 'PRICE') return { ...s, value: price };
-          if (s.label === 'MARKET CAP') return { ...s, value: marketCap };
-          return s;
-        }));
-      })
-      .catch(console.error);
-  }, []);
+    fetchStatsData();
+  }, []); // 空依赖数组，只在组件挂载时执行一次
+
+  // 2. 向上滑动滚动条（进入视口）时获取最新数据
+  useEffect(() => {
+    if (statsInView) {
+      fetchStatsData();
+    }
+  }, [statsInView]);
+
+  // 3. 可选：进入视口后定期刷新
+  useEffect(() => {
+    if (!statsInView) return;
+    
+    const interval = setInterval(() => {
+      fetchStatsData();
+    }, 30000); // 每30秒刷新一次
+    
+    return () => clearInterval(interval);
+  }, [statsInView]);
 
   return (
     // モバイル: w-full / PC(md以上): w-1/2
