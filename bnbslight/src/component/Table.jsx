@@ -6,7 +6,7 @@ import { BrowserView, MobileView  } from "react-device-detect"
 function Table(props) {
   const [data, setData] = React.useState([]);
 
-  const POOL = ["0x74716187c587866ec151990e2f22806a160493f4"];
+  const POOL = ["0x74716187c587866ec151990e2f22806a160493f4", "0x260af89a5bd00f70623fd3899cfca5b4ec2e7864"];
 
   const CREATOR = ["0xac0589a2a2015b862b33ae61fa8bbebd94d33d30"];
 

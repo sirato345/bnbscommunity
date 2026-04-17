@@ -7,7 +7,7 @@ const TIMELINE = [
   { date: 'CA',  desc: '0xC07ef1C7af6112C34A110809C6c8Efb343e63A64' },
   { date: '2026.04',  desc: 'New official website launched: www.bnbscommunity.com' },
   { date: '2026.02',  desc: "BNBs' second real-world application — AI Analyse launched, capable of analyzing the trend strength of major tokens." },
-  { date: '2025.12', desc: "BNBs' first real-world application — AI DEX — launched, enabling on-chain trading powered by AI. Transaction fees are only 0.3%, lower than the swap fees of most wallets and comparable to a CEX." },
+  { date: '2025.12', desc: "BNBs' first real-world application — AI DEX — launched, enabling on-chain trading powered by AI. Transaction fees are only 0.25%, lower than the swap fees of most wallets and comparable to a CEX." },
   { date: '2025.07',  desc: 'The community mapped all inscriptions to meme on Pinklock, achieving full circulation of BNBs as a meme token.' },
   { date: '2024.12', desc: 'BNBs Swap launched; BNBs transitioned from a pure inscription to an inscription meme.' },
   { date: '2024.06',  desc: 'Mr.Bai took over the community and led its development.' },
