@@ -24,6 +24,13 @@ type DataSource = {
   symbol: string;
 };
 
+// ─────────────────────────────────────────────
+// 定数
+// ─────────────────────────────────────────────
+const API_BASE = 'https://bnbs-django-275599637949.asia-northeast1.run.app';
+// const API_BASE = 'http://127.0.0.1:8000';
+
+
 export default function CryptoScreenerPage() {
   const [data, setData] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +66,59 @@ export default function CryptoScreenerPage() {
     setDataSources(prev => [...prev, ...newcrypto]);
   };
 
+  // ─── 一括リモートデータ取得 ───────────────────
+  /**
+   * dataSource を1回の POST で送信し、バックエンドがマルチスレッドで処理した結果を受け取る。
+   * レスポンス形式:
+   *   { results: { "1h_BTC/USDT": [...], ... }, errors: { "4h_BNB/USDT": "msg" } }
+   */
+  async function getRemoteData(targets: DataSource[]): Promise<CryptoData[]> {
+    const response = await axios.post(
+      `${API_BASE}/signals`,
+      { targets },
+      { timeout: 30000 },
+    );
+
+    const { results, errors } = response.data as {
+      results: Record<string, string[]>;
+      errors:  Record<string, string>;
+    };
+
+    // 成功行をCryptoData[]に変換（targetsの順序を維持）
+    const cryptoList: CryptoData[] = targets.map(source => {
+      const key = `${source.timeframe}_${source.symbol}`;
+      const raw = results[key];
+
+      if (!raw) {
+        // バックエンド側でエラーになった行はプレースホルダーを返す
+        console.error(`[bulk] error for ${key}:`, errors[key] ?? 'unknown');
+        return {
+          symbol:    source.symbol,
+          timestamp: new Date().toISOString(),
+          price:     'Update',
+          sar:       'Update',
+          macd:      'Update',
+          kdj:       'Update',
+          kdjStatus: 'Update',
+          timeframe: source.timeframe,
+        } as CryptoData;
+      }
+
+      return {
+        symbol:    raw[0],
+        timestamp: raw[1],
+        price:     parseFloat(raw[2]).toFixed(3),
+        sar:       raw[3],
+        macd:      raw[4],
+        kdj:       raw[5],
+        kdjStatus: raw[6],
+        timeframe: source.timeframe,
+      } as CryptoData;
+    });
+
+    return cryptoList;
+  }
+
   // 获取数据
   const fetchData = useCallback(async () => {
     console.log('Fetching data for sources:', dataSource);
@@ -70,8 +130,8 @@ export default function CryptoScreenerPage() {
       setData(results);
       setLastUpdate(new Date().toLocaleTimeString());
     } catch (err) {
-      setError('获取数据失败，请检查网络连接或API状态');
-      console.error('获取数据失败:', err);
+      setError('Failed to fetch data, please check your network connection or API status.');
+      console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
     }
@@ -87,66 +147,66 @@ export default function CryptoScreenerPage() {
       setData(prevData => [...prevData, ...results]);  // ※基于最新状态更新  
       setLastUpdate(new Date().toLocaleTimeString());
     } catch (err) {
-      setError('获取数据失败，请检查网络连接或API状态');
-      console.error('获取数据失败:', err);
+      setError('Failed to fetch data, please check your network connection or API status.');
+      console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   // 获取远程数据函数
-  async function getRemoteData(dataSource: DataSource[]) {
-    const promises = dataSource.map(async (source) => {
-      try {
-        const response = await axios.get('https://bnbs-django-275599637949.asia-northeast1.run.app/signals', {
-        // const response = await axios.get('http://127.0.0.1:8000', {
-          params: {
-            timeFrame: source.timeframe,
-            symbol: source.symbol,
-          },
-          timeout: 60000, // 60秒超时
-        });
+  // async function getRemoteData(dataSource: DataSource[]) {
+  //   const promises = dataSource.map(async (source) => {
+  //     try {
+  //       const response = await axios.get('https://bnbs-django-275599637949.asia-northeast1.run.app/signals/bulk', {
+  //       // const response = await axios.get('http://127.0.0.1:8000', {
+  //         params: {
+  //           timeFrame: source.timeframe,
+  //           symbol: source.symbol,
+  //         },
+  //         timeout: 60000, // 60秒超时
+  //       });
 
-        // 处理返回的数据
-        const responseData = response.data;
-        let rawData: string[];
+  //       // 处理返回的数据
+  //       const responseData = response.data;
+  //       let rawData: string[];
 
-        // 检查返回数据格式
-        if (Array.isArray(responseData)) {
-          rawData = responseData;
-        } else {
-          throw new Error('未知的数据格式');
-        }
+  //       // 检查返回数据格式
+  //       if (Array.isArray(responseData)) {
+  //         rawData = responseData;
+  //       } else {
+  //         throw new Error('未知的数据格式');
+  //       }
 
-        return {
-          symbol: rawData[0],
-          timestamp: rawData[1],
-          price: parseFloat(rawData[2]).toFixed(3),
-          sar: rawData[3],
-          macd: rawData[4],
-          kdj: rawData[5],
-          kdjStatus: rawData[6],
-          timeframe: source.timeframe,
-        } as CryptoData;
-      } catch (err) {
-        console.error(`获取 ${source.symbol} (${source.timeframe}) 数据失败:`, err);
-        // 返回一个错误占位数据
-        return {
-          symbol: source.symbol,
-          timestamp: new Date().toISOString(),
-          price: 'Update',
-          sar: 'Update',
-          macd: 'Update',
-          kdj: 'Update',
-          kdjStatus: 'Update',
-          timeframe: source.timeframe,
-        } as CryptoData;
-      }
-    });
+  //       return {
+  //         symbol: rawData[0],
+  //         timestamp: rawData[1],
+  //         price: parseFloat(rawData[2]).toFixed(3),
+  //         sar: rawData[3],
+  //         macd: rawData[4],
+  //         kdj: rawData[5],
+  //         kdjStatus: rawData[6],
+  //         timeframe: source.timeframe,
+  //       } as CryptoData;
+  //     } catch (err) {
+  //       console.error(`获取 ${source.symbol} (${source.timeframe}) 数据失败:`, err);
+  //       // 返回一个错误占位数据
+  //       return {
+  //         symbol: source.symbol,
+  //         timestamp: new Date().toISOString(),
+  //         price: 'Update',
+  //         sar: 'Update',
+  //         macd: 'Update',
+  //         kdj: 'Update',
+  //         kdjStatus: 'Update',
+  //         timeframe: source.timeframe,
+  //       } as CryptoData;
+  //     }
+  //   });
 
-    const results = await Promise.all(promises);
-    return results;
-  }
+  //   const results = await Promise.all(promises);
+  //   return results;
+  // }
 
   // 计算两个时间框架的总看跌数量
   function calculateSignal(data1h: CryptoData, data4h: CryptoData): string {

@@ -5,7 +5,9 @@ apps/signals.py
 from __future__ import annotations
 
 import math
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import ccxt
 import pandas as pd
@@ -18,34 +20,50 @@ from rest_framework.response import Response
 # ─────────────────────────────────────────────
 # 定数
 # ─────────────────────────────────────────────
+# 全局共享的 exchange 实例（避免重复创建）
+_exchange = None
+_exchange_lock = threading.Lock()
+
+def get_exchange():
+    """获取全局共享的 exchange 实例（线程安全）"""
+    global _exchange
+    if _exchange is None:
+        with _exchange_lock:
+            if _exchange is None:
+                _exchange = ccxt.binance({
+                    "enableRateLimit": True,
+                    "rateLimit": 50,  # 降低到 50ms
+                    "timeout": 20000,
+                    "options": {
+                        "defaultType": "spot",  # 现货交易
+                    }
+                })
+    return _exchange
+
 EXCHANGES = [
-    ("okx",     ccxt.okx),
-    ("bybit",   ccxt.bybit),
-    ("gateio",  ccxt.gateio),
-    ("kucoin",  ccxt.kucoin),
-    ("binance", ccxt.binance),
-    ("huobi",   ccxt.huobi),
+    ("binance", get_exchange),  # 使用函数返回共享实例
 ]
 
-# ─── インメモリキャッシュ ───────────────────
+# ─── スレッドセーフなインメモリキャッシュ ──────
 _cache: dict[str, tuple[float, list]] = {}
+_cache_lock = threading.Lock()
 
 
 # ─────────────────────────────────────────────
 # データ取得
 # ─────────────────────────────────────────────
-def get_exchange_data(time_frame: str, symbol: str, kline_limit: int = 100) -> pd.DataFrame:
+def get_exchange_data(time_frame: str, symbol: str, kline_limit: int = 60) -> pd.DataFrame:
     """複数取引所を順番に試して OHLCV を取得する。"""
     last_error = None
-    for name, cls in EXCHANGES:
+    for name, exchange_provider in EXCHANGES:
         try:
-            print(f"[signals] trying {name}...")
-            exchange = cls({"enableRateLimit": True, "timeout": 10000})
+            print(f"[signals] trying {name} {symbol} {time_frame}...")
+            exchange = exchange_provider()  # 获取共享实例
             ohlcv = exchange.fetch_ohlcv(symbol=symbol, timeframe=time_frame, limit=kline_limit)
             df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
             df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
             df.set_index("datetime", inplace=True)
-            print(f"[signals] success: {name}")
+            print(f"[signals] success: {name} {symbol} {time_frame}")
             return df
         except Exception as e:
             print(f"[signals] {name} failed: {e}")
@@ -83,7 +101,7 @@ def calculate_sar(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_all_indicators(time_frame: str, symbol: str, kline_limit: int = 100) -> pd.DataFrame:
+def get_all_indicators(time_frame: str, symbol: str, kline_limit: int = 60) -> pd.DataFrame:
     df = get_exchange_data(time_frame, symbol, kline_limit)
     df = calculate_macd(df)
     df = calculate_kdj(df)
@@ -109,33 +127,103 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     return [symbol, str(df.index[-1]), f"{latest['close']:.3f}", sar, macd, kdj, kdj_over]
 
 
-@api_view(["GET"])
-def get_signals(request: Request) -> Response:
+# ─────────────────────────────────────────────
+# 1ターゲット分の処理（スレッドから呼び出す）
+# ─────────────────────────────────────────────
+def _process_target(time_frame: str, symbol: str) -> dict:
     """
-    GET /?timeFrame=1h&symbol=BTC/USDT
-    FastAPI の getSignals() に相当。
+    キャッシュ確認 → 必要なら get_all_indicators → キャッシュ更新。
+    戻り値: {"key": cache_key, "data": display_list, "error": str | None}
     """
-    time_frame = request.query_params.get("timeFrame", "").strip()
-    symbol     = request.query_params.get("symbol", "").strip()
-
-    if not time_frame or not symbol:
-        return Response({"error": "timeFrame and symbol are required"}, status=400)
-
     cache_key = f"{time_frame}_{symbol}"
-    now       = time.time()
+    now = time.time()
 
-    # キャッシュヒット
-    if cache_key in _cache:
-        cached_at, data = _cache[cache_key]
-        if now - cached_at < settings.CACHE_DURATION:
-            print("[signals] cache hit")
-            return Response(data)
+    with _cache_lock:
+        if cache_key in _cache:
+            cached_at, data = _cache[cache_key]
+            if now - cached_at < settings.CACHE_DURATION:
+                print(f"[signals] cache hit: {cache_key}")
+                return {"key": cache_key, "data": data, "error": None}
 
     try:
-        df      = get_all_indicators(time_frame, symbol, settings.KLINE_LIMIT)
+        df = get_all_indicators(time_frame, symbol, settings.KLINE_LIMIT)
         display = build_display(symbol, df)
-        _cache[cache_key] = (now, display)
-        return Response(display)
+        with _cache_lock:
+            _cache[cache_key] = (time.time(), display)
+        return {"key": cache_key, "data": display, "error": None}
     except Exception as e:
-        print(f"[signals] error: {e}")
-        return Response({"error": str(e)}, status=502)
+        print(f"[signals] error {cache_key}: {e}")
+        return {"key": cache_key, "data": None, "error": str(e)}
+
+
+# ─────────────────────────────────────────────
+# DRF ビュー
+# ─────────────────────────────────────────────
+# @api_view(["GET"])
+# def get_signals_bulk(request: Request) -> Response:
+#     """
+#     GET /?timeFrame=1h&symbol=BTC/USDT
+#     単一シンボル・タイムフレームのシグナルを返す（後方互換用）。
+#     """
+#     time_frame = request.query_params.get("timeFrame", "").strip()
+#     symbol     = request.query_params.get("symbol", "").strip()
+
+#     if not time_frame or not symbol:
+#         return Response({"error": "timeFrame and symbol are required"}, status=400)
+
+#     result = _process_target(time_frame, symbol)
+#     if result["error"]:
+#         return Response({"error": result["error"]}, status=502)
+#     return Response(result["data"])
+
+
+@api_view(["POST"])
+def get_signals(request: Request) -> Response:
+    """
+    POST /signals
+    Body: {"targets": [{"timeframe": "1h", "symbol": "BTC/USDT"}, ...]}
+
+    フロントから dataSource を一括送信し、行単位でマルチスレッド処理して返す。
+
+    レスポンス:
+    {
+      "results": {
+        "1h_BTC/USDT": ["BTC/USDT", "2025-...", "94000.123", "〇", "〇", "×", "Normal"],
+        "4h_BTC/USDT": [...],
+        ...
+      },
+      "errors": {
+        "4h_BNB/USDT": "timeout ..."   // 失敗した行のみ含まれる
+      }
+    }
+    """
+    targets: list = request.data.get("targets", [])
+
+    if not targets or not isinstance(targets, list):
+        return Response({"error": "targets (list) is required"}, status=400)
+
+    # 入力バリデーション
+    for t in targets:
+        if not isinstance(t, dict) or not t.get("timeframe") or not t.get("symbol"):
+            return Response(
+                {"error": "Each target must have 'timeframe' and 'symbol'"},
+                status=400,
+            )
+
+    results: dict = {}
+    errors:  dict = {}
+
+    # ターゲット数に合わせてスレッドを動的に確保
+    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+        futures = {
+            executor.submit(_process_target, t["timeframe"], t["symbol"]): t
+            for t in targets
+        }
+        for future in as_completed(futures):
+            res = future.result()
+            if res["error"]:
+                errors[res["key"]] = res["error"]
+            else:
+                results[res["key"]] = res["data"]
+
+    return Response({"results": results, "errors": errors})
