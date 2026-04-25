@@ -3,12 +3,10 @@ config/urls.py
 """
 from apps.csv_manager import get_csv, upload_csv
 from apps.signals import get_signals
-# from apps.signals import get_signals_bulk
 from django.urls import path
 
 urlpatterns = [
     path("signals", get_signals,  name="get_signals"),
-    # path("signals/bulk", get_signals_bulk, name="get_signals_bulk"),
     path("csv",     get_csv,      name="get_csv"),
     path("upload",  upload_csv,   name="upload_csv"),
 ]

@@ -155,28 +155,6 @@ def _process_target(time_frame: str, symbol: str) -> dict:
         print(f"[signals] error {cache_key}: {e}")
         return {"key": cache_key, "data": None, "error": str(e)}
 
-
-# ─────────────────────────────────────────────
-# DRF ビュー
-# ─────────────────────────────────────────────
-# @api_view(["GET"])
-# def get_signals_bulk(request: Request) -> Response:
-#     """
-#     GET /?timeFrame=1h&symbol=BTC/USDT
-#     単一シンボル・タイムフレームのシグナルを返す（後方互換用）。
-#     """
-#     time_frame = request.query_params.get("timeFrame", "").strip()
-#     symbol     = request.query_params.get("symbol", "").strip()
-
-#     if not time_frame or not symbol:
-#         return Response({"error": "timeFrame and symbol are required"}, status=400)
-
-#     result = _process_target(time_frame, symbol)
-#     if result["error"]:
-#         return Response({"error": result["error"]}, status=502)
-#     return Response(result["data"])
-
-
 @api_view(["POST"])
 def get_signals(request: Request) -> Response:
     """
