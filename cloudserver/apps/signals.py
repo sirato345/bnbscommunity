@@ -36,6 +36,7 @@ def get_exchange():
                     "timeout": 20000,
                     "options": {
                         "defaultType": "spot",  # 现货交易
+                        "defaultMarket": "spot",   # ← 追加
                     }
                 })
     return _exchange
