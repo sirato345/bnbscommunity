@@ -5,7 +5,7 @@
 # ./deploy.sh で実行する
 
 PROJECT_ID="project-717dce1d-b530-431a-b19"
-REGION="us-central1"
+REGION="asia-northeast1"
 REPO="bnbs-repo"
 SERVICE="bnbs-django"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE}"
@@ -29,7 +29,7 @@ echo "========================================"
 echo ""
 
 # ▶ 1. Artifact Registry リポジトリ作成（初回のみ）
-echo "▶ 1. Artifact Registry リポジトリ作成（us-central1）"
+echo "▶ 1. Artifact Registry リポジトリ作成（asia-northeast1）"
 gcloud artifacts repositories create "${REPO}" \
   --repository-format=docker \
   --location="${REGION}" \

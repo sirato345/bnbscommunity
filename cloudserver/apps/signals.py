@@ -30,19 +30,18 @@ def get_exchange():
     if _exchange is None:
         with _exchange_lock:
             if _exchange is None:
-                _exchange = ccxt.mexc({
+                _exchange = ccxt.binance({
                     "enableRateLimit": True,
                     "rateLimit": 50,  # 降低到 50ms
                     "timeout": 20000,
                     "options": {
                         "defaultType": "spot",  # 现货交易
-                        "defaultMarket": "spot",   # ← 追加
                     }
                 })
     return _exchange
 
 EXCHANGES = [
-    ("mexc", get_exchange),  # 使用函数返回共享实例
+    ("binance", get_exchange),  # 使用函数返回共享实例
 ]
 
 # ─── スレッドセーフなインメモリキャッシュ ──────

@@ -27,7 +27,7 @@ type DataSource = {
 // ─────────────────────────────────────────────
 // 定数
 // ─────────────────────────────────────────────
-const API_BASE = 'https://bnbs-django-275599637949.us-central1.run.app';
+const API_BASE = 'https://bnbs-django-275599637949.asia-northeast1.run.app';
 // const API_BASE = 'http://127.0.0.1:8000';
 
 
