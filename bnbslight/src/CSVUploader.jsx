@@ -10,7 +10,7 @@ const CSVUploader = () => {
   const navigate = useNavigate();
 
   // 基础配置
-  const API_BASE_URL = "https://bnbs-django-275599637949.asia-northeast1.run.app";
+  const API_BASE_URL = "https://bnbs-django-275599637949.us-central1.run.app";
   // const API_BASE_URL = "http://localhost:8000";
 
   // 方案1：基本文件上传（正确的方式）

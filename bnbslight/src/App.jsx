@@ -12,7 +12,7 @@ function App() {
   const [data, setData] = React.useState(null);
   const [chartFlg, setChartFlg] = React.useState(10);
 
-  const API_BASE_URL = "https://bnbs-django-275599637949.asia-northeast1.run.app/csv";
+  const API_BASE_URL = "https://bnbs-django-275599637949.us-central1.run.app/csv";
   // const API_BASE_URL = "http://localhost:8000/csv";
 
   // 调整axios配置
