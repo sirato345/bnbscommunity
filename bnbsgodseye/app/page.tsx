@@ -27,7 +27,7 @@ type DataSource = {
 // ─────────────────────────────────────────────
 // 定数
 // ─────────────────────────────────────────────
-const API_BASE = 'https://bnbs-django-275599637949.asia-northeast1.run.app';
+const API_BASE = 'https://bnbs-django-275599637949.us-central1.run.app';
 // const API_BASE = 'http://127.0.0.1:8000';
 
 
@@ -153,60 +153,6 @@ export default function CryptoScreenerPage() {
       setLoading(false);
     }
   };
-
-  // 获取远程数据函数
-  // async function getRemoteData(dataSource: DataSource[]) {
-  //   const promises = dataSource.map(async (source) => {
-  //     try {
-  //       const response = await axios.get('https://bnbs-django-275599637949.asia-northeast1.run.app/signals/bulk', {
-  //       // const response = await axios.get('http://127.0.0.1:8000', {
-  //         params: {
-  //           timeFrame: source.timeframe,
-  //           symbol: source.symbol,
-  //         },
-  //         timeout: 60000, // 60秒超时
-  //       });
-
-  //       // 处理返回的数据
-  //       const responseData = response.data;
-  //       let rawData: string[];
-
-  //       // 检查返回数据格式
-  //       if (Array.isArray(responseData)) {
-  //         rawData = responseData;
-  //       } else {
-  //         throw new Error('未知的数据格式');
-  //       }
-
-  //       return {
-  //         symbol: rawData[0],
-  //         timestamp: rawData[1],
-  //         price: parseFloat(rawData[2]).toFixed(3),
-  //         sar: rawData[3],
-  //         macd: rawData[4],
-  //         kdj: rawData[5],
-  //         kdjStatus: rawData[6],
-  //         timeframe: source.timeframe,
-  //       } as CryptoData;
-  //     } catch (err) {
-  //       console.error(`获取 ${source.symbol} (${source.timeframe}) 数据失败:`, err);
-  //       // 返回一个错误占位数据
-  //       return {
-  //         symbol: source.symbol,
-  //         timestamp: new Date().toISOString(),
-  //         price: 'Update',
-  //         sar: 'Update',
-  //         macd: 'Update',
-  //         kdj: 'Update',
-  //         kdjStatus: 'Update',
-  //         timeframe: source.timeframe,
-  //       } as CryptoData;
-  //     }
-  //   });
-
-  //   const results = await Promise.all(promises);
-  //   return results;
-  // }
 
   // 计算两个时间框架的总看跌数量
   function calculateSignal(data1h: CryptoData, data4h: CryptoData): string {
