@@ -20,6 +20,7 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false); // 控制展开/折叠状态
+  const [isMobile, setIsMobile] = useState(false);
   const [maxDialogHeight, setMaxDialogHeight] = useState<number>(600);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,19 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
+  // AIボタンの高さ分だけ body に padding-bottom を追加し、
+  // テーブル末尾がボタンに隠れないようにする。
+  useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    setIsMobile(mobile);
+    if (!mobile) return;
+
+    const prev = document.body.style.paddingBottom;
+    // １．调整追加銘柄之后，AI按钮距离底部的距离 40px
+    document.body.style.paddingBottom = '40px';
+    return () => { document.body.style.paddingBottom = prev; };
+  }, []);
+
   // 折叠/展开对话框
   const toggleDialog = () => {
     setIsExpanded(!isExpanded);
@@ -136,11 +150,12 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
     <>
 
       {/* 折叠状态按钮 */}
+      {/* ２．调整折叠状态时，AI按钮距离底部的距离 {bottom: 'calc(1.5rem + 40px)'} */}
       {!isExpanded && (
         <button
           onClick={toggleDialog}
-          className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4 py-3 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer group"
-          style={{ width: '180px', height: '60px' }}
+          className="fixed right-6 z-50 flex items-center space-x-3 px-4 py-3 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer group"
+          style={{ width: '180px', height: '60px', bottom: isMobile ? 'calc(1.5rem + 40px)' : '1.5rem' }}
         >
           <div className="p-2 bg-white/20 rounded-lg">
             <MessageSquare className="w-5 h-5" />
@@ -154,11 +169,12 @@ export default function CryptoExtractor({ onCallback }: ChildProps) {
       )}
 
       {/* 展開状態ダイアログ - iframe対応: 100dvhで下切れを防止 */}
+      {/* ３．调整展開状態时，AI按钮距离底部的距离 {bottom: 'calc(1.5rem + 30px)'} */}
       {isExpanded && (
         <div
           className="fixed z-50 animate-scale-in"
           style={{
-            bottom: '1.5rem',
+            bottom: isMobile ? 'calc(1.5rem + 30px)' : '1.5rem',
             right: '1.5rem',
             width: 'calc(100vw - 3rem)',
             maxWidth: '32rem',
