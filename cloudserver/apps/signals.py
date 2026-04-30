@@ -167,7 +167,7 @@ def get_signals(request: Request) -> Response:
     {
       "results": {
         "1h_BTC/USDT": ["BTC/USDT", "2025-...", "94000.123", "〇", "〇", "×", "Normal"],
-        "4h_BTC/USDT": [...],
+        "4h_BTC/USDT": ["BTC/USDT", "2025-...", "94000.123", "〇", "〇", "×", "Normal"],
         ...
       },
       "errors": {

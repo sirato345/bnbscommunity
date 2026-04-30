@@ -1,0 +1,38 @@
+# ─── ビルドステージ ──────────────────────────
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+# pandas-ta は依存競合のため --no-deps で別途インストール
+RUN pip install --no-cache-dir pandas-ta==0.4.71b0 --no-deps
+
+
+# ─── 実行ステージ ────────────────────────────
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# 環境変数
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV DJANGO_SETTINGS_MODULE=config.settings
+
+# 依存関係のコピー
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# アプリケーションコードのコピー
+COPY . .
+
+# CSVディレクトリの準備（ファイルがなくてもエラーにしない）
+RUN mkdir -p /app/csv
+RUN if [ -d "csv" ]; then cp -r csv/* /app/csv/ 2>/dev/null || true; fi
+
+# コマンドは指定しない（deploy-job.sh で指定）
+CMD ["python", "-c", "print('This container is for Cloud Run Job')"]
