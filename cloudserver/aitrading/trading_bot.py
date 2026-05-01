@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional
 from datetime import datetime
+import pytz
 
 import requests
 
@@ -28,6 +29,7 @@ class TradingSignalJob:
         self.db = firestore.Client(database='aitrading')
         self.collection_current = "CURRENT_TRADE"
         self.collection_history = "TRADE_HISTORY"# 固定文档ID，方便更新和删除
+        self.japan_tz = pytz.timezone('Asia/Tokyo')
     
     # 发送POST请求获取交易信号
     def fetch_signals(self) -> Optional[Dict]:
@@ -191,8 +193,8 @@ class TradingSignalJob:
             close_price = float(current_indicators[1]) if current_indicators[1] != '—' else 0
             
             # 解析开仓时间和平仓时间
-            open_date_str = open_data.get('OPEN_DATE', datetime.now().isoformat())
-            close_date_str = datetime.now().isoformat()
+            open_date_str = open_data.get('OPEN_DATE', datetime.now(self.japan_tz).isoformat())
+            close_date_str = datetime.now(self.japan_tz).isoformat()
             
             # 转换时间为datetime对象
             from datetime import datetime as dt
@@ -234,7 +236,7 @@ class TradingSignalJob:
             }
             
             # 使用时间戳作为文档ID
-            doc_id = datetime.now().isoformat()
+            doc_id = datetime.now(self.japan_tz).isoformat()
             doc_ref = self.db.collection(self.collection_history).document(doc_id)
             doc_ref.set(history_data)
             
@@ -283,7 +285,7 @@ class TradingSignalJob:
             # 按照您的数据结构保存
             doc_data = {
                 "SYMBOL": buy_symbol,
-                "OPEN_DATE": datetime.now().isoformat(),
+                "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
                 "OPEN_PRICE": price,
                 "OPEN_1H_SAR": buy_indicators[3] if len(buy_indicators) > 3 else '—',   # 1h SAR
                 "OPEN_1H_MACD": buy_indicators[4] if len(buy_indicators) > 4 else '—',  # 1h MACD
@@ -304,7 +306,7 @@ class TradingSignalJob:
     
     def run(self):
         """主执行函数"""
-        print(f"🚀 交易信号Job开始执行: {datetime.now()}")
+        print(f"🚀 交易信号Job开始执行: {datetime.now(self.japan_tz)}")
         print("=" * 50)
         
         # 1. 获取信号数据
@@ -330,7 +332,7 @@ class TradingSignalJob:
         self.open_trade(parsed_data)
         
         print("\n" + "=" * 50)
-        print(f"✅ Job执行完成: {datetime.now()}")
+        print(f"✅ Job执行完成: {datetime.now(self.japan_tz)}")
 
 def main():
     job = TradingSignalJob()
