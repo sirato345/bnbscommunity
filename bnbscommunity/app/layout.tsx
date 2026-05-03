@@ -6,11 +6,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { 
-        url: 'BNBs.svg?v=' + Date.now(), // 添加时间戳
+        url: 'BNBs.svg?v=' + Date.now(),
         type: 'image/svg+xml',
       },
-      ],
-    }, 
+    ],
+  }, 
   title: "BNBs Community",
 };
 
@@ -21,14 +21,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/* 解决字体问题 */}
       <head>
         <link 
           href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" 
           rel="stylesheet" 
         />
       </head>
-      <body className=" bg-white">
+      <body className="bg-white">
+        <Header />
         <main>
           {children}
         </main>

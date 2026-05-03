@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import Header from "../../components/Header";
 import { useCurrentTrades, CurrentTradeData } from './useCurrentTrades';
 import { useTradeHistory, TradeHistoryData } from './useTradeHistory';
 import './AITrading.css';
@@ -12,7 +11,6 @@ const fmtPct    = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
 const fmtDollar = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(2);
 const cls       = (v: number) => v >= 0 ? 'positive' : 'negative';
 
-// Date → "2026/5/2  23:00:27" (24-hour, double space before time)
 const fmtDate = (raw: string): string => {
   const d = new Date(raw);
   const yyyy = d.getFullYear();
@@ -24,7 +22,6 @@ const fmtDate = (raw: string): string => {
   return `${yyyy}/${mm}/${dd}  ${hh}:${min}:${ss}`;
 };
 
-// Hold time: insert space between h and m  e.g. "0h5m" → "0h 5m"
 const fmtHoldTime = (raw: string): string =>
   raw ? raw.replace(/h(\d)/g, 'h $1') : raw;
 
@@ -74,26 +71,44 @@ export default function AiTradingPage() {
   const { currentTrades, loading: cl, error: ce } = useCurrentTrades();
   const { history,       loading: hl, error: he } = useTradeHistory({ maxRecords: 50 });
 
-  // Refs for scroll hand-off between table and page body
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const pageBodyRef    = useRef<HTMLDivElement>(null);
+  // Scroll refs
+  const tableScrollRef  = useRef<HTMLDivElement>(null);
+  const pageBodyRef     = useRef<HTMLDivElement>(null);
+  const tableTouchLastY = useRef(0);
 
-  // When the table scroll reaches its top or bottom boundary,
-  // forward the remaining wheel delta to the outer page body.
+  // ── Wheel hand-off (desktop): table → page body ─────────────
   const handleTableWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     const el   = tableScrollRef.current;
     const page = pageBodyRef.current;
     if (!el || !page) return;
-
     const atTop    = el.scrollTop === 0;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-
-    const scrollingUp   = e.deltaY < 0;
-    const scrollingDown = e.deltaY > 0;
-
-    if ((atTop && scrollingUp) || (atBottom && scrollingDown)) {
+    if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
       e.preventDefault();
       page.scrollBy({ top: e.deltaY, behavior: 'auto' });
+    }
+  }, []);
+
+  // ── Touch hand-off (mobile): table → page body ──────────────
+  const handleTableTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    tableTouchLastY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTableTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const el   = tableScrollRef.current;
+    const page = pageBodyRef.current;
+    if (!el || !page) return;
+
+    const currentY = e.touches[0].clientY;
+    // deltaY > 0: finger moved down = scrolling up; < 0: finger moved up = scrolling down
+    const deltaY = tableTouchLastY.current - currentY;
+    tableTouchLastY.current = currentY;
+
+    const atTop    = el.scrollTop <= 0;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+
+    if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
+      page.scrollBy({ top: deltaY, behavior: 'auto' });
     }
   }, []);
 
@@ -113,7 +128,7 @@ export default function AiTradingPage() {
     );
   }
 
-  // ── Aggregation (P&L % based) ──────────────────────────────
+  // ── Aggregation ─────────────────────────────────────────────
   const pctValues  = history.map(t => toPct(t.PROFIT_OR_LOSS_PERCENT || 0));
   const totalPct   = pctValues.reduce((s, v) => s + v, 0);
   const winTrades  = pctValues.filter(v => v > 0).length;
@@ -123,9 +138,11 @@ export default function AiTradingPage() {
 
   return (
     <div className="trade-dashboard-wrapper">
-      <Header />
-      <div className="trade-dashboard-body" ref={pageBodyRef}>
-        <div className="trade-dashboard" style={{ paddingTop: 80 }}>
+      <div
+        className="trade-dashboard-body"
+        ref={pageBodyRef}
+      >
+        <div className="trade-dashboard">
 
           {/* ── Page Header ── */}
           <div className="page-header">
@@ -140,25 +157,21 @@ export default function AiTradingPage() {
               <div className={`kpi-value ${cls(totalPct)}`}>{fmtPct(totalPct)}</div>
               <div className="kpi-sub"></div>
             </div>
-
             <div className="kpi-card kpi-card--winrate">
               <div className="kpi-label">Win Rate</div>
               <div className="kpi-value neutral">{winRate.toFixed(1)}%</div>
               <div className="kpi-sub"></div>
             </div>
-
             <div className="kpi-card kpi-card--trades">
               <div className="kpi-label">Total Trades</div>
               <div className="kpi-value neutral">{history.length}</div>
               <div className="kpi-sub"></div>
             </div>
-
             <div className="kpi-card kpi-card--maxwin">
               <div className="kpi-label">Best Trade</div>
               <div className="kpi-value positive">{fmtPct(maxWinPct)}</div>
               <div className="kpi-sub"></div>
             </div>
-
             <div className="kpi-card kpi-card--maxloss">
               <div className="kpi-label">Worst Trade</div>
               <div className="kpi-value negative">{fmtPct(maxLossPct)}</div>
@@ -174,7 +187,7 @@ export default function AiTradingPage() {
               <div className="section-line" />
             </div>
             {currentTrades.length === 0 ? (
-              <div className="empty-state">No open positions</div>
+              <div className="empty-state">Waiting for trade signals...</div>
             ) : (
               <div className="current-grid">
                 {currentTrades.map((t: CurrentTradeData) => (
@@ -199,6 +212,8 @@ export default function AiTradingPage() {
                   className="table-scroll"
                   ref={tableScrollRef}
                   onWheel={handleTableWheel}
+                  onTouchStart={handleTableTouchStart}
+                  onTouchMove={handleTableTouchMove}
                 >
                   <table className="history-table">
                     <thead>

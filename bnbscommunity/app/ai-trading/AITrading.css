@@ -40,36 +40,56 @@
 /* ── Base ───────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Page-level scroll (exclude header) ────────────────────── */
-html, body {
-  height: 100%;
-  overflow: hidden; /* let .page-body handle scroll */
-}
-
+/* ── Wrapper: starts below the fixed 64px header ───────────── */
 .trade-dashboard-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 64px);
+  margin-top: 64px;
   overflow: hidden;
 }
-
-/* Header sits outside scroll area – handled by Header component */
 
 .trade-dashboard-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-hover) transparent;
+  overscroll-behavior-y: auto; /* allow pull-to-refresh passthrough */
 }
-.trade-dashboard-body::-webkit-scrollbar { width: 6px; }
-.trade-dashboard-body::-webkit-scrollbar-track { background: transparent; }
-.trade-dashboard-body::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+
+/* ── Pull-to-Refresh indicator ──────────────────────────────── */
+.ptr-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  transition: height 0.15s ease;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+.ptr-indicator .ptr-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+.ptr-arrow {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+.ptr-arrow.ready {
+  transform: rotate(180deg);
+}
 
 .trade-dashboard {
   background: var(--bg);
   min-height: 100%;
-  padding: 36px 32px 80px;
+  padding: 24px 32px 80px;
   font-family: var(--font-display);
   color: var(--text-primary);
 }
@@ -127,7 +147,6 @@ html, body {
   padding: 20px 20px 18px;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s, transform 0.15s;
-  /* Colored top bar – overridden per card via modifier classes */
   border-top: 3px solid var(--blue);
   overflow: hidden;
 }
@@ -135,8 +154,6 @@ html, body {
   box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
-
-/* Per-card top-border accent colors */
 .kpi-card--pnl     { border-top-color: var(--green); }
 .kpi-card--winrate { border-top-color: var(--blue); }
 .kpi-card--trades  { border-top-color: var(--purple); }
@@ -256,7 +273,6 @@ html, body {
   color: var(--text-primary);
 }
 
-/* Indicators */
 .indicators-toggle {
   margin-top: 14px;
   width: 100%;
@@ -307,7 +323,6 @@ html, body {
 }
 .ind-row span:last-child { color: var(--text-primary); font-weight: 500; }
 
-/* Empty state */
 .empty-state {
   text-align: center;
   padding: 48px;
@@ -327,24 +342,12 @@ html, body {
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
-
-/*
- * Scroll hand-off: when the table is scrolled to the top and the user
- * continues scrolling up, the event bubbles naturally to the page body.
- * We remove overflow-y from .table-scroll so the inner container never
- * traps scroll past its own content boundaries.
- */
 .table-scroll {
   overflow-x: auto;
   overflow-y: auto;
   max-height: 62vh;
-  overscroll-behavior-y: contain; /* stop table scroll from eating page scroll once at boundary */
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-hover) transparent;
+  overscroll-behavior-y: contain;
 }
-.table-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-.table-scroll::-webkit-scrollbar-track { background: var(--surface-2); }
-.table-scroll::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
 
 .history-table {
   width: 100%;
@@ -369,14 +372,12 @@ html, body {
   border-bottom: 1px solid var(--border);
 }
 .history-table th:first-child { text-align: left; }
-
 .history-table tbody tr {
   border-bottom: 1px solid var(--border);
   transition: background 0.1s;
 }
 .history-table tbody tr:last-child { border-bottom: none; }
 .history-table tbody tr:hover { background: var(--surface-2); }
-
 .history-table td {
   padding: 10px 16px;
   text-align: right;
@@ -386,7 +387,6 @@ html, body {
   white-space: nowrap;
 }
 .history-table td:first-child { text-align: left; font-family: var(--font-display); }
-
 .td-symbol {
   font-weight: 700;
   font-size: 13px;
@@ -396,8 +396,6 @@ html, body {
   color: var(--text-secondary);
   font-size: 11px;
 }
-
-/* P&L chips */
 .pl-chip {
   display: inline-flex;
   align-items: center;
@@ -408,16 +406,8 @@ html, body {
   font-weight: 500;
   font-family: var(--font-mono);
 }
-.pl-chip.positive {
-  color: var(--green);
-  background: var(--green-bg);
-}
-.pl-chip.negative {
-  color: var(--red);
-  background: var(--red-bg);
-}
-
-/* Row left border */
+.pl-chip.positive { color: var(--green); background: var(--green-bg); }
+.pl-chip.negative { color: var(--red);   background: var(--red-bg); }
 .profit-row td:first-child { border-left: 3px solid var(--green); }
 .loss-row   td:first-child { border-left: 3px solid var(--red); }
 
@@ -427,7 +417,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  height: calc(100vh - 64px);
+  margin-top: 64px;
   background: var(--bg);
   font-family: var(--font-display);
   gap: 14px;
