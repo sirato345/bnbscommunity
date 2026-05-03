@@ -18,6 +18,7 @@ export default function Header() {
     { name: 'Holders', path: '/holders', isExternal: false, externalUrl: 'https://bnbchain.bnbscommunity.com' },
     { name: 'AI DEX', path: '/ai-dex', isExternal: false, externalUrl: 'https://aiexchange.bnbscommunity.com' },
     { name: 'AI Analyse', path: '/ai-analyse', isExternal: false, externalUrl: 'https://godseye.bnbscommunity.com' },
+    { name: 'AI Trading', path: '/ai-trading', isExternal: false }
   ];
 
   const isActive = (item: MenuItem) => {
