@@ -8,6 +8,7 @@ export interface CurrentTradeData {
   SYMBOL: string;
   OPEN_DATE: string;
   OPEN_PRICE: number;
+  OPEN_15M_KDJ: string;    // 新增
   OPEN_1H_SAR: string | number;
   OPEN_1H_MACD: string | number;
   OPEN_1H_KDJ: string | number;
@@ -48,6 +49,7 @@ export function useCurrentTrades(): UseCurrentTradesResult {
             SYMBOL: data.SYMBOL,
             OPEN_DATE: data.OPEN_DATE,
             OPEN_PRICE: data.OPEN_PRICE,
+            OPEN_15M_KDJ: data.OPEN_15M_KDJ ?? '—',
             OPEN_1H_SAR: data.OPEN_1H_SAR ?? '—',
             OPEN_1H_MACD: data.OPEN_1H_MACD ?? '—',
             OPEN_1H_KDJ: data.OPEN_1H_KDJ ?? '—',

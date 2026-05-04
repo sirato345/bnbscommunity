@@ -17,6 +17,7 @@ export interface TradeHistoryData {
   SYMBOL: string;
   OPEN_DATE: string;
   OPEN_PRICE: number;
+  OPEN_15M_KDJ: string;    // 新增
   OPEN_1H_SAR: string | number;
   OPEN_1H_MACD: string | number;
   OPEN_1H_KDJ: string | number;
@@ -76,6 +77,7 @@ export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeH
             SYMBOL:               d.SYMBOL,
             OPEN_DATE:            d.OPEN_DATE,
             OPEN_PRICE:           d.OPEN_PRICE,
+            OPEN_15M_KDJ:         d.OPEN_15M_KDJ ?? '—',
             OPEN_1H_SAR:          d.OPEN_1H_SAR  ?? '—',
             OPEN_1H_MACD:         d.OPEN_1H_MACD ?? '—',
             OPEN_1H_KDJ:          d.OPEN_1H_KDJ  ?? '—',
@@ -84,6 +86,7 @@ export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeH
             OPEN_4H_KDJ:          d.OPEN_4H_KDJ  ?? '—',
             CLOSE_DATE:           d.CLOSE_DATE,
             CLOSE_PRICE:          d.CLOSE_PRICE,
+            CLOSE_15M_KDJ:        d.CLOSE_15M_KDJ ?? '—',
             CLOSE_1H_SAR:         d.CLOSE_1H_SAR  ?? '—',
             CLOSE_1H_MACD:        d.CLOSE_1H_MACD ?? '—',
             CLOSE_1H_KDJ:         d.CLOSE_1H_KDJ  ?? '—',

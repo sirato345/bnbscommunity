@@ -132,14 +132,14 @@ echo "   完了"
 echo ""
 
 # ─── 10. Cloud Scheduler を作成 ──────────────
-echo "▶ 10. Cloud Scheduler を作成（5分ごと）"
+echo "▶ 10. Cloud Scheduler を作成（3分ごと）"
 # ✅ 修正: OIDC ではなく OAuth2 を使用する
 #    Cloud Run Admin API（Googleの内部API）の呼び出しには
 #    OIDC ではなく OAuth2 が正しい認証方式
 #    OIDC を使うと UNAUTHENTICATED になる
 gcloud scheduler jobs create http trading-signal-schedule \
   --location ${REGION} \
-  --schedule="*/5 * * * *" \
+  --schedule="*/3 * * * *" \
   --uri="${JOB_URL}" \
   --http-method=POST \
   --oauth-service-account-email="${SCHEDULER_SA_EMAIL}" \
@@ -147,7 +147,7 @@ gcloud scheduler jobs create http trading-signal-schedule \
   --headers="Content-Type=application/json" \
   --message-body="{}" \
   --project ${PROJECT_ID}
-echo "   ✅ Scheduler作成完了（5分ごとに実行）"
+echo "   ✅ Scheduler作成完了（3分ごとに実行）"
 echo ""
 
 # ─── 11. Scheduler 確認 ──────────────────────

@@ -50,14 +50,21 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
       {open && (
         <div className="indicators-panel">
           {[
-            { label: '1H', sar: trade.OPEN_1H_SAR, macd: trade.OPEN_1H_MACD, kdj: trade.OPEN_1H_KDJ },
+            { label: '15M', kdj: trade.OPEN_15M_KDJ },
+            { label: '1H', macd: trade.OPEN_1H_MACD, kdj: trade.OPEN_1H_KDJ },
             { label: '4H', sar: trade.OPEN_4H_SAR, macd: trade.OPEN_4H_MACD, kdj: trade.OPEN_4H_KDJ },
           ].map(g => (
             <div key={g.label} className="ind-group">
               <div className="ind-group-title">{g.label}</div>
-              <div className="ind-row"><span>SAR</span><span>{g.sar}</span></div>
-              <div className="ind-row"><span>MACD</span><span>{g.macd}</span></div>
-              <div className="ind-row"><span>KDJ</span><span>{g.kdj}</span></div>
+              {g.kdj !== undefined && (
+                <div className="ind-row"><span>KDJ</span><span>{g.kdj}</span></div>
+              )}
+              {g.macd !== undefined && (
+                <div className="ind-row"><span>MACD</span><span>{g.macd}</span></div>
+              )}
+              {g.sar !== undefined && (
+                <div className="ind-row"><span>SAR</span><span>{g.sar}</span></div>
+              )}
             </div>
           ))}
         </div>
@@ -114,9 +121,11 @@ export default function AiTradingPage() {
 
   if (cl || hl) {
     return (
-      <div className="loading-screen">
-        <div className="spinner" />
-        <p>Loading data...</p>
+      <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
