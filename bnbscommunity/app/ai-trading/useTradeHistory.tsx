@@ -50,7 +50,7 @@ interface UseTradeHistoryOptions {
 }
 
 export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeHistoryResult {
-  const { maxRecords = 100, symbolFilter } = options;
+  const { maxRecords = 10000, symbolFilter } = options;
   const [history, setHistory]   = useState<TradeHistoryData[]>([]);
   const [loading, setLoading]   = useState<boolean>(true);
   const [error, setError]       = useState<Error | null>(null);
