@@ -214,6 +214,19 @@ export default function CryptoScreenerPage() {
 
   return (
     <>
+      {/* Header高さ補正CSS: 常にDOMに存在させることで、Loading表示時に移動が起きない */}
+      {param === 'true' && (
+        <style>{`
+          :root {
+            --loading-header-offset: -42px;
+          }
+          @media (min-width: 768px) {
+            :root {
+              --loading-header-offset: -28px;
+            }
+          }
+        `}</style>
+      )}
       <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-white p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
@@ -415,29 +428,15 @@ export default function CryptoScreenerPage() {
 
           {/* 加载状态 */}
           {loading && data.length === 0 && (
-            <>
-              {/* z-40: HeaderはZ-50のため、Loading中もHeaderは操作可能 */}
-              <div className="fixed inset-0 bg-white bg-opacity-90 z-40 flex items-center justify-center">
-                <div
-                  className="text-center"
-                  style={param === 'true' ? { marginTop: 'var(--loading-header-offset)' } : {}}
-                >
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-                  <p className="text-gray-600">Loading...</p>
-                </div>
+            <div className="fixed inset-0 bg-white bg-opacity-90 z-40 flex items-center justify-center">
+              <div
+                className="text-center"
+                style={param === 'true' ? { marginTop: 'var(--loading-header-offset)' } : {}}
+              >
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+                <p className="text-gray-600">Loading...</p>
               </div>
-              {/* Header高さの半分だけ上にずらすCSS変数（レスポンシブ） */}
-              <style>{`
-                :root {
-                  --loading-header-offset: -42px;
-                }
-                @media (min-width: 768px) {
-                  :root {
-                    --loading-header-offset: -28px;
-                  }
-                }
-              `}</style>
-            </>
+            </div>
           )}
         </div>
       </div>
