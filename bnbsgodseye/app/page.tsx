@@ -415,12 +415,29 @@ export default function CryptoScreenerPage() {
 
           {/* 加载状态 */}
           {loading && data.length === 0 && (
-            <div className="fixed inset-0 bg-white bg-opacity-90 z-[100] flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-                <p className="text-gray-600">Loading...</p>
+            <>
+              {/* z-40: HeaderはZ-50のため、Loading中もHeaderは操作可能 */}
+              <div className="fixed inset-0 bg-white bg-opacity-90 z-40 flex items-center justify-center">
+                <div
+                  className="text-center"
+                  style={param === 'true' ? { marginTop: 'var(--loading-header-offset)' } : {}}
+                >
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+                  <p className="text-gray-600">Loading...</p>
+                </div>
               </div>
-            </div>
+              {/* Header高さの半分だけ上にずらすCSS変数（レスポンシブ） */}
+              <style>{`
+                :root {
+                  --loading-header-offset: -42px;
+                }
+                @media (min-width: 768px) {
+                  :root {
+                    --loading-header-offset: -28px;
+                  }
+                }
+              `}</style>
+            </>
           )}
         </div>
       </div>
@@ -432,4 +449,3 @@ export default function CryptoScreenerPage() {
     </>
   );
 }
-
