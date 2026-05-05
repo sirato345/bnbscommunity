@@ -286,12 +286,15 @@ class TradingSignalJob:
             import traceback
             traceback.print_exc()
 
-    # 开仓函数：增加30分钟冷却时间检查（新增15m_MACD字段，保留15m_KDJ）
+    # 开仓函数：遍历所有Symbol，找出第一个符合开仓条件的
     def open_trade(self, parsed_data: Dict[str, List[str]]):
         """保存交易信号到Firestore（适配您的数据结构）
         条件：
         1. 当前交易collection里没有任何数据时
-        2. 距离上次平仓时间超过30分钟
+        2. 距离上次平仓时间需要超过冷却时间：
+        - 如果当前交易和上一次交易的SYMBOL一样：需要超过60分钟
+        - 如果SYMBOL不同或首次开仓：需要超过30分钟
+        3. 遍历所有有buy信号的Symbol，选择第一个符合条件的开仓
         """
         try:
             # 检查当前交易collection是否有数据
@@ -301,76 +304,104 @@ class TradingSignalJob:
                 print(f"⚠️ 当前交易collection不为空，跳过开仓操作")
                 return
             
-            # 检查历史记录中最后一次平仓时间
-            history_ref = self.db.collection(self.collection_history)
-            # 按CLOSE_DATE降序排序，获取最新的平仓记录
-            latest_trade = history_ref.order_by("CLOSE_DATE", direction=firestore.Query.DESCENDING).limit(1).get()
-            
-            latest_trade_list = list(latest_trade)
-            if latest_trade_list:
-                latest_doc = latest_trade_list[0]
-                latest_close_date_str = latest_doc.get('CLOSE_DATE')
-                
-                if latest_close_date_str:
-                    latest_close_date = datetime.fromisoformat(latest_close_date_str)
-                    current_time = datetime.now(self.japan_tz)
-                    
-                    # 计算距离上次平仓的时间差（秒）
-                    time_diff_seconds = (current_time - latest_close_date).total_seconds()
-                    required_seconds = 30 * 60  # 30分钟 = 1800秒
-                    
-                    if time_diff_seconds < required_seconds:
-                        # 距离上次平仓不足30分钟，禁止开仓
-                        remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
-                        print(f"⚠️ 冷却期检查未通过: 距离上次平仓仅 {int(time_diff_seconds // 60)} 分钟，需等待 {remaining_minutes} 分钟后才能开仓")
-                        print(f"   上次平仓时间: {latest_close_date_str}")
-                        return
-                    else:
-                        print(f"✅ 冷却期检查通过: 距离上次平仓 {int(time_diff_seconds // 60)} 分钟，允许开仓")
-                else:
-                    print(f"⚠️ 历史记录缺少 CLOSE_DATE 字段，继续开仓检查")
-            else:
-                print(f"ℹ️ 没有历史平仓记录，这是首次开仓")
-            
-            # 查找第一个buy信号
-            buy_symbol = None
-            buy_indicators = None
-            
+            # 收集所有有buy信号的Symbol
+            buy_symbols = []
             for symbol, indicators in parsed_data.items():
                 # 检查信号是否为buy（索引2是信号）
                 if len(indicators) >= 3 and indicators[2] == 'buy':
-                    buy_symbol = symbol
-                    buy_indicators = indicators
-                    break  # 找到第一个就退出
+                    buy_symbols.append((symbol, indicators))
             
-            # 如果没有找到buy信号，则不操作
-            if buy_symbol is None:
+            if not buy_symbols:
                 print(f"⚠️ parsed_data中没有找到buy信号，跳过开仓操作")
                 return
             
-            # 获取价格（索引1是价格）
-            price = float(buy_indicators[1]) if buy_indicators[1] != '—' else 0
+            print(f"📊 找到 {len(buy_symbols)} 个buy信号: {[s[0] for s in buy_symbols]}")
             
-            # 创建新文档（使用symbol作为文档ID，确保同一币种不会重复开仓）
-            doc_ref = self.db.collection(self.collection_current).document(buy_symbol)
+            # 获取历史记录中最后一次平仓记录
+            history_ref = self.db.collection(self.collection_history)
+            latest_trade = history_ref.order_by("CLOSE_DATE", direction=firestore.Query.DESCENDING).limit(1).get()
+            latest_trade_list = list(latest_trade)
             
-            # 按照您的数据结构保存（新增15m_MACD字段，保留15m_KDJ）
-            doc_data = {
-                "SYMBOL": buy_symbol,
-                "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
-                "OPEN_PRICE": price,
-                "OPEN_15M_KDJ": buy_indicators[3] if len(buy_indicators) > 3 else '—',   # 15m KDJ（保留）
-                "OPEN_15M_MACD": buy_indicators[4] if len(buy_indicators) > 4 else '—',  # 15m MACD（新增）
-                "OPEN_1H_SAR": buy_indicators[5] if len(buy_indicators) > 5 else '—',   # 1h SAR
-                "OPEN_1H_MACD": buy_indicators[6] if len(buy_indicators) > 6 else '—',  # 1h MACD
-                "OPEN_1H_KDJ": buy_indicators[7] if len(buy_indicators) > 7 else '—',   # 1h KDJ
-                "OPEN_4H_SAR": buy_indicators[8] if len(buy_indicators) > 8 else '—',   # 4h SAR
-                "OPEN_4H_MACD": buy_indicators[9] if len(buy_indicators) > 9 else '—',  # 4h MACD
-                "OPEN_4H_KDJ": buy_indicators[10] if len(buy_indicators) > 10 else '—', # 4h KDJ
-            }
+            # 遍历所有buy信号，找到第一个符合条件的
+            for buy_symbol, buy_indicators in buy_symbols:
+                print(f"\n🔍 检查 {buy_symbol} 是否符合开仓条件...")
+                
+                # 默认允许开仓的标志
+                can_open = True
+                skip_reason = ""
+                
+                # 如果有历史平仓记录，进行冷却时间检查
+                if latest_trade_list:
+                    latest_doc = latest_trade_list[0]
+                    latest_close_date_str = latest_doc.get('CLOSE_DATE')
+                    last_symbol = latest_doc.get('SYMBOL')
+                    
+                    if latest_close_date_str:
+                        latest_close_date = datetime.fromisoformat(latest_close_date_str)
+                        current_time = datetime.now(self.japan_tz)
+                        
+                        # 计算距离上次平仓的时间差（秒）
+                        time_diff_seconds = (current_time - latest_close_date).total_seconds()
+                        
+                        # 根据SYMBOL是否相同，决定冷却时间
+                        if last_symbol == buy_symbol:
+                            # SYMBOL相同：需要60分钟冷却
+                            required_seconds = 60 * 60  # 60分钟 = 3600秒
+                            cooling_type = "60分钟（相同SYMBOL）"
+                        else:
+                            # SYMBOL不同：需要30分钟冷却
+                            required_seconds = 30 * 60  # 30分钟 = 1800秒
+                            cooling_type = "30分钟（不同SYMBOL）"
+                        
+                        if time_diff_seconds < required_seconds:
+                            # 冷却时间不足，禁止开仓
+                            remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
+                            print(f"   ❌ 冷却期检查未通过: {cooling_type}")
+                            print(f"      当前SYMBOL: {buy_symbol}, 上一次SYMBOL: {last_symbol}")
+                            print(f"      距离上次平仓仅 {int(time_diff_seconds // 60)} 分钟，需等待 {remaining_minutes} 分钟后才能开仓")
+                            print(f"      上次平仓时间: {latest_close_date_str}")
+                            can_open = False
+                            skip_reason = f"冷却期不足（需要{cooling_type}）"
+                        else:
+                            print(f"   ✅ 冷却期检查通过: {cooling_type}")
+                            print(f"      当前SYMBOL: {buy_symbol}, 上一次SYMBOL: {last_symbol}")
+                            print(f"      距离上次平仓 {int(time_diff_seconds // 60)} 分钟 >= {required_seconds // 60} 分钟")
+                    else:
+                        print(f"   ⚠️ 历史记录缺少 CLOSE_DATE 字段，跳过冷却检查")
+                else:
+                    print(f"   ℹ️ 没有历史平仓记录，这是首次开仓，允许开仓")
+                
+                # 如果符合条件，执行开仓
+                if can_open:
+                    # 获取价格（索引1是价格）
+                    price = float(buy_indicators[1]) if buy_indicators[1] != '—' else 0
+                    
+                    # 创建新文档（使用symbol作为文档ID，确保同一币种不会重复开仓）
+                    doc_ref = self.db.collection(self.collection_current).document(buy_symbol)
+                    
+                    # 按照您的数据结构保存
+                    doc_data = {
+                        "SYMBOL": buy_symbol,
+                        "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
+                        "OPEN_PRICE": price,
+                        "OPEN_15M_KDJ": buy_indicators[3] if len(buy_indicators) > 3 else '—',
+                        "OPEN_15M_MACD": buy_indicators[4] if len(buy_indicators) > 4 else '—',
+                        "OPEN_1H_SAR": buy_indicators[5] if len(buy_indicators) > 5 else '—',
+                        "OPEN_1H_MACD": buy_indicators[6] if len(buy_indicators) > 6 else '—',
+                        "OPEN_1H_KDJ": buy_indicators[7] if len(buy_indicators) > 7 else '—',
+                        "OPEN_4H_SAR": buy_indicators[8] if len(buy_indicators) > 8 else '—',
+                        "OPEN_4H_MACD": buy_indicators[9] if len(buy_indicators) > 9 else '—',
+                        "OPEN_4H_KDJ": buy_indicators[10] if len(buy_indicators) > 10 else '—',
+                    }
+                    
+                    doc_ref.set(doc_data)
+                    print(f"\n✅ 开仓成功: {buy_symbol}, 价格: {price}, 时间: {doc_data['OPEN_DATE']}")
+                    return  # 成功开仓后退出函数
+                else:
+                    print(f"   ⚠️ {buy_symbol} 不符合开仓条件: {skip_reason}")
             
-            doc_ref.set(doc_data)
-            print(f"✅ 开仓成功: {buy_symbol}, 价格: {price}, 时间: {doc_data['OPEN_DATE']}")
+            # 遍历完所有Symbol都没有符合条件的
+            print(f"\n⚠️ 所有 {len(buy_symbols)} 个buy信号都不符合开仓条件，本次不开仓")
             
         except Exception as e:
             print(f"❌ 开仓失败: {e}")
