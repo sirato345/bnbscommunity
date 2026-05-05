@@ -73,7 +73,7 @@ class TradingSignalJob:
             return None
     
     # 解析信号数据，格式化为需要的结构
-    # 新格式: [币种, 价格, 买卖信号, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
+    # 新格式: [币种, 价格, 买卖信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
     def parse_signals(self, raw_data: Dict) -> Dict[str, List[str]]:
         """解析信号数据，格式化为需要的结构"""
         formatted = {}
@@ -105,23 +105,24 @@ class TradingSignalJob:
                 
                 # 初始化或更新币种数据
                 if base_currency not in formatted:
-                    # 新格式: [币种, 价格, 买卖信号, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
-                    # 共10个元素 (索引0-9)
-                    formatted[base_currency] = [base_currency, price, '—', '—', '—', '—', '—', '—', '—', '—']
+                    # 新格式: [币种, 价格, 买卖信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
+                    # 共11个元素 (索引0-10)
+                    formatted[base_currency] = [base_currency, price, '—', '—', '—', '—', '—', '—', '—', '—', '—']
                 
                 if timeframe == '15m':
-                    # 15m KDJ（索引3）
+                    # 15m指标：索引3=KDJ, 索引4=MACD
                     formatted[base_currency][3] = indicators[2]  # KDJ指标
+                    formatted[base_currency][4] = indicators[1]  # MACD指标（新增）
                 elif timeframe == '1h':
-                    # 1h指标：索引4=SAR, 索引5=MACD, 索引6=KDJ
-                    formatted[base_currency][4] = indicators[0]  # SAR
-                    formatted[base_currency][5] = indicators[1]  # MACD
-                    formatted[base_currency][6] = indicators[2]  # KDJ
+                    # 1h指标：索引5=SAR, 索引6=MACD, 索引7=KDJ
+                    formatted[base_currency][5] = indicators[0]  # SAR
+                    formatted[base_currency][6] = indicators[1]  # MACD
+                    formatted[base_currency][7] = indicators[2]  # KDJ
                 elif timeframe == '4h':
-                    # 4h指标：索引7=SAR, 索引8=MACD, 索引9=KDJ
-                    formatted[base_currency][7] = indicators[0]  # SAR
-                    formatted[base_currency][8] = indicators[1]  # MACD
-                    formatted[base_currency][9] = indicators[2]  # KDJ
+                    # 4h指标：索引8=SAR, 索引9=MACD, 索引10=KDJ
+                    formatted[base_currency][8] = indicators[0]  # SAR
+                    formatted[base_currency][9] = indicators[1]  # MACD
+                    formatted[base_currency][10] = indicators[2]  # KDJ
         
         # 所有数据填充完成后，检查每个币种的买卖信号
         for currency, indicators in formatted.items():
@@ -139,32 +140,32 @@ class TradingSignalJob:
         
         return ordered_formatted
     
-    # buy/sell信号检查函数（新逻辑：结合15m、1h和4h指标）
+    # buy/sell信号检查函数（新逻辑：结合15m、1h和4h指标，使用15m MACD替代15m KDJ）
     def check_signal(self, indicators: List[str]) -> bool:
         """
         检查买入信号
         条件：
-        1. 15m_KDJ 为 '〇'
+        1. 15m_MACD 为 '〇'（替换原来的15m_KDJ）
         2. 1h_MACD 为 '〇'
         3. 1h_KDJ 为 '〇'
         4. 4h指标中至少有2个为 '〇'（检查4h_SAR、4h_MACD、4h_KDJ）
         
         参数indicators格式: 
-        [币种, 价格, 信号, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
+        [币种, 价格, 信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
         """
-        if len(indicators) < 10:
+        if len(indicators) < 11:
             return False
         
         # 获取需要的指标
-        kdj_15m = indicators[3]      # 15m KDJ
-        macd_1h = indicators[5]      # 1h MACD
-        kdj_1h = indicators[6]       # 1h KDJ
+        macd_15m = indicators[4]     # 15m MACD（新条件）
+        macd_1h = indicators[6]      # 1h MACD
+        kdj_1h = indicators[7]       # 1h KDJ
         
-        # 条件1-3：三个指标都必须为'〇'
-        basic_conditions_ok = (kdj_15m == '〇' and macd_1h == '〇' and kdj_1h == '〇')
+        # 条件1-3：三个指标都必须为'〇'（使用15m MACD替换15m KDJ）
+        basic_conditions_ok = (macd_15m == '〇' and macd_1h == '〇' and kdj_1h == '〇')
                 
-        # 条件4：4h指标检查（索引7=SAR, 8=MACD, 9=KDJ）
-        signal_4h_count = sum(1 for ind in indicators[7:10] if ind == '〇')
+        # 条件4：4h指标检查（索引8=SAR, 9=MACD, 10=KDJ）
+        signal_4h_count = sum(1 for ind in indicators[8:11] if ind == '〇')
         signal_4h_ok = signal_4h_count >= 2
                 
         return basic_conditions_ok and signal_4h_ok
@@ -222,7 +223,7 @@ class TradingSignalJob:
             import traceback
             traceback.print_exc()
 
-    # 保存平仓记录到历史表（新增15m_KDJ字段）
+    # 保存平仓记录到历史表（新增15m_MACD字段，保留15m_KDJ）
     def save_to_history(self, symbol: str, current_indicators: List[str], open_data: dict):
         """保存平仓记录到历史表"""
         try:
@@ -251,12 +252,13 @@ class TradingSignalJob:
             profit_or_loss = close_price - open_price
             profit_or_loss_percent = profit_or_loss / open_price if open_price != 0 else 0
             
-            # 构建历史记录文档（新增15m_KDJ字段）
+            # 构建历史记录文档（新增15m_MACD字段，保留15m_KDJ）
             history_data = {
                 "SYMBOL": symbol,
                 "OPEN_DATE": open_date_str,
                 "OPEN_PRICE": round(open_price, 5),
-                "OPEN_15M_KDJ": open_data.get('OPEN_15M_KDJ', '—'),      # 新增
+                "OPEN_15M_KDJ": open_data.get('OPEN_15M_KDJ', '—'),
+                "OPEN_15M_MACD": open_data.get('OPEN_15M_MACD', '—'),      # 新增
                 "OPEN_1H_SAR": open_data.get('OPEN_1H_SAR', '—'),
                 "OPEN_1H_MACD": open_data.get('OPEN_1H_MACD', '—'),
                 "OPEN_1H_KDJ": open_data.get('OPEN_1H_KDJ', '—'),
@@ -265,13 +267,14 @@ class TradingSignalJob:
                 "OPEN_4H_KDJ": open_data.get('OPEN_4H_KDJ', '—'),
                 "CLOSE_DATE": close_date_str,
                 "CLOSE_PRICE": round(close_price, 5),
-                "CLOSE_15M_KDJ": current_indicators[3] if len(current_indicators) > 3 else '—',  # 新增
-                "CLOSE_1H_SAR": current_indicators[4] if len(current_indicators) > 4 else '—',
-                "CLOSE_1H_MACD": current_indicators[5] if len(current_indicators) > 5 else '—',
-                "CLOSE_1H_KDJ": current_indicators[6] if len(current_indicators) > 6 else '—',
-                "CLOSE_4H_SAR": current_indicators[7] if len(current_indicators) > 7 else '—',
-                "CLOSE_4H_MACD": current_indicators[8] if len(current_indicators) > 8 else '—',
-                "CLOSE_4H_KDJ": current_indicators[9] if len(current_indicators) > 9 else '—',
+                "CLOSE_15M_KDJ": current_indicators[3] if len(current_indicators) > 3 else '—',
+                "CLOSE_15M_MACD": current_indicators[4] if len(current_indicators) > 4 else '—',  # 新增
+                "CLOSE_1H_SAR": current_indicators[5] if len(current_indicators) > 5 else '—',
+                "CLOSE_1H_MACD": current_indicators[6] if len(current_indicators) > 6 else '—',
+                "CLOSE_1H_KDJ": current_indicators[7] if len(current_indicators) > 7 else '—',
+                "CLOSE_4H_SAR": current_indicators[8] if len(current_indicators) > 8 else '—',
+                "CLOSE_4H_MACD": current_indicators[9] if len(current_indicators) > 9 else '—',
+                "CLOSE_4H_KDJ": current_indicators[10] if len(current_indicators) > 10 else '—',
                 "PROFIT_OR_LOSS": round(profit_or_loss, 5),
                 "PROFIT_OR_LOSS_PERCENT": round(profit_or_loss_percent, 5),
                 "HOLD_TIME": hold_time
@@ -289,7 +292,7 @@ class TradingSignalJob:
             import traceback
             traceback.print_exc()
 
-    # 开仓函数：增加30分钟冷却时间检查（新增15m_KDJ字段）
+    # 开仓函数：增加30分钟冷却时间检查（新增15m_MACD字段，保留15m_KDJ）
     def open_trade(self, parsed_data: Dict[str, List[str]]):
         """保存交易信号到Firestore（适配您的数据结构）
         条件：
@@ -357,18 +360,19 @@ class TradingSignalJob:
             # 创建新文档（使用symbol作为文档ID，确保同一币种不会重复开仓）
             doc_ref = self.db.collection(self.collection_current).document(buy_symbol)
             
-            # 按照您的数据结构保存（新增15m_KDJ字段）
+            # 按照您的数据结构保存（新增15m_MACD字段，保留15m_KDJ）
             doc_data = {
                 "SYMBOL": buy_symbol,
                 "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
                 "OPEN_PRICE": price,
-                "OPEN_15M_KDJ": buy_indicators[3] if len(buy_indicators) > 3 else '—',   # 15m KDJ
-                "OPEN_1H_SAR": buy_indicators[4] if len(buy_indicators) > 4 else '—',   # 1h SAR
-                "OPEN_1H_MACD": buy_indicators[5] if len(buy_indicators) > 5 else '—',  # 1h MACD
-                "OPEN_1H_KDJ": buy_indicators[6] if len(buy_indicators) > 6 else '—',   # 1h KDJ
-                "OPEN_4H_SAR": buy_indicators[7] if len(buy_indicators) > 7 else '—',   # 4h SAR
-                "OPEN_4H_MACD": buy_indicators[8] if len(buy_indicators) > 8 else '—',  # 4h MACD
-                "OPEN_4H_KDJ": buy_indicators[9] if len(buy_indicators) > 9 else '—',   # 4h KDJ
+                "OPEN_15M_KDJ": buy_indicators[3] if len(buy_indicators) > 3 else '—',   # 15m KDJ（保留）
+                "OPEN_15M_MACD": buy_indicators[4] if len(buy_indicators) > 4 else '—',  # 15m MACD（新增）
+                "OPEN_1H_SAR": buy_indicators[5] if len(buy_indicators) > 5 else '—',   # 1h SAR
+                "OPEN_1H_MACD": buy_indicators[6] if len(buy_indicators) > 6 else '—',  # 1h MACD
+                "OPEN_1H_KDJ": buy_indicators[7] if len(buy_indicators) > 7 else '—',   # 1h KDJ
+                "OPEN_4H_SAR": buy_indicators[8] if len(buy_indicators) > 8 else '—',   # 4h SAR
+                "OPEN_4H_MACD": buy_indicators[9] if len(buy_indicators) > 9 else '—',  # 4h MACD
+                "OPEN_4H_KDJ": buy_indicators[10] if len(buy_indicators) > 10 else '—', # 4h KDJ
             }
             
             doc_ref.set(doc_data)

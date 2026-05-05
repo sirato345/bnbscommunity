@@ -50,7 +50,7 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
       {open && (
         <div className="indicators-panel">
           {[
-            { label: '15M', kdj: trade.OPEN_15M_KDJ },
+            { label: '15M', macd: trade.OPEN_15M_MACD },  // Changed from kdj to macd
             { label: '1H', macd: trade.OPEN_1H_MACD, kdj: trade.OPEN_1H_KDJ },
             { label: '4H', sar: trade.OPEN_4H_SAR, macd: trade.OPEN_4H_MACD, kdj: trade.OPEN_4H_KDJ },
           ].map(g => (
