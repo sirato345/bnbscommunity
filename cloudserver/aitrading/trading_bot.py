@@ -145,10 +145,9 @@ class TradingSignalJob:
         """
         检查买入信号
         条件：
-        1. 15m_MACD 为 '〇'（替换原来的15m_KDJ）
-        2. 1h_MACD 为 '〇'
-        3. 1h_KDJ 为 '〇'
-        4. 4h指标中至少有2个为 '〇'（检查4h_SAR、4h_MACD、4h_KDJ）
+        1. 15m_MACD 为 '〇'
+        2. 1h指标中至少有2个为 '〇'（检查1h_SAR、1h_MACD、1h_KDJ）
+        3. 4h指标中至少有2个为 '〇'（检查4h_SAR、4h_MACD、4h_KDJ）
         
         参数indicators格式: 
         [币种, 价格, 信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
@@ -156,19 +155,14 @@ class TradingSignalJob:
         if len(indicators) < 11:
             return False
         
-        # 获取需要的指标
-        macd_15m = indicators[4]     # 15m MACD（新条件）
-        macd_1h = indicators[6]      # 1h MACD
-        kdj_1h = indicators[7]       # 1h KDJ
-        
-        # 条件1-3：三个指标都必须为'〇'（使用15m MACD替换15m KDJ）
-        basic_conditions_ok = (macd_15m == '〇' and macd_1h == '〇' and kdj_1h == '〇')
-                
-        # 条件4：4h指标检查（索引8=SAR, 9=MACD, 10=KDJ）
-        signal_4h_count = sum(1 for ind in indicators[8:11] if ind == '〇')
-        signal_4h_ok = signal_4h_count >= 2
-                
-        return basic_conditions_ok and signal_4h_ok
+        # 条件1：15m MACD 必须为 '〇'
+        # 条件2：1h指标中至少2个为 '〇'
+        # 条件3：4h指标中至少2个为 '〇'
+        return (
+            indicators[4] == '〇' and  # 15m_MACD
+            sum(1 for ind in indicators[5:8] if ind == '〇') >= 2 and  # 1h indicators (SAR, MACD, KDJ)
+            sum(1 for ind in indicators[8:11] if ind == '〇') >= 2     # 4h indicators (SAR, MACD, KDJ)
+        )
     
     # 根据指标判断是否卖出，增加9分钟持仓时间检查
     def close_trade(self, parsed_data: Dict[str, List[str]]):
