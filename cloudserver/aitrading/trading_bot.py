@@ -140,14 +140,16 @@ class TradingSignalJob:
         
         return ordered_formatted
     
-    # buy/sell信号检查函数（新逻辑：结合15m、1h和4h指标，使用15m MACD替代15m KDJ）
+    # buy/sell信号检查函数（新逻辑）
     def check_signal(self, indicators: List[str]) -> bool:
         """
         检查买入信号
         条件：
-        1. 15m_MACD 为 '〇'
-        2. 1h指标中至少有2个为 '〇'（检查1h_SAR、1h_MACD、1h_KDJ）
-        3. 4h指标中至少有2个为 '〇'（检查4h_SAR、4h_MACD、4h_KDJ）
+        1. 如果1h和4h的六个指标全部为 '〇'，返回 True
+        2. 否则，如果同时满足以下三个条件，返回 True：
+        a. 1h_MACD 和 1h_KDJ 均为 '〇'
+        b. 4h_KDJ、4h_MACD、4h_SAR 中至少有两个为 '〇'
+        c. 15m_MACD 为 '〇'
         
         参数indicators格式: 
         [币种, 价格, 信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
@@ -155,14 +157,24 @@ class TradingSignalJob:
         if len(indicators) < 11:
             return False
         
-        # 条件1：15m MACD 必须为 '〇'
-        # 条件2：1h指标中至少2个为 '〇'
-        # 条件3：4h指标中至少2个为 '〇'
-        return (
-            indicators[4] == '〇' and  # 15m_MACD
-            sum(1 for ind in indicators[5:8] if ind == '〇') >= 2 and  # 1h indicators (SAR, MACD, KDJ)
-            sum(1 for ind in indicators[8:11] if ind == '〇') >= 2     # 4h indicators (SAR, MACD, KDJ)
-        )
+        # 1h指标（索引5-7: 1h_SAR, 1h_MACD, 1h_KDJ）
+        one_hour_indicators = indicators[5:8]  # [1h_SAR, 1h_MACD, 1h_KDJ]
+        # 4h指标（索引8-10: 4h_SAR, 4h_MACD, 4h_KDJ）
+        four_hour_indicators = indicators[8:11]  # [4h_SAR, 4h_MACD, 4h_KDJ]
+        
+        # 规则1：1h和4h的全部六个指标都为 '〇'
+        if all(ind == '〇' for ind in one_hour_indicators + four_hour_indicators):
+            return True
+        
+        # 规则2：
+        # 条件a：1h_MACD 和 1h_KDJ 都为 '〇'（索引6和7）
+        condition_a = indicators[6] == '〇' and indicators[7] == '〇'
+        # 条件b：4h至少有两个为 '〇'
+        condition_b = sum(1 for ind in four_hour_indicators if ind == '〇') >= 2
+        # 条件c：15m_MACD 为 '〇'（索引4）
+        condition_c = indicators[4] == '〇'
+        
+        return condition_a and condition_b and condition_c
     
     # 根据指标判断是否卖出，增加9分钟持仓时间检查
     def close_trade(self, parsed_data: Dict[str, List[str]]):
