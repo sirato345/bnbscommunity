@@ -4,8 +4,10 @@ config/urls.py
 from apps.csv_manager import get_csv, upload_csv
 from apps.signals import get_signals
 from django.urls import path
+from apps.trading_signals import get_trading_signals
 
 urlpatterns = [
+    path("trading_signals", get_trading_signals,  name="get_trading_signals"),
     path("signals", get_signals,  name="get_signals"),
     path("csv",     get_csv,      name="get_csv"),
     path("upload",  upload_csv,   name="upload_csv"),

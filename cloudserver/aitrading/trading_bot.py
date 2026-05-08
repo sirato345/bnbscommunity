@@ -47,6 +47,9 @@ class TradingSignalJob:
                     {'timeframe': '15m', 'symbol': 'BNB/USDT'},
                     {'timeframe': '1h', 'symbol': 'BNB/USDT'},
                     {'timeframe': '4h', 'symbol': 'BNB/USDT'},
+                    {'timeframe': '15m', 'symbol': 'DOGE/USDT'},
+                    {'timeframe': '1h', 'symbol': 'DOGE/USDT'},
+                    {'timeframe': '4h', 'symbol': 'DOGE/USDT'},
                 ]
             }
             headers = {'Content-Type': 'application/json'}
