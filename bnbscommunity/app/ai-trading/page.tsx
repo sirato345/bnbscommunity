@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCurrentTrades, CurrentTradeData } from './useCurrentTrades';
 import { useTradeHistory, TradeHistoryData } from './useTradeHistory';
 import './AITrading.css';
@@ -73,6 +73,70 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
   );
 }
 
+// ── Simplified Trading Signal Component ────────────────────────
+function TradingSignals() {
+  const [signals, setSignals] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  const fetchSignals = useCallback(async () => {
+    try {
+      const response = await fetch('https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setSignals(data.signals || data);
+    } catch (err) {
+      console.error('Failed to fetch signals:', err);
+      setSignals({ BTC: '--', ETH: '--', BNB: '--', DOGE: '--' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSignals();
+    const interval = setInterval(fetchSignals, 30000);
+    return () => clearInterval(interval);
+  }, [fetchSignals]);
+
+  // 固定顺序：BTC, ETH, BNB, DOGE
+  const coinOrder = ['BTC', 'ETH', 'BNB', 'DOGE'];
+
+  if (loading) {
+    return (
+      <div className="signal-row">
+        {coinOrder.map(coin => (
+          <div key={coin} className="signal-item-loading">
+            <span className="signal-coin">{coin}</span>
+            <div className="signal-loader-small"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="signal-row">
+      {coinOrder.map(coin => {
+        const signal = signals[coin] || '--';
+        const isBuy = signal?.toLowerCase() === 'buy';
+        const isSell = signal?.toLowerCase() === 'sell';
+        
+        return (
+          <div 
+            key={coin} 
+            className={`signal-item ${isBuy ? 'signal-buy' : ''} ${isSell ? 'signal-sell' : ''}`}
+          >
+            <span className="signal-coin">{coin}</span>
+            {isBuy && <span className="signal-arrow-up">▲</span>}
+            {isSell && <span className="signal-arrow-down">▼</span>}
+            {!isBuy && !isSell && <span className="signal-unknown">—</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────
 export default function AiTradingPage() {
   const { currentTrades, loading: cl, error: ce } = useCurrentTrades();
@@ -107,7 +171,6 @@ export default function AiTradingPage() {
     if (!el || !page) return;
 
     const currentY = e.touches[0].clientY;
-    // deltaY > 0: finger moved down = scrolling up; < 0: finger moved up = scrolling down
     const deltaY = tableTouchLastY.current - currentY;
     tableTouchLastY.current = currentY;
 
@@ -158,6 +221,9 @@ export default function AiTradingPage() {
             <h1>AI Trading</h1>
             <span className="badge">LIVE</span>
           </div>
+
+          {/* ── Trading Signals Row ── */}
+          <TradingSignals />
 
           {/* ── KPI Cards ── */}
           <div className="kpi-strip">
