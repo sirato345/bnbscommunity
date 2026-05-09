@@ -46,11 +46,17 @@ CORS_ALLOWED_ORIGINS = [
     "http://godseye.bnbscommunity.com",
     "http://www.godseye.bnbscommunity.com",
     "http://bnbchain.bnbscommunity.com",
+    "http://www.bnbchain.bnbscommunity.com",
+    "http://bnbscommunity.com",
+    "http://www.bnbscommunity.com",
     "https://localhost:3000",
     "https://192.168.3.9:3000",
     "https://godseye.bnbscommunity.com",
     "https://www.godseye.bnbscommunity.com",
     "https://bnbchain.bnbscommunity.com",
+    "https://www.bnbchain.bnbscommunity.com",
+    "https://bnbscommunity.com",
+    "https://www.bnbscommunity.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS     = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
