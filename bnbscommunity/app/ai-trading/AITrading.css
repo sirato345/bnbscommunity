@@ -444,15 +444,33 @@
    信号行样式 - 间距统一为15px
    ───────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────
+   信号行样式 - 间距统一为15px
+   ───────────────────────────────────────────── */
+
 .signal-row {
   display: flex;
   flex-direction: row;
+  align-items: center;
   justify-content: flex-start;
   gap: 1rem;
-  margin: 15px 0 15px 0;  /* 上下间距统一为15px */
+  margin: 15px 0 15px 0;
   padding: 0;
   flex-wrap: wrap;
 }
+
+/* 时间显示样式 - 直接跟在信号后面，底部对齐 */
+.signal-update-time {
+  font-size: 0.85rem;
+  color: #999;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  margin-left: auto;
+  padding-left: 1rem;
+  align-self: flex-end;
+}
+
+/* 其余样式保持不变... */
 
 /* 如果信号行是紧跟在 page-header 之后，确保间距正确 */
 .page-header + .signal-row {
@@ -461,7 +479,7 @@
 
 /* 如果信号行之后紧跟着 kpi-strip，确保间距正确 */
 .signal-row + .kpi-strip {
-  margin-top: 0;  /* 因为 signal-row 已经有下边距15px */
+  margin-top: 0;
 }
 
 .signal-item {
@@ -599,18 +617,14 @@
 /* 确保 kpi-strip 的上边距为0，避免双重间距 */
 .kpi-strip {
   margin-top: 0;
-}
-
-/* 可选：如果 kpi-strip 本身有默认 margin-bottom，可以调整 */
-.kpi-strip {
   margin-bottom: 1.5rem;
 }
 
-/* 响应式：手机屏幕保持15px间距 */
+/* 响应式：手机屏幕保持时间在右侧 */
 @media (max-width: 640px) {
   .signal-row {
     gap: 0.5rem;
-    margin: 15px 0 15px 0;  /* 手机端同样保持15px间距 */
+    margin: 15px 0 15px 0;
   }
   
   .signal-item,
@@ -629,5 +643,10 @@
   
   .signal-unknown {
     font-size: 0.8rem;
+  }
+  
+  .signal-update-time {
+    font-size: 0.75rem;
+    padding-left: 0.5rem;
   }
 }

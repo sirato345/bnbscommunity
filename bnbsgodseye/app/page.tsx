@@ -30,6 +30,13 @@ type DataSource = {
 const API_BASE = 'https://bnbs-django-275599637949.asia-northeast1.run.app';
 // const API_BASE = 'http://127.0.0.1:8000';
 
+// ─── 统一的时间格式化函数 ─────────────────────
+const formatTime = (date: Date): string => {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+};
 
 export default function CryptoScreenerPage() {
   const [data, setData] = useState<CryptoData[]>([]);
@@ -128,7 +135,7 @@ export default function CryptoScreenerPage() {
     try {
       const results = await getRemoteData(dataSource);
       setData(results);
-      setLastUpdate(new Date().toLocaleTimeString());
+      setLastUpdate(formatTime(new Date()));
     } catch (err) {
       setError('Failed to fetch data, please check your network connection or API status.');
       console.error('Failed to fetch data:', err);
@@ -145,7 +152,7 @@ export default function CryptoScreenerPage() {
     try {
       const results = await getRemoteData(dataSource);
       setData(prevData => [...prevData, ...results]);  // ※基于最新状态更新  
-      setLastUpdate(new Date().toLocaleTimeString());
+      setLastUpdate(formatTime(new Date()));
     } catch (err) {
       setError('Failed to fetch data, please check your network connection or API status.');
       console.error('Failed to fetch data:', err);
@@ -407,7 +414,7 @@ export default function CryptoScreenerPage() {
                         </tr>
                       )}
                     </tbody>
-                  </table>
+                   </table>
                 </div>
               </div>
             ))}
