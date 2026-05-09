@@ -87,3 +87,19 @@ CACHE_DURATION   = 10   # 秒
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME", "bnbscommunity")
 GS_DEFAULT_ACL = None  # 非公開
+
+# config/settings.py
+import os
+
+# Binance API 配置 - 从环境变量读取（Cloud Run 会从 Secret Manager 注入）
+BINANCE_API_KEY = os.environ.get('BINANCE_API_KEY', '')
+BINANCE_API_SECRET = os.environ.get('BINANCE_API_SECRET', '')
+BINANCE_TESTNET = os.environ.get('BINANCE_TESTNET', 'true').lower() == 'true'
+
+# 可选：添加启动时的提示
+if BINANCE_TESTNET:
+    mode = "测试网"
+    print(f"🔑 Binance API 已配置 ({mode})")
+else:
+    mode = "主网"
+    print(f"🔑 Binance API 已配置 ({mode})")
