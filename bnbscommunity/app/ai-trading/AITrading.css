@@ -468,9 +468,8 @@
   margin-top: 0;
 }
 
-/* 统一所有信号项的样式 - 使用相同的高度和宽度策略 */
-.signal-item,
-.signal-item-loading {
+/* 统一所有信号项的样式 */
+.signal-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -478,14 +477,9 @@
   padding: 0.3rem 1rem;
   border-radius: 40px;
   transition: all 0.2s ease;
-  /* 关键：固定最小宽度，防止内容变化 */
   min-width: 85px;
-  /* 确保高度一致 */
   height: 38px;
   box-sizing: border-box;
-}
-
-.signal-item {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid rgba(203, 213, 225, 0.4);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -531,19 +525,16 @@
   color: #64748b;
 }
 
-/* 统一箭头、未知信号、加载圆形的容器样式 */
+/* 统一箭头、未知信号的容器样式 */
 .signal-arrow-up,
 .signal-arrow-down,
-.signal-unknown,
-.signal-loader-small {
-  /* 统一使用相同尺寸 */
+.signal-unknown {
   width: 20px;
   height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  /* 确保行高一致 */
   line-height: 1;
 }
 
@@ -565,20 +556,11 @@
   text-shadow: 0 0 2px rgba(239, 68, 68, 0.4);
 }
 
-/* 未知信号 */
+/* 未知信号（显示如 "--"） */
 .signal-unknown {
   font-size: 0.85rem;
   font-weight: 500;
   color: #94a3b8;
-}
-
-/* 加载圆形 - 红色脉冲 */
-.signal-loader-small {
-  width: 20px;
-  height: 20px;
-  background: #ef4444;
-  border-radius: 50%;
-  animation: pulse-loader 1s ease-in-out infinite;
 }
 
 @keyframes blink-up {
@@ -589,22 +571,6 @@
 @keyframes blink-down {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.08); }
-}
-
-@keyframes pulse-loader {
-  0%, 100% { opacity: 0.3; transform: scale(0.7); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-/* 加载状态样式 */
-.signal-item-loading {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.08);
-}
-
-.signal-item-loading .signal-coin {
-  color: #b91c1c;
 }
 
 /* 确保 page-header 的下边距为0 */
@@ -625,8 +591,7 @@
     margin: 15px 0 15px 0;
   }
   
-  .signal-item,
-  .signal-item-loading {
+  .signal-item {
     padding: 0.2rem 0.7rem;
     min-width: 75px;
     height: 34px;
@@ -639,8 +604,7 @@
   
   .signal-arrow-up,
   .signal-arrow-down,
-  .signal-unknown,
-  .signal-loader-small {
+  .signal-unknown {
     width: 18px;
     height: 18px;
   }

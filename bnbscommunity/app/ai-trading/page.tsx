@@ -84,7 +84,7 @@ function TradingSignals() {
     try {
       setError(null);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       const response = await fetch('https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals', {
         signal: controller.signal,
@@ -101,10 +101,7 @@ function TradingSignals() {
       setLastUpdate(new Date());
     } catch (err) {
       console.error('Failed to fetch signals:', err);
-      // 保持之前的信号数据，不覆盖
-      // setSignals({ BTC: '--', ETH: '--', BNB: '--', DOGE: '--' });
       setError(err instanceof Error ? err.message : '请求失败');
-      // 即使失败也更新时间，避免一直显示加载
       setLastUpdate(new Date());
     } finally {
       setLoading(false);
@@ -126,31 +123,28 @@ function TradingSignals() {
     return `${hh}:${mm}:${ss}`;
   };
 
-  // 显示错误状态（静默失败，不打断用户体验）
-  if (error && loading === false) {
-    console.warn('Signal fetch error:', error);
-  }
+  // 加载中或错误时都显示默认占位符
+  const getSignalDisplay = (coin: string) => {
+    if (loading) return '--';
+    const signal = signals[coin];
+    return signal || '--';
+  };
 
-  if (loading) {
-    return (
-      <div className="signal-row">
-        {coinOrder.map(coin => (
-          <div key={coin} className="signal-item-loading">
-            <span className="signal-coin">{coin}</span>
-            <div className="signal-loader-small"></div>
-          </div>
-        ))}
-        <div className="signal-update-time">--:--:--</div>
-      </div>
-    );
-  }
+  const getSignalType = (coin: string): 'buy' | 'sell' | 'none' => {
+    if (loading) return 'none';
+    const signal = signals[coin]?.toLowerCase();
+    if (signal === 'buy') return 'buy';
+    if (signal === 'sell') return 'sell';
+    return 'none';
+  };
 
   return (
     <div className="signal-row">
       {coinOrder.map(coin => {
-        const signal = signals[coin] || '--';
-        const isBuy = signal?.toLowerCase() === 'buy';
-        const isSell = signal?.toLowerCase() === 'sell';
+        const signalType = getSignalType(coin);
+        const displayValue = getSignalDisplay(coin);
+        const isBuy = signalType === 'buy';
+        const isSell = signalType === 'sell';
         
         return (
           <div 
@@ -160,7 +154,7 @@ function TradingSignals() {
             <span className="signal-coin">{coin}</span>
             {isBuy && <span className="signal-arrow-up">▲</span>}
             {isSell && <span className="signal-arrow-down">▼</span>}
-            {!isBuy && !isSell && <span className="signal-unknown">—</span>}
+            {!isBuy && !isSell && <span className="signal-unknown">{displayValue}</span>}
           </div>
         );
       })}
