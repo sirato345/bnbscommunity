@@ -78,17 +78,33 @@ function TradingSignals() {
   const [signals, setSignals] = useState<Record<string, string>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSignals = useCallback(async () => {
     try {
-      const response = await fetch('https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals');
+      setError(null);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+      
+      const response = await fetch('https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals', {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       setSignals(data.signals || data);
       setLastUpdate(new Date());
     } catch (err) {
       console.error('Failed to fetch signals:', err);
-      setSignals({ BTC: '--', ETH: '--', BNB: '--', DOGE: '--' });
+      // 保持之前的信号数据，不覆盖
+      // setSignals({ BTC: '--', ETH: '--', BNB: '--', DOGE: '--' });
+      setError(err instanceof Error ? err.message : '请求失败');
+      // 即使失败也更新时间，避免一直显示加载
       setLastUpdate(new Date());
     } finally {
       setLoading(false);
@@ -109,6 +125,11 @@ function TradingSignals() {
     const ss = String(date.getSeconds()).padStart(2, '0');
     return `${hh}:${mm}:${ss}`;
   };
+
+  // 显示错误状态（静默失败，不打断用户体验）
+  if (error && loading === false) {
+    console.warn('Signal fetch error:', error);
+  }
 
   if (loading) {
     return (
@@ -145,6 +166,7 @@ function TradingSignals() {
       })}
       <div className="signal-update-time">
         Last Update: {lastUpdate ? formatTime(lastUpdate) : '--:--:--'}
+        {error && <span className="signal-error-indicator" title={error}> ⚠️</span>}
       </div>
     </div>
   );
