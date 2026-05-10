@@ -25,7 +25,7 @@ from rest_framework.response import Response
 SIGNAL_API_URL = "https://bnbs-django-275599637949.asia-northeast1.run.app/signals"
 
 # 缓存持续时间（秒）
-CACHE_DURATION = 30
+CACHE_DURATION = 10
 
 # 默认交易对列表
 DEFAULT_TARGETS = [

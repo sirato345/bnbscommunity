@@ -72,7 +72,7 @@ class RealTradingBot:
             'ORDER_TYPE': ORDER_TYPE_MARKET, # 市价单
             'USE_FULL_BALANCE': True,        # 使用全部余额
             'MIN_NOTIONAL': 10,              # 最小下单金额 USDT
-            'SLIPPAGE': 0.001,               # 滑点容忍度 0.1%
+            'SLIPPAGE': 0.002,               # 滑点容忍度 0.2%
             'RESERVE_USDT': 0,               # 预留USDT金额（设为0表示全部使用）
         }
     
@@ -505,7 +505,7 @@ class RealTradingBot:
                     
                     # 价格偏差检查
                     signal_price = float(buy_indicators[1])
-                    slippage = self.trade_config.get('SLIPPAGE', 0.001)
+                    slippage = self.trade_config.get('SLIPPAGE', 0.002)
                     price_diff_pct = abs(current_price - signal_price) / signal_price
                     
                     if price_diff_pct > slippage:
