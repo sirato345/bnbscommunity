@@ -77,34 +77,53 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
 function TradingSignals() {
   const [signals, setSignals] = useState<Record<string, string>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false); // ① 初回成功まで未初期化扱い
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true); // ③ アンマウント追跡
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const fetchSignals = useCallback(async () => {
+    // ② AbortController を ref で管理してクリーンアップ確実に
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
-      setError(null);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch('https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals', {
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
+      const response = await fetch(
+        'https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals',
+        { signal: controller.signal, headers: { 'Content-Type': 'application/json' } }
+      );
+      clearTimeout(timeoutId); // ② 正常完了時はタイマーをキャンセル
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      setSignals(data.signals || data);
-      setLastUpdate(new Date());
+
+      if (!mountedRef.current) return; // ③ アンマウント後は無視
+
+      const parsed = data.signals || data;
+      // ① レスポンスが期待通りのオブジェクトか検証
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        setSignals(parsed);
+        setError(null);
+        setIsInitialized(true);
+      } else {
+        throw new Error('Unexpected response format');
+      }
     } catch (err) {
-      console.error('Failed to fetch signals:', err);
-      setError(err instanceof Error ? err.message : '请求失败');
-      setLastUpdate(new Date());
+      clearTimeout(timeoutId); // ② catch でも必ずキャンセル
+      if (!mountedRef.current) return;
+
+      const msg = err instanceof Error ? err.message : '請求失敗';
+      console.error('Failed to fetch signals:', msg);
+      setError(msg);
+      // ① 既存シグナルは消さない（前回の値を維持）
+      // isInitialized は変えない → 初回失敗なら引き続きリトライ
     } finally {
-      setLoading(false);
+      // lastUpdate は成功・失敗にかかわらず更新（最終試行時刻として）
+      if (mountedRef.current) setLastUpdate(new Date());
     }
   }, []);
 
@@ -113,6 +132,15 @@ function TradingSignals() {
     const interval = setInterval(fetchSignals, 30000);
     return () => clearInterval(interval);
   }, [fetchSignals]);
+
+  // ④ 初回未成功の場合はリトライを短いインターバルで走らせる
+  useEffect(() => {
+    if (isInitialized) return;
+    const retryInterval = setInterval(() => {
+      if (!isInitialized) fetchSignals();
+    }, 5000); // 5秒ごとにリトライ（初回成功まで）
+    return () => clearInterval(retryInterval);
+  }, [isInitialized, fetchSignals]);
 
   const coinOrder = ['BTC', 'ETH', 'BNB', 'DOGE'];
 
@@ -123,15 +151,13 @@ function TradingSignals() {
     return `${hh}:${mm}:${ss}`;
   };
 
-  // 加载中或错误时都显示默认占位符
   const getSignalDisplay = (coin: string) => {
-    if (loading) return '--';
-    const signal = signals[coin];
-    return signal || '--';
+    if (!isInitialized) return '--';
+    return signals[coin] || '--';
   };
 
   const getSignalType = (coin: string): 'buy' | 'sell' | 'none' => {
-    if (loading) return 'none';
+    if (!isInitialized) return 'none';
     const signal = signals[coin]?.toLowerCase();
     if (signal === 'buy') return 'buy';
     if (signal === 'sell') return 'sell';
@@ -143,24 +169,30 @@ function TradingSignals() {
       {coinOrder.map(coin => {
         const signalType = getSignalType(coin);
         const displayValue = getSignalDisplay(coin);
-        const isBuy = signalType === 'buy';
+        const isBuy  = signalType === 'buy';
         const isSell = signalType === 'sell';
-        
+
         return (
-          <div 
-            key={coin} 
+          <div
+            key={coin}
             className={`signal-item ${isBuy ? 'signal-buy' : ''} ${isSell ? 'signal-sell' : ''}`}
           >
             <span className="signal-coin">{coin}</span>
-            {isBuy && <span className="signal-arrow-up">▲</span>}
+            {isBuy  && <span className="signal-arrow-up">▲</span>}
             {isSell && <span className="signal-arrow-down">▼</span>}
             {!isBuy && !isSell && <span className="signal-unknown">{displayValue}</span>}
           </div>
         );
       })}
       <div className="signal-update-time">
-        Last Update: {lastUpdate ? formatTime(lastUpdate) : '--:--:--'}
-        {error && <span className="signal-error-indicator" title={error}> ⚠️</span>}
+        {/* 未初期化中は "Connecting..." を表示 */}
+        {!isInitialized
+          ? <span className="signal-connecting">Connecting...</span>
+          : `Last Update: ${lastUpdate ? formatTime(lastUpdate) : '--:--:--'}`
+        }
+        {error && isInitialized && (
+          <span className="signal-error-indicator" title={error}> ⚠️</span>
+        )}
       </div>
     </div>
   );

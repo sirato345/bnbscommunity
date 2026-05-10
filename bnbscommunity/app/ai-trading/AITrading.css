@@ -630,3 +630,10 @@
   margin-left: 4px;
   cursor: help;
 }
+
+/* AITrading.css に追記 */
+.signal-connecting {
+  font-size: 0.8rem;
+  color: var(--amber);
+  font-style: italic;
+}
