@@ -196,37 +196,6 @@ class RealTradingBot:
         except Exception as e:
             print(f"❌ 获取持仓失败 {symbol}: {e}")
             return 0.0
-    
-    def round_quantity_by_step(self, symbol: str, quantity: float) -> float:
-        """根据交易对的 step_size 向下取整数量（用于卖出时）"""
-        try:
-            info = self.client.get_symbol_info(symbol)
-            step_size = None
-            
-            for filter_data in info['filters']:
-                if filter_data['filterType'] == 'LOT_SIZE':
-                    step_size = float(filter_data['stepSize'])
-                    break
-            
-            if step_size:
-                # 计算可以保留的小数位数
-                step_size_str = str(step_size).rstrip('0')
-                if '.' in step_size_str:
-                    precision = len(step_size_str.split('.')[-1])
-                else:
-                    precision = 0
-                
-                # 向下取整
-                quantity = float(Decimal(str(quantity)).quantize(
-                    Decimal('1e-{}'.format(precision)), rounding=ROUND_DOWN
-                ))
-            else:
-                quantity = round(quantity, 6)
-            
-            return quantity
-        except Exception as e:
-            print(f"⚠️ 数量精度处理失败: {e}")
-            return round(quantity, 6)
 
     def get_precision_info(self, symbol: str) -> tuple:
         """获取交易对的数量和价格精度信息"""
@@ -369,7 +338,7 @@ class RealTradingBot:
         return condition_a and condition_b and condition_c
     
     def close_trade(self, parsed_data: Dict[str, List[str]]):
-        """真实平仓：卖出全部持仓"""
+        """真实平仓：卖出全部持仓 - 不做精度检查，直接使用交易所实际数量"""
         try:
             for symbol, indicators in parsed_data.items():
                 if len(indicators) >= 3 and indicators[2] == 'sell':
@@ -389,44 +358,64 @@ class RealTradingBot:
                             if time_diff_seconds >= required_seconds:
                                 symbol_binance = f"{symbol}USDT"
                                 
-                                # 🔧 修改1: 使用数据库记录的持仓数量，而不是API获取
-                                recorded_quantity = float(open_data.get('OPEN_QUANTITY', 0))
-                                api_position = self.get_position(symbol_binance)
+                                # 🔥 修改：直接从交易所获取实际持仓数量（可用余额）
+                                actual_position = self.get_position(symbol_binance)
                                 
                                 print(f"🔍 卖出前检查 - {symbol}")
-                                print(f"   数据库记录数量: {recorded_quantity}")
-                                print(f"   API返回数量: {api_position}")
+                                print(f"   交易所实际持仓: {actual_position}")
+                                print(f"   数据库记录数量: {open_data.get('OPEN_QUANTITY', 0)}")
                                 
-                                # 🔧 新增: 对卖出数量进行精度处理
-                                position_amount = self.round_quantity_by_step(symbol_binance, recorded_quantity)
-                                
-                                # 显示精度处理后的数量
-                                if position_amount != recorded_quantity:
-                                    print(f"   📐 精度处理后数量: {position_amount}")
+                                # 🔥 关键修改：不做任何精度处理，直接使用交易所返回的数量
+                                position_amount = actual_position
                                 
                                 if position_amount > 0:
-                                    # 执行卖出
-                                    order = self.place_sell_order(symbol_binance, position_amount)
+                                    # 执行卖出（直接使用原始数量）
+                                    print(f"📉 执行卖出: {symbol}, 数量={position_amount} (无精度处理)")
                                     
-                                    if order:
-                                        close_price = float(order['cummulativeQuoteQty']) / float(order['executedQty'])
+                                    try:
+                                        order = self.client.order_market_sell(
+                                            symbol=symbol_binance,
+                                            quantity=position_amount
+                                        )
                                         
-                                        # 🔧 修改2: 传入 open_data 而不是创建新对象
-                                        self.save_real_order(symbol, order, 'SELL', open_data, close_price)
-                                        self.save_to_history(symbol, indicators, open_data, close_price)
-                                        doc_ref.delete()
-                                        
-                                        # 显示平仓后的余额
-                                        new_balance = self.get_balance('USDT')
-                                        print(f"✅ 真实平仓完成: {symbol}")
-                                        print(f"   卖出数量: {position_amount}")
-                                        print(f"   卖出均价: {close_price:.4f}")
-                                        print(f"   收到金额: {float(order['cummulativeQuoteQty']):.2f} USDT")
-                                        print(f"💰 平仓后USDT余额: {new_balance:.2f}")
-                                    else:
-                                        print(f"❌ 真实平仓失败: {symbol}")
+                                        if order:
+                                            close_price = float(order['cummulativeQuoteQty']) / float(order['executedQty'])
+                                            
+                                            self.save_real_order(symbol, order, 'SELL', open_data, close_price)
+                                            self.save_to_history(symbol, indicators, open_data, close_price)
+                                            doc_ref.delete()
+                                            
+                                            # 显示平仓后的余额
+                                            new_balance = self.get_balance('USDT')
+                                            print(f"✅ 真实平仓完成: {symbol}")
+                                            print(f"   卖出数量: {position_amount}")
+                                            print(f"   卖出均价: {close_price:.4f}")
+                                            print(f"   收到金额: {float(order['cummulativeQuoteQty']):.2f} USDT")
+                                            print(f"💰 平仓后USDT余额: {new_balance:.2f}")
+                                        else:
+                                            print(f"❌ 真实平仓失败: {symbol}")
+                                            
+                                    except BinanceAPIException as e:
+                                        print(f"❌ 卖出失败 {symbol}: {e}")
+                                        # 如果卖出失败，尝试使用数据库记录的数量
+                                        print(f"🔄 降级尝试: 使用数据库记录数量 {open_data.get('OPEN_QUANTITY', 0)}")
+                                        try:
+                                            fallback_amount = float(open_data.get('OPEN_QUANTITY', 0))
+                                            if fallback_amount > 0:
+                                                order = self.client.order_market_sell(
+                                                    symbol=symbol_binance,
+                                                    quantity=fallback_amount
+                                                )
+                                                if order:
+                                                    close_price = float(order['cummulativeQuoteQty']) / float(order['executedQty'])
+                                                    self.save_real_order(symbol, order, 'SELL', open_data, close_price)
+                                                    self.save_to_history(symbol, indicators, open_data, close_price)
+                                                    doc_ref.delete()
+                                                    print(f"✅ 降级方案平仓成功: {symbol}")
+                                        except Exception as fallback_error:
+                                            print(f"❌ 降级方案也失败: {fallback_error}")
                                 else:
-                                    print(f"⚠️ 没有持仓，跳过平仓: {symbol}")
+                                    print(f"⚠️ 交易所无持仓，跳过平仓: {symbol}")
                             else:
                                 remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
                                 print(f"⚠️ 持仓不足9分钟，跳过平仓: {symbol} (还需等待 {remaining_minutes} 分钟)")
