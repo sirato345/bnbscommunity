@@ -219,7 +219,7 @@ gcloud scheduler jobs create http real-trading-schedule \
   --headers="Content-Type=application/json" \
   --message-body="{}" \
   --project ${PROJECT_ID}
-echo "   ✅ Scheduler作成完了（5分ごとに実行）"
+echo "   ✅ Scheduler作成完了（3分ごとに実行）"
 echo ""
 
 # ─── 13. Scheduler 確認 ──────────────────────

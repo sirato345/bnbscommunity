@@ -197,6 +197,73 @@ class RealTradingBot:
             print(f"❌ 获取持仓失败 {symbol}: {e}")
             return 0.0
     
+    def round_quantity_by_step(self, symbol: str, quantity: float) -> float:
+        """根据交易对的 step_size 向下取整数量（用于卖出时）"""
+        try:
+            info = self.client.get_symbol_info(symbol)
+            step_size = None
+            
+            for filter_data in info['filters']:
+                if filter_data['filterType'] == 'LOT_SIZE':
+                    step_size = float(filter_data['stepSize'])
+                    break
+            
+            if step_size:
+                # 计算可以保留的小数位数
+                step_size_str = str(step_size).rstrip('0')
+                if '.' in step_size_str:
+                    precision = len(step_size_str.split('.')[-1])
+                else:
+                    precision = 0
+                
+                # 向下取整
+                quantity = float(Decimal(str(quantity)).quantize(
+                    Decimal('1e-{}'.format(precision)), rounding=ROUND_DOWN
+                ))
+            else:
+                quantity = round(quantity, 6)
+            
+            return quantity
+        except Exception as e:
+            print(f"⚠️ 数量精度处理失败: {e}")
+            return round(quantity, 6)
+
+    def get_precision_info(self, symbol: str) -> tuple:
+        """获取交易对的数量和价格精度信息"""
+        try:
+            info = self.client.get_symbol_info(symbol)
+            step_size = None
+            tick_size = None
+            
+            for filter_data in info['filters']:
+                if filter_data['filterType'] == 'LOT_SIZE':
+                    step_size = float(filter_data['stepSize'])
+                if filter_data['filterType'] == 'PRICE_FILTER':
+                    tick_size = float(filter_data['tickSize'])
+            
+            # 计算精度位数
+            quantity_precision = 6
+            price_precision = 2
+            
+            if step_size:
+                step_size_str = str(step_size).rstrip('0')
+                if '.' in step_size_str:
+                    quantity_precision = len(step_size_str.split('.')[-1])
+                else:
+                    quantity_precision = 0
+            
+            if tick_size:
+                tick_size_str = str(tick_size).rstrip('0')
+                if '.' in tick_size_str:
+                    price_precision = len(tick_size_str.split('.')[-1])
+                else:
+                    price_precision = 0
+            
+            return quantity_precision, price_precision
+        except Exception as e:
+            print(f"⚠️ 获取精度信息失败: {e}")
+            return 6, 2
+        
     def fetch_signals(self) -> Optional[Dict]:
         """发送POST请求获取交易信号"""
         try:
@@ -321,15 +388,30 @@ class RealTradingBot:
                             
                             if time_diff_seconds >= required_seconds:
                                 symbol_binance = f"{symbol}USDT"
-                                position_amount = self.get_position(symbol_binance)
+                                
+                                # 🔧 修改1: 使用数据库记录的持仓数量，而不是API获取
+                                recorded_quantity = float(open_data.get('OPEN_QUANTITY', 0))
+                                api_position = self.get_position(symbol_binance)
+                                
+                                print(f"🔍 卖出前检查 - {symbol}")
+                                print(f"   数据库记录数量: {recorded_quantity}")
+                                print(f"   API返回数量: {api_position}")
+                                
+                                # 🔧 新增: 对卖出数量进行精度处理
+                                position_amount = self.round_quantity_by_step(symbol_binance, recorded_quantity)
+                                
+                                # 显示精度处理后的数量
+                                if position_amount != recorded_quantity:
+                                    print(f"   📐 精度处理后数量: {position_amount}")
                                 
                                 if position_amount > 0:
-                                    # 执行全额卖出
+                                    # 执行卖出
                                     order = self.place_sell_order(symbol_binance, position_amount)
                                     
                                     if order:
                                         close_price = float(order['cummulativeQuoteQty']) / float(order['executedQty'])
                                         
+                                        # 🔧 修改2: 传入 open_data 而不是创建新对象
                                         self.save_real_order(symbol, order, 'SELL', open_data, close_price)
                                         self.save_to_history(symbol, indicators, open_data, close_price)
                                         doc_ref.delete()
@@ -337,6 +419,9 @@ class RealTradingBot:
                                         # 显示平仓后的余额
                                         new_balance = self.get_balance('USDT')
                                         print(f"✅ 真实平仓完成: {symbol}")
+                                        print(f"   卖出数量: {position_amount}")
+                                        print(f"   卖出均价: {close_price:.4f}")
+                                        print(f"   收到金额: {float(order['cummulativeQuoteQty']):.2f} USDT")
                                         print(f"💰 平仓后USDT余额: {new_balance:.2f}")
                                     else:
                                         print(f"❌ 真实平仓失败: {symbol}")
@@ -345,7 +430,7 @@ class RealTradingBot:
                             else:
                                 remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
                                 print(f"⚠️ 持仓不足9分钟，跳过平仓: {symbol} (还需等待 {remaining_minutes} 分钟)")
-                            
+                                    
         except Exception as e:
             print(f"❌ 平仓失败: {e}")
             import traceback
@@ -496,6 +581,25 @@ class RealTradingBot:
     def save_real_order(self, symbol: str, order: Dict, order_type: str, trade_data: Dict, close_price: float = None):
         """保存真实订单到数据库"""
         try:
+            # 获取交易后的实时余额
+            current_usdt_balance = self.get_balance('USDT')
+            
+            # 根据订单类型计算正确的余额
+            if order_type == 'BUY':
+                # 买入：trade_data 包含开仓数据，有 BEFORE_BALANCE 和 AFTER_BALANCE
+                before_balance = trade_data.get('BEFORE_BALANCE')
+                after_balance = trade_data.get('AFTER_BALANCE')
+            else:  # SELL
+                # 卖出：从开仓数据获取卖出前余额（即开仓后的余额）
+                before_balance = trade_data.get('AFTER_BALANCE') if trade_data else None
+                
+                # 如果无法从开仓数据获取，则计算（卖出后余额 - 卖出收到金额）
+                if before_balance is None:
+                    received_amount = float(order['cummulativeQuoteQty'])
+                    before_balance = current_usdt_balance - received_amount
+                
+                after_balance = current_usdt_balance
+            
             order_data = {
                 "SYMBOL": symbol,
                 "ORDER_TYPE": order_type,
@@ -505,16 +609,27 @@ class RealTradingBot:
                 "TOTAL_AMOUNT": float(order['cummulativeQuoteQty']),
                 "STATUS": order['status'],
                 "TIMESTAMP": datetime.now(self.japan_tz).isoformat(),
+                
+                # 添加正确的余额信息
+                "BEFORE_BALANCE": before_balance,
+                "AFTER_BALANCE": after_balance,
+                "BALANCE_CHANGE": after_balance - before_balance if before_balance else 0,
+                
+                # 保留原始交易数据用于调试
                 "TRADE_DATA": trade_data
             }
             
             doc_id = f"{symbol}_{order_type}_{int(datetime.now(self.japan_tz).timestamp())}"
             doc_ref = self.db.collection(self.collection_orders).document(doc_id)
             doc_ref.set(order_data)
+            
             print(f"✅ 订单记录保存成功: {symbol} {order_type}")
+            print(f"   💰 余额变化: {before_balance:.2f} → {after_balance:.2f} (变化: {after_balance - before_balance:.2f})")
             
         except Exception as e:
             print(f"❌ 保存订单记录失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def save_to_history(self, symbol: str, current_indicators: List[str], open_data: dict, close_price: float):
         """保存平仓记录到历史表"""
