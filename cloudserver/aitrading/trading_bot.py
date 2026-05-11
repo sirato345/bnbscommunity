@@ -179,10 +179,10 @@ class TradingSignalJob:
         
         return condition_a and condition_b and condition_c
     
-    # 根据指标判断是否卖出，增加9分钟持仓时间检查
+    # 根据指标判断是否卖出，增加5分钟持仓时间检查
     def close_trade(self, parsed_data: Dict[str, List[str]]):
         """从Firestore删除交易信号（适配您的数据结构）
-        条件：必须持仓超过9分钟才能平仓
+        条件：必须持仓超过5分钟才能平仓
         """
         try:
             for symbol, indicators in parsed_data.items():
@@ -204,10 +204,10 @@ class TradingSignalJob:
                             
                             # 计算持仓时间差（秒）
                             time_diff_seconds = (current_time - open_date).total_seconds()
-                            required_seconds = 9 * 60  # 9分钟 = 540秒
+                            required_seconds = 5 * 60  # 5分钟 = 300秒
                             
                             if time_diff_seconds >= required_seconds:
-                                # 持仓超过9分钟，允许平仓
+                                # 持仓超过5分钟，允许平仓
                                 print(f"✅ 持仓时间检查通过: {symbol} 持仓 {int(time_diff_seconds // 60)} 分钟，允许平仓")
                                 
                                 # 保存到历史记录（平仓操作）
@@ -217,9 +217,9 @@ class TradingSignalJob:
                                 doc_ref.delete()
                                 print(f"✅ 从Firestore删除并保存到历史: {symbol}")
                             else:
-                                # 持仓不足9分钟
+                                # 持仓不足5分钟
                                 remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
-                                print(f"⚠️ 持仓不足9分钟，跳过平仓: {symbol} 已持仓 {int(time_diff_seconds // 60)} 分钟，需等待 {remaining_minutes} 分钟后平仓")
+                                print(f"⚠️ 持仓不足5分钟，跳过平仓: {symbol} 已持仓 {int(time_diff_seconds // 60)} 分钟，需等待 {remaining_minutes} 分钟后平仓")
                         else:
                             print(f"⚠️ {symbol} 缺少 OPEN_DATE 字段，跳过平仓")
                     else:

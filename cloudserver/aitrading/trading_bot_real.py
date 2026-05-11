@@ -353,7 +353,7 @@ class RealTradingBot:
                             open_date = datetime.fromisoformat(open_date_str)
                             current_time = datetime.now(self.japan_tz)
                             time_diff_seconds = (current_time - open_date).total_seconds()
-                            required_seconds = 9 * 60
+                            required_seconds = 5 * 60
                             
                             if time_diff_seconds >= required_seconds:
                                 symbol_binance = f"{symbol}USDT"
@@ -418,7 +418,7 @@ class RealTradingBot:
                                     print(f"⚠️ 交易所无持仓，跳过平仓: {symbol}")
                             else:
                                 remaining_minutes = int((required_seconds - time_diff_seconds) // 60) + 1
-                                print(f"⚠️ 持仓不足9分钟，跳过平仓: {symbol} (还需等待 {remaining_minutes} 分钟)")
+                                print(f"⚠️ 持仓不足5分钟，跳过平仓: {symbol} (还需等待 {remaining_minutes} 分钟)")
                                     
         except Exception as e:
             print(f"❌ 平仓失败: {e}")

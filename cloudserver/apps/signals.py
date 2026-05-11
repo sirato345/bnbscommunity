@@ -124,7 +124,14 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     else:
         kdj_over = "Normal"
 
-    return [symbol, str(df.index[-1]), f"{latest['close']:.3f}", sar, macd, kdj, kdj_over]
+    # 根据币种设置不同的小数位数
+    price = latest['close']
+    if 'DOGE' in symbol:
+        price_str = f"{price:.5f}"  # DOGE保留5位小数
+    else:
+        price_str = f"{price:.2f}"  # 其他币种保留2位小数
+
+    return [symbol, str(df.index[-1]), price_str, sar, macd, kdj, kdj_over]
 
 
 # ─────────────────────────────────────────────
