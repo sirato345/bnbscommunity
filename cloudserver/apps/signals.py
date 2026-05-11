@@ -128,6 +128,8 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     price = latest['close']
     if 'DOGE' in symbol:
         price_str = f"{price:.5f}"  # DOGE保留5位小数
+    elif 'SHIB' in symbol or 'PEPE' in symbol:
+        price_str = f"{price:.8f}"  # SHIB和PEPE保留8位小数
     else:
         price_str = f"{price:.2f}"  # 其他币种保留2位小数
 
