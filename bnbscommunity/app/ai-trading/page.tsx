@@ -7,7 +7,7 @@ import './AITrading.css';
 
 // ── Utilities ──────────────────────────────────────────────────
 const toPct     = (v: number) => v * 100;
-const fmtPct    = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
+const fmtPct    = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 const cls       = (v: number) => v >= 0 ? 'positive' : 'negative';
 
 // KPI 汇总显示（保留2位小数）
