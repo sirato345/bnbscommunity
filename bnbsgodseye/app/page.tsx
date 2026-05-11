@@ -73,6 +73,21 @@ export default function CryptoScreenerPage() {
     setDataSources(prev => [...prev, ...newcrypto]);
   };
 
+  // 辅助函数：根据币种和价格值智能格式化
+  function formatPrice(symbol: string, priceStr: string): string {
+    const price = parseFloat(priceStr);
+    const baseSymbol = symbol.split('/')[0]; // 获取币种名称
+    
+    // 根据币种设置小数位数
+    if (baseSymbol === 'DOGE') {
+      return price.toFixed(5);  // DOGE 保留5位
+    } else if (baseSymbol === 'SHIB' || baseSymbol === 'PEPE') {
+      return price.toFixed(8);  // 更小的币种保留8位
+    } else {
+      return price.toFixed(2);  // BTC, ETH, BNB 等保留2位
+    }
+  }
+
   // ─── 一括リモートデータ取得 ───────────────────
   /**
    * dataSource を1回の POST で送信し、バックエンドがマルチスレッドで処理した結果を受け取る。
@@ -114,7 +129,7 @@ export default function CryptoScreenerPage() {
       return {
         symbol:    raw[0],
         timestamp: raw[1],
-        price:     parseFloat(raw[2]).toFixed(3),
+        price:     formatPrice(source.symbol, raw[2]),
         sar:       raw[3],
         macd:      raw[4],
         kdj:       raw[5],
