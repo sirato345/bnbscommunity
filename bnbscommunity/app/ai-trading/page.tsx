@@ -8,8 +8,48 @@ import './AITrading.css';
 // ── Utilities ──────────────────────────────────────────────────
 const toPct     = (v: number) => v * 100;
 const fmtPct    = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
-const fmtDollar = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(2);
 const cls       = (v: number) => v >= 0 ? 'positive' : 'negative';
+
+// KPI 汇总显示（保留2位小数）
+const fmtDollarKpi = (v: number): string => {
+  return (v >= 0 ? '+' : '') + v.toFixed(2);
+};
+
+// 🔥 根据币种格式化价格
+const formatPrice = (symbol: string, price: number): string => {
+  const baseSymbol = symbol.toUpperCase();
+  
+  switch (baseSymbol) {
+    case 'DOGE':
+      return price.toFixed(5);  // 狗狗币保留5位
+    case 'SHIB':
+    case 'PEPE':
+      return price.toFixed(8);  // SHIB、PEPE保留8位
+    default:
+      return price.toFixed(2);  // BTC、ETH、BNB等保留2位
+  }
+};
+
+// 🔥 根据币种格式化盈亏金额（P&L）
+const fmtDollar = (symbol: string, v: number): string => {
+  const prefix = v >= 0 ? '+' : '';
+  const baseSymbol = symbol.toUpperCase();
+  
+  switch (baseSymbol) {
+    case 'DOGE':
+      return prefix + v.toFixed(5);
+    case 'SHIB':
+    case 'PEPE':
+      return prefix + v.toFixed(8);
+    default:
+      return prefix + v.toFixed(2);
+  }
+};
+
+// 用于显示在表格中的价格（带$符号）
+const fmtPrice = (symbol: string, price: number): string => {
+  return `$${formatPrice(symbol, price)}`;
+};
 
 const fmtDate = (raw: string): string => {
   const d = new Date(raw);
@@ -36,7 +76,7 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
       </div>
       <div className="trade-card-row">
         <span className="tc-label">Open Price</span>
-        <span className="tc-value">${Number(trade.OPEN_PRICE).toFixed(4)}</span>
+        <span className="tc-value">{fmtPrice(trade.SYMBOL, trade.OPEN_PRICE)}</span>
       </div>
       <div className="trade-card-row">
         <span className="tc-label">Open Date</span>
@@ -77,9 +117,9 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
 function TradingSignals() {
   const [signals, setSignals] = useState<Record<string, string>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false); // ① 初回成功まで未初期化扱い
+  const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(true); // ③ アンマウント追跡
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -87,7 +127,6 @@ function TradingSignals() {
   }, []);
 
   const fetchSignals = useCallback(async () => {
-    // ② AbortController を ref で管理してクリーンアップ確実に
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -96,15 +135,14 @@ function TradingSignals() {
         'https://bnbs-django-275599637949.asia-northeast1.run.app/trading_signals',
         { signal: controller.signal, headers: { 'Content-Type': 'application/json' } }
       );
-      clearTimeout(timeoutId); // ② 正常完了時はタイマーをキャンセル
+      clearTimeout(timeoutId);
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
 
-      if (!mountedRef.current) return; // ③ アンマウント後は無視
+      if (!mountedRef.current) return;
 
       const parsed = data.signals || data;
-      // ① レスポンスが期待通りのオブジェクトか検証
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         setSignals(parsed);
         setError(null);
@@ -113,16 +151,13 @@ function TradingSignals() {
         throw new Error('Unexpected response format');
       }
     } catch (err) {
-      clearTimeout(timeoutId); // ② catch でも必ずキャンセル
+      clearTimeout(timeoutId);
       if (!mountedRef.current) return;
 
       const msg = err instanceof Error ? err.message : '請求失敗';
       console.error('Failed to fetch signals:', msg);
       setError(msg);
-      // ① 既存シグナルは消さない（前回の値を維持）
-      // isInitialized は変えない → 初回失敗なら引き続きリトライ
     } finally {
-      // lastUpdate は成功・失敗にかかわらず更新（最終試行時刻として）
       if (mountedRef.current) setLastUpdate(new Date());
     }
   }, []);
@@ -133,12 +168,11 @@ function TradingSignals() {
     return () => clearInterval(interval);
   }, [fetchSignals]);
 
-  // ④ 初回未成功の場合はリトライを短いインターバルで走らせる
   useEffect(() => {
     if (isInitialized) return;
     const retryInterval = setInterval(() => {
       if (!isInitialized) fetchSignals();
-    }, 5000); // 5秒ごとにリトライ（初回成功まで）
+    }, 5000);
     return () => clearInterval(retryInterval);
   }, [isInitialized, fetchSignals]);
 
@@ -185,7 +219,6 @@ function TradingSignals() {
         );
       })}
       <div className="signal-update-time">
-        {/* 未初期化中は "Connecting..." を表示 */}
         {!isInitialized
           ? <span className="signal-connecting">Connecting...</span>
           : `Last Update: ${lastUpdate ? formatTime(lastUpdate) : '--:--:--'}`
@@ -203,12 +236,10 @@ export default function AiTradingPage() {
   const { currentTrades, loading: cl, error: ce } = useCurrentTrades();
   const { history,       loading: hl, error: he } = useTradeHistory({ maxRecords: 50 });
 
-  // Scroll refs
   const tableScrollRef  = useRef<HTMLDivElement>(null);
   const pageBodyRef     = useRef<HTMLDivElement>(null);
   const tableTouchLastY = useRef(0);
 
-  // ── Wheel hand-off (desktop): table → page body ─────────────
   const handleTableWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     const el   = tableScrollRef.current;
     const page = pageBodyRef.current;
@@ -221,7 +252,6 @@ export default function AiTradingPage() {
     }
   }, []);
 
-  // ── Touch hand-off (mobile): table → page body ──────────────
   const handleTableTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     tableTouchLastY.current = e.touches[0].clientY;
   }, []);
@@ -261,7 +291,6 @@ export default function AiTradingPage() {
     );
   }
 
-  // ── Aggregation ─────────────────────────────────────────────
   const pctValues  = history.map(t => toPct(t.PROFIT_OR_LOSS_PERCENT || 0));
   const totalPct   = pctValues.reduce((s, v) => s + v, 0);
   const winTrades  = pctValues.filter(v => v > 0).length;
@@ -277,20 +306,17 @@ export default function AiTradingPage() {
       >
         <div className="trade-dashboard">
 
-          {/* ── Page Header ── */}
           <div className="page-header">
             <h1>AI Trading</h1>
             <span className="badge">LIVE</span>
           </div>
 
-          {/* ── Trading Signals Row ── */}
           <TradingSignals />
 
-          {/* ── KPI Cards ── */}
           <div className="kpi-strip">
             <div className="kpi-card kpi-card--pnl">
               <div className="kpi-label">Total P&amp;L</div>
-              <div className={`kpi-value ${cls(totalPct)}`}>{fmtPct(totalPct)}</div>
+              <div className={`kpi-value ${cls(totalPct)}`}>{fmtDollarKpi(totalPct)}%</div>
               <div className="kpi-sub"></div>
             </div>
             <div className="kpi-card kpi-card--winrate">
@@ -315,7 +341,6 @@ export default function AiTradingPage() {
             </div>
           </div>
 
-          {/* ── Current Positions ── */}
           <section className="section">
             <div className="section-header">
               <h2>Current Positions</h2>
@@ -333,7 +358,6 @@ export default function AiTradingPage() {
             )}
           </section>
 
-          {/* ── Trade History ── */}
           <section className="section">
             <div className="section-header">
               <h2>Trade History</h2>
@@ -371,10 +395,10 @@ export default function AiTradingPage() {
                         return (
                           <tr key={t.id} className={pl >= 0 ? 'profit-row' : 'loss-row'}>
                             <td className="td-symbol">{t.SYMBOL}</td>
-                            <td>${t.OPEN_PRICE.toFixed(4)}</td>
-                            <td>${t.CLOSE_PRICE.toFixed(4)}</td>
+                            <td>{fmtPrice(t.SYMBOL, t.OPEN_PRICE)}</td>
+                            <td>{fmtPrice(t.SYMBOL, t.CLOSE_PRICE)}</td>
                             <td>
-                              <span className={`pl-chip ${cls(pl)}`}>{fmtDollar(pl)}</span>
+                              <span className={`pl-chip ${cls(pl)}`}>{fmtDollar(t.SYMBOL, pl)}</span>
                             </td>
                             <td>
                               <span className={`pl-chip ${cls(plPct)}`}>{fmtPct(plPct)}</span>
