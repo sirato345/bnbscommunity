@@ -62,7 +62,7 @@ export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeH
     // ✅ 修正: symbolFilter の実装を正しい where() 句に変更
     const constraints: QueryConstraint[] = [
       orderBy('CLOSE_DATE', 'desc'),
-      limit(maxRecords),
+      // limit(maxRecords),
     ];
     if (symbolFilter) {
       constraints.push(where('SYMBOL', '==', symbolFilter));
