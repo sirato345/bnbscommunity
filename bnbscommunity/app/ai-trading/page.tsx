@@ -234,7 +234,7 @@ function TradingSignals() {
 // ── Main Page ──────────────────────────────────────────────────
 export default function AiTradingPage() {
   const { currentTrades, loading: cl, error: ce } = useCurrentTrades();
-  const { history,       loading: hl, error: he } = useTradeHistory({ maxRecords: 50 });
+  const { history,       loading: hl, error: he } = useTradeHistory({ maxRecords: 1000 });
 
   const tableScrollRef  = useRef<HTMLDivElement>(null);
   const pageBodyRef     = useRef<HTMLDivElement>(null);
