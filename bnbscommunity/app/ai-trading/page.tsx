@@ -113,17 +113,24 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
   );
 }
 
-// ── Simplified Trading Signal Component ────────────────────────
+// ── Simplified Trading Signal Component with Retry Logic ────────────────────────
 function TradingSignals() {
   const [signals, setSignals] = useState<Record<string, string>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+    };
   }, []);
 
   const fetchSignals = useCallback(async () => {
@@ -147,6 +154,10 @@ function TradingSignals() {
         setSignals(parsed);
         setError(null);
         setIsInitialized(true);
+        retryCountRef.current = 0; // 成功后重置重试计数
+        setLastUpdate(new Date());
+        // 清除超时检测
+        if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
       } else {
         throw new Error('Unexpected response format');
       }
@@ -156,25 +167,59 @@ function TradingSignals() {
 
       const msg = err instanceof Error ? err.message : '請求失敗';
       console.error('Failed to fetch signals:', msg);
-      setError(msg);
-    } finally {
-      if (mountedRef.current) setLastUpdate(new Date());
+      
+      // 只在未初始化时设置错误
+      if (!isInitialized) {
+        setError(msg);
+      }
+      
+      throw err; // 抛出错误让上层处理重试
     }
-  }, []);
+  }, [isInitialized]);
 
+  // 带重试的加载函数
+  const loadWithRetry = useCallback(async () => {
+    try {
+      await fetchSignals();
+    } catch (err) {
+      // 如果未初始化且还有重试次数，则继续重试
+      if (!isInitialized && retryCountRef.current < 2) {
+        retryCountRef.current++;
+        console.log(`重试中... (${retryCountRef.current}/2)`);
+        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = setTimeout(loadWithRetry, 3000);
+      }
+    }
+  }, [fetchSignals, isInitialized]);
+
+  // 3秒超时检测
   useEffect(() => {
-    fetchSignals();
-    const interval = setInterval(fetchSignals, 30000);
+    initTimeoutRef.current = setTimeout(() => {
+      if (!isInitialized && mountedRef.current && retryCountRef.current < 2) {
+        console.log('3秒内未显示，触发重试...');
+        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = setTimeout(loadWithRetry, 0);
+      }
+    }, 3000);
+
+    return () => {
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+    };
+  }, [isInitialized, loadWithRetry]);
+
+  // 首次加载
+  useEffect(() => {
+    loadWithRetry();
+    
+    // 成功后定期刷新
+    const interval = setInterval(() => {
+      if (isInitialized) {
+        fetchSignals().catch(err => console.error('定期刷新失败:', err));
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, [fetchSignals]);
-
-  useEffect(() => {
-    if (isInitialized) return;
-    const retryInterval = setInterval(() => {
-      if (!isInitialized) fetchSignals();
-    }, 5000);
-    return () => clearInterval(retryInterval);
-  }, [isInitialized, fetchSignals]);
+  }, [loadWithRetry, fetchSignals, isInitialized]);
 
   const coinOrder = ['BTC', 'ETH', 'BNB', 'DOGE'];
 
