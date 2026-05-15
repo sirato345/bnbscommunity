@@ -80,7 +80,7 @@ REST_FRAMEWORK = {
 CSV_DIR          = BASE_DIR / "csv"
 TOTAL_BNBS_COUNT = 21_000_000
 KLINE_LIMIT      = 100
-CACHE_DURATION   = 10   # 秒
+CACHE_DURATION   = 15   # 秒
 
 
 # GCS 設定

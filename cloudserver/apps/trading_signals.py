@@ -25,7 +25,7 @@ from rest_framework.response import Response
 SIGNAL_API_URL = "https://bnbs-django-275599637949.asia-northeast1.run.app/signals"
 
 # 缓存持续时间（秒）
-CACHE_DURATION = 10
+CACHE_DURATION = 15
 
 # 默认交易对列表
 DEFAULT_TARGETS = [
@@ -94,7 +94,7 @@ def fetch_signals(targets: List[Dict] = None) -> Optional[Dict]:
 
 
 # buy/sell信号检查函数（新逻辑）
-def check_signal(self, indicators: List[str]) -> bool:
+def check_signal(indicators: List[str]) -> bool:
     """
     检查买入信号
     条件：
