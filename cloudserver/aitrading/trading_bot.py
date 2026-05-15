@@ -165,8 +165,8 @@ class TradingSignalJob:
         # 4h指标（索引8-10: 4h_SAR, 4h_MACD, 4h_KDJ）
         four_hour_indicators = indicators[8:11]  # [4h_SAR, 4h_MACD, 4h_KDJ]
         
-        # 规则1：1h和4h的全部六个指标都为 '〇'
-        if all(ind == '〇' for ind in one_hour_indicators + four_hour_indicators):
+        # 规则1：1h和4h的全部六个指标都为 '〇'，15m_MACD也必须为 '〇'，此时不限制15m_KDJ的状态
+        if all(ind == '〇' for ind in one_hour_indicators + four_hour_indicators + indicators[4]):
             return True
         
         # 规则2：
@@ -174,8 +174,8 @@ class TradingSignalJob:
         condition_a = indicators[6] == '〇' and indicators[7] == '〇'
         # 条件b：4h至少有两个为 '〇'
         condition_b = sum(1 for ind in four_hour_indicators if ind == '〇') >= 2
-        # 条件c：15m_MACD 为 '〇'（索引4）
-        condition_c = indicators[4] == '〇'
+        # 条件c：15m_KDJ 为 '〇'（索引3）
+        condition_c = indicators[3] == '〇'
         
         return condition_a and condition_b and condition_c
     
