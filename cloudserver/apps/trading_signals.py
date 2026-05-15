@@ -93,22 +93,19 @@ def fetch_signals(targets: List[Dict] = None) -> Optional[Dict]:
         return None
 
 
-def check_signal(indicators: List[str]) -> bool:
+# buy/sell信号检查函数（新逻辑）
+def check_signal(self, indicators: List[str]) -> bool:
     """
     检查买入信号
-    
     条件：
     1. 如果1h和4h的六个指标全部为 '〇'，返回 True
     2. 否则，如果同时满足以下三个条件，返回 True：
-       a. 1h_MACD 和 1h_KDJ 均为 '〇'
-       b. 4h_KDJ、4h_MACD、4h_SAR 中至少有两个为 '〇'
-       c. 15m_MACD 为 '〇'
+    a. 1h_MACD 和 1h_KDJ 均为 '〇'
+    b. 4h_KDJ、4h_MACD、4h_SAR 中至少有两个为 '〇'
+    c. 15m_MACD 为 '〇'
     
     参数indicators格式: 
     [币种, 价格, 信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
-    
-    Returns:
-        True表示买入信号，False表示卖出信号
     """
     if len(indicators) < 11:
         return False
@@ -118,8 +115,8 @@ def check_signal(indicators: List[str]) -> bool:
     # 4h指标（索引8-10: 4h_SAR, 4h_MACD, 4h_KDJ）
     four_hour_indicators = indicators[8:11]  # [4h_SAR, 4h_MACD, 4h_KDJ]
     
-    # 规则1：1h和4h的全部六个指标都为 '〇'
-    if all(ind == '〇' for ind in one_hour_indicators + four_hour_indicators):
+    # 规则1：1h和4h的全部六个指标都为 '〇'，15m_MACD也必须为 '〇'，此时不限制15m_KDJ的状态
+    if (all(ind == '〇' for ind in one_hour_indicators + four_hour_indicators) and indicators[4] == '〇'):
         return True
     
     # 规则2：
@@ -127,11 +124,10 @@ def check_signal(indicators: List[str]) -> bool:
     condition_a = indicators[6] == '〇' and indicators[7] == '〇'
     # 条件b：4h至少有两个为 '〇'
     condition_b = sum(1 for ind in four_hour_indicators if ind == '〇') >= 2
-    # 条件c：15m_MACD 为 '〇'（索引4）
-    condition_c = indicators[4] == '〇'
+    # 条件c：15m_KDJ 为 '〇'（索引3）
+    condition_c = indicators[3] == '〇'
     
     return condition_a and condition_b and condition_c
-
 
 def parse_signals(raw_data: Dict, targets: List[Dict] = None) -> Dict[str, str]:
     """
