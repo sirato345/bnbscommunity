@@ -3,6 +3,7 @@ apps/trading_signals.py
 交易信号Web服务 - 获取每个币种的买卖信号
 """
 from __future__ import annotations
+from .signals import _process_target  # 同一アプリ内の場合
 
 import json
 import threading
@@ -12,17 +13,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import pytz
-import requests
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
-
-# ─────────────────────────────────────────────
-# 定数
-# ─────────────────────────────────────────────
-# 信号API的URL（可以配置在settings中）
-SIGNAL_API_URL = "https://bnbs-django-275599637949.asia-northeast1.run.app/signals"
 
 # 缓存持续时间（秒）
 CACHE_DURATION = 15
@@ -56,41 +50,28 @@ _cache_lock = threading.Lock()
 # ─────────────────────────────────────────────
 def fetch_signals(targets: List[Dict] = None) -> Optional[Dict]:
     """
-    发送POST请求获取交易信号
-    
-    Args:
-        targets: 请求的目标列表，如果不提供则使用默认值
-        
-    Returns:
-        原始API响应数据，失败时返回None
+    signals.py の _process_target を直接呼び出して交易信号を取得する。
+    戻り値の形式は元の HTTP API レスポンスと同一。
     """
     if targets is None:
         targets = DEFAULT_TARGETS
-    
-    try:
-        payload = {"targets": targets}
-        headers = {'Content-Type': 'application/json'}
-        
-        print(f"[trading_signals] 发送请求到: {SIGNAL_API_URL}")
-        print(f"[trading_signals] 请求目标数量: {len(targets)}")
-        
-        response = requests.post(
-            SIGNAL_API_URL,
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
-        response.raise_for_status()
-        
-        print(f"[trading_signals] ✅ API响应成功: {response.status_code}")
-        return response.json()
-        
-    except requests.exceptions.RequestException as e:
-        print(f"[trading_signals] ❌ API请求失败: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            print(f"[trading_signals] 响应状态码: {e.response.status_code}")
-            print(f"[trading_signals] 响应内容: {e.response.text}")
-        return None
+
+    results: dict = {}
+    errors:  dict = {}
+
+    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+        futures = {
+            executor.submit(_process_target, t["timeframe"], t["symbol"]): t
+            for t in targets
+        }
+        for future in as_completed(futures):
+            res = future.result()
+            if res["error"]:
+                errors[res["key"]] = res["error"]
+            else:
+                results[res["key"]] = res["data"]
+
+        return {"results": results, "errors": errors}
 
 
 # buy/sell信号检查函数（新逻辑）
