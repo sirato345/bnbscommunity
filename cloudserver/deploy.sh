@@ -75,7 +75,7 @@ gcloud run deploy "${SERVICE}" \
   --cpu 1 \
   --min-instances 1 \
   --max-instances 1 \
-  --timeout 120 \
+  --timeout 300 \
   --set-env-vars "DJANGO_SETTINGS_MODULE=config.settings" \
   --allow-unauthenticated \
   --project="${PROJECT_ID}" \
