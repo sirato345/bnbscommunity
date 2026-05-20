@@ -83,77 +83,129 @@ def calculate_macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int
     return df
 
 
-# def calculate_kdj(df: pd.DataFrame) -> pd.DataFrame:
-#     kdj = ta.kdj(
-#         high=df["high"], low=df["low"], close=df["close"],
-#         length=9, signal=3, scalar=100, offset=0, append=True,
-#     )
-#     df["K"] = kdj["K_9_3"]
-#     df["D"] = kdj["D_9_3"]
-#     df["J"] = kdj["J_9_3"]
-#     return df
-def calculate_kdj(
-    df: pd.DataFrame, 
-    n: int = 9, 
-    k_smooth: int = 3, 
-    d_smooth: int = 3
-) -> pd.DataFrame:
-    """
-    手动计算 KDJ 指标（国内主流标准算法）
-    
-    参数:
-        df: 包含 high, low, close 三列的 DataFrame
-        n: RSV 周期，默认 9
-        k_smooth: K 值平滑周期，默认 3
-        d_smooth: D 值平滑周期，默认 3
-    
-    返回:
-        添加了 K, D, J 三列的 DataFrame
-    """
-    df = df.copy()
-    
-    # 1. 计算 RSV (Raw Stochastic Value)
-    low_n = df["low"].rolling(n, min_periods=n).min()
-    high_n = df["high"].rolling(n, min_periods=n).max()
-    
-    # 处理分母为 0 的情况（价格一直不变时）
-    denominator = high_n - low_n
-    # 当最高=最低时，RSV 设为 50（国内主流规则）
-    rsv = pd.Series(50.0, index=df.index)
-    mask = denominator != 0
-    rsv[mask] = (df["close"][mask] - low_n[mask]) / denominator[mask] * 100
-    
-    # 2. 初始化 K, D 数组
-    k_vals = [50.0]  # K 初始值 50
-    d_vals = [50.0]  # D 初始值 50
-    
-    # 3. 递推计算 K 和 D
-    for i in range(1, len(rsv)):
-        # K = 平滑因子1 * 前一日K + (1 - 平滑因子1) * RSV
-        # 平滑因子 = 1/k_smooth
-        k_current = (k_smooth - 1) / k_smooth * k_vals[-1] + (1 / k_smooth) * rsv.iloc[i]
-        k_vals.append(k_current)
-        
-        # D = 平滑因子2 * 前一日D + (1 - 平滑因子2) * K
-        d_current = (d_smooth - 1) / d_smooth * d_vals[-1] + (1 / d_smooth) * k_current
-        d_vals.append(d_current)
-    
-    # 4. 计算 J 值
-    k_vals = pd.Series(k_vals, index=df.index)
-    d_vals = pd.Series(d_vals, index=df.index)
-    j_vals = 3 * k_vals - 2 * d_vals
-    
-    # 5. 写入 DataFrame
-    df["K"] = k_vals
-    df["D"] = d_vals
-    df["J"] = j_vals
-    
+def calculate_kdj(df: pd.DataFrame) -> pd.DataFrame:
+    kdj = ta.kdj(
+        high=df["high"], low=df["low"], close=df["close"],
+        length=9, signal=3, scalar=100, offset=0, append=True,
+    )
+    df["K"] = kdj["K_9_3"]
+    df["D"] = kdj["D_9_3"]
+    df["J"] = kdj["J_9_3"]
     return df
 
-def calculate_sar(df: pd.DataFrame) -> pd.DataFrame:
-    sar = ta.psar(high=df["high"], low=df["low"], acceleration=0.02, maximum=0.2)
-    df["SAR_long"]  = sar.iloc[:, 0]
-    df["SAR_short"] = sar.iloc[:, 1]
+# def calculate_sar(df: pd.DataFrame) -> pd.DataFrame:
+#     sar = ta.psar(high=df["high"], low=df["low"], acceleration=0.02, maximum=0.2)
+#     df["SAR_long"]  = sar.iloc[:, 0]
+#     df["SAR_short"] = sar.iloc[:, 1]
+#     return df
+def calculate_sar(
+    df: pd.DataFrame,
+    accel_init: float = 0.02,
+    accel_max: float = 0.2,
+    accel_step: float = 0.02
+) -> pd.DataFrame:
+    """
+    手动计算 PSAR (Parabolic SAR) - 国内主流标准算法
+    
+    参数:
+        df: 包含 high, low 两列的 DataFrame
+        accel_init: 初始加速因子，默认 0.02
+        accel_max: 最大加速因子，默认 0.2
+        accel_step: 加速步长，默认 0.02
+    
+    返回:
+        添加了 SAR（趋势转换后的SAR值）和 SAR_trend（1=上升趋势，-1=下降趋势）的 DataFrame
+    """
+    df = df.copy()
+    n = len(df)
+    
+    # 初始化
+    sar = pd.Series(index=df.index, dtype=float)
+    trend = pd.Series(index=df.index, dtype=int)  # 1: 上升趋势, -1: 下降趋势
+    ep = pd.Series(index=df.index, dtype=float)   # 极值点
+    af = pd.Series(index=df.index, dtype=float)   # 加速因子
+    
+    # 计算初始趋势（前两个K线决定）
+    if df.iloc[0]["high"] + df.iloc[0]["low"] < df.iloc[1]["high"] + df.iloc[1]["low"]:
+        # 上升趋势
+        trend.iloc[0] = 1
+        sar.iloc[0] = df.iloc[0]["low"]  # 初始 SAR 为第一根最低价
+        ep.iloc[0] = df.iloc[0]["high"]  # 初始极值点为第一根最高价
+    else:
+        # 下降趋势
+        trend.iloc[0] = -1
+        sar.iloc[0] = df.iloc[0]["high"]  # 初始 SAR 为第一根最高价
+        ep.iloc[0] = df.iloc[0]["low"]    # 初始极值点为第一根最低价
+    
+    af.iloc[0] = accel_init
+    
+    # 递推计算后续 SAR
+    for i in range(1, n):
+        prev_sar = sar.iloc[i-1]
+        prev_ep = ep.iloc[i-1]
+        prev_af = af.iloc[i-1]
+        prev_trend = trend.iloc[i-1]
+        
+        # 1. 计算当前 SAR 值
+        current_sar = prev_sar + prev_af * (prev_ep - prev_sar)
+        
+        # 2. 根据趋势限制 SAR 范围
+        if prev_trend == 1:  # 上升趋势
+            # SAR 不能高于前两期的最低价
+            current_sar = min(current_sar, df.iloc[i-1]["low"])
+            if i > 1:
+                current_sar = min(current_sar, df.iloc[i-2]["low"])
+        else:  # 下降趋势
+            # SAR 不能低于前两期的最高价
+            current_sar = max(current_sar, df.iloc[i-1]["high"])
+            if i > 1:
+                current_sar = max(current_sar, df.iloc[i-2]["high"])
+        
+        # 3. 判断是否反转
+        trend_changed = False
+        
+        if prev_trend == 1:  # 上升趋势，检查是否跌破 SAR
+            if current_sar > df.iloc[i]["low"]:
+                # 反转：上升转下降
+                trend.iloc[i] = -1
+                sar.iloc[i] = prev_ep  # SAR 设为前一个极值点
+                ep.iloc[i] = df.iloc[i]["low"]
+                af.iloc[i] = accel_init
+                trend_changed = True
+        else:  # 下降趋势，检查是否涨破 SAR
+            if current_sar < df.iloc[i]["high"]:
+                # 反转：下降转上升
+                trend.iloc[i] = 1
+                sar.iloc[i] = prev_ep  # SAR 设为前一个极值点
+                ep.iloc[i] = df.iloc[i]["high"]
+                af.iloc[i] = accel_init
+                trend_changed = True
+        
+        # 4. 如果没有反转，更新极值点和加速因子
+        if not trend_changed:
+            trend.iloc[i] = prev_trend
+            sar.iloc[i] = current_sar
+            
+            # 更新极值点
+            if prev_trend == 1:  # 上升趋势
+                if df.iloc[i]["high"] > prev_ep:
+                    ep.iloc[i] = df.iloc[i]["high"]
+                    af.iloc[i] = min(prev_af + accel_step, accel_max)
+                else:
+                    ep.iloc[i] = prev_ep
+                    af.iloc[i] = prev_af
+            else:  # 下降趋势
+                if df.iloc[i]["low"] < prev_ep:
+                    ep.iloc[i] = df.iloc[i]["low"]
+                    af.iloc[i] = min(prev_af + accel_step, accel_max)
+                else:
+                    ep.iloc[i] = prev_ep
+                    af.iloc[i] = prev_af
+    
+    # 5. 写入 DataFrame
+    df["SAR"] = sar
+    df["SAR_trend"] = trend
+    
     return df
 
 
