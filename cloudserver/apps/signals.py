@@ -83,16 +83,72 @@ def calculate_macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int
     return df
 
 
-def calculate_kdj(df: pd.DataFrame) -> pd.DataFrame:
-    kdj = ta.kdj(
-        high=df["high"], low=df["low"], close=df["close"],
-        length=9, signal=3, scalar=100, offset=0, append=True,
-    )
-    df["K"] = kdj["K_9_3"]
-    df["D"] = kdj["D_9_3"]
-    df["J"] = kdj["J_9_3"]
+# def calculate_kdj(df: pd.DataFrame) -> pd.DataFrame:
+#     kdj = ta.kdj(
+#         high=df["high"], low=df["low"], close=df["close"],
+#         length=9, signal=3, scalar=100, offset=0, append=True,
+#     )
+#     df["K"] = kdj["K_9_3"]
+#     df["D"] = kdj["D_9_3"]
+#     df["J"] = kdj["J_9_3"]
+#     return df
+def calculate_kdj(
+    df: pd.DataFrame, 
+    n: int = 9, 
+    k_smooth: int = 3, 
+    d_smooth: int = 3
+) -> pd.DataFrame:
+    """
+    手动计算 KDJ 指标（国内主流标准算法）
+    
+    参数:
+        df: 包含 high, low, close 三列的 DataFrame
+        n: RSV 周期，默认 9
+        k_smooth: K 值平滑周期，默认 3
+        d_smooth: D 值平滑周期，默认 3
+    
+    返回:
+        添加了 K, D, J 三列的 DataFrame
+    """
+    df = df.copy()
+    
+    # 1. 计算 RSV (Raw Stochastic Value)
+    low_n = df["low"].rolling(n, min_periods=n).min()
+    high_n = df["high"].rolling(n, min_periods=n).max()
+    
+    # 处理分母为 0 的情况（价格一直不变时）
+    denominator = high_n - low_n
+    # 当最高=最低时，RSV 设为 50（国内主流规则）
+    rsv = pd.Series(50.0, index=df.index)
+    mask = denominator != 0
+    rsv[mask] = (df["close"][mask] - low_n[mask]) / denominator[mask] * 100
+    
+    # 2. 初始化 K, D 数组
+    k_vals = [50.0]  # K 初始值 50
+    d_vals = [50.0]  # D 初始值 50
+    
+    # 3. 递推计算 K 和 D
+    for i in range(1, len(rsv)):
+        # K = 平滑因子1 * 前一日K + (1 - 平滑因子1) * RSV
+        # 平滑因子 = 1/k_smooth
+        k_current = (k_smooth - 1) / k_smooth * k_vals[-1] + (1 / k_smooth) * rsv.iloc[i]
+        k_vals.append(k_current)
+        
+        # D = 平滑因子2 * 前一日D + (1 - 平滑因子2) * K
+        d_current = (d_smooth - 1) / d_smooth * d_vals[-1] + (1 / d_smooth) * k_current
+        d_vals.append(d_current)
+    
+    # 4. 计算 J 值
+    k_vals = pd.Series(k_vals, index=df.index)
+    d_vals = pd.Series(d_vals, index=df.index)
+    j_vals = 3 * k_vals - 2 * d_vals
+    
+    # 5. 写入 DataFrame
+    df["K"] = k_vals
+    df["D"] = d_vals
+    df["J"] = j_vals
+    
     return df
-
 
 def calculate_sar(df: pd.DataFrame) -> pd.DataFrame:
     sar = ta.psar(high=df["high"], low=df["low"], acceleration=0.02, maximum=0.2)

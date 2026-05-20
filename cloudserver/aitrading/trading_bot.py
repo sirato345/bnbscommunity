@@ -172,8 +172,8 @@ class TradingSignalJob:
         # 规则2：
         # 条件a：1h_MACD 和 1h_KDJ 都为 '〇'（索引6和7）
         condition_a = indicators[6] == '〇' and indicators[7] == '〇'
-        # 条件b：4h至少有两个为 '〇'
-        condition_b = sum(1 for ind in four_hour_indicators if ind == '〇') >= 2
+        # 条件b：4h有三个为 '〇'
+        condition_b = sum(1 for ind in four_hour_indicators if ind == '〇') == 3
         # 条件c：15m_KDJ 为 '〇'（索引3）
         condition_c = indicators[3] == '〇'
         
