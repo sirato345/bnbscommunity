@@ -203,8 +203,8 @@ def calculate_sar(
                     af.iloc[i] = prev_af
     
     # 5. 写入 DataFrame
-    df["SAR"] = sar
-    df["SAR_trend"] = trend
+    df["SAR_long"] = sar.where(trend == 1, pd.NA)
+    df["SAR_short"] = sar.where(trend == -1, pd.NA)
     
     return df
 
