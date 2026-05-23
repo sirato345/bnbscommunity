@@ -5,7 +5,6 @@ TradingView 完全兼容的指标计算（warmup预热版）
 """
 from __future__ import annotations
 
-import math
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -117,41 +116,54 @@ def calculate_macd_tradingview(df: pd.DataFrame, fast: int = 12, slow: int = 26,
     return df
 
 
-def calculate_kdj_tradingview(df: pd.DataFrame, length: int = 9, smooth_k: int = 3, smooth_d: int = 3) -> pd.DataFrame:
+def _ewm_with_init(series: pd.Series, alpha: float, init: float = 50.0) -> pd.Series:
     """
-    TradingView 完全兼容的 KDJ 指标（基于随机指标）
+    初期値を指定できるEWM（指数移動平均）
     
-    TradingView 的标准 KDJ:
-    - RSV = (close - lowest(low, length)) / (highest(high, length) - lowest(low, length)) * 100
-    - K = SMA(RSV, smooth_k)
-    - D = SMA(K, smooth_d)
-    - J = 3 * K - 2 * D
+    pandas の ewm(adjust=False) は series[0] を初期値として使うため、
+    MEXC などの取引所が採用する K=50, D=50 スタートを再現できない。
+    この関数は init を初期値として明示的に計算する。
     
-    注意: TradingView 通常使用 SMA，而非 EMA
+    漸化式: result[i] = alpha * series[i] + (1 - alpha) * result[i-1]
+    初期値: result[-1] = init (=50)
     """
-    # 计算最高价和最低价
+    values = series.to_numpy(dtype=float)
+    result = np.empty(len(values), dtype=float)
+    prev = init  # ← K=50, D=50 からスタート
+    for i, v in enumerate(values):
+        prev = alpha * v + (1 - alpha) * prev
+        result[i] = prev
+    return pd.Series(result, index=series.index)
+
+
+def calculate_kdj_tradingview(
+    df: pd.DataFrame,
+    length: int = 9,
+    smooth_k: int = 3,
+    smooth_d: int = 3
+) -> pd.DataFrame:
     highest_high = df["high"].rolling(window=length).max()
-    lowest_low = df["low"].rolling(window=length).min()
-    
-    # RSV (原始随机值) 计算
-    # 防止除零错误
-    denominator = highest_high - lowest_low
-    denominator = denominator.replace(0, np.nan)
-    
-    rsv = (df["close"] - lowest_low) / denominator * 100
-    rsv = rsv.fillna(50)  # 初始值设为50
-    
-    # 计算 K, D, J（使用 SMA）
-    k = rsv.rolling(window=smooth_k).mean()
-    d = k.rolling(window=smooth_d).mean()
+    lowest_low   = df["low"].rolling(window=length).min()
+
+    denominator      = highest_high - lowest_low
+    denominator_safe = denominator.replace(0, 1)
+
+    rsv = (df["close"] - lowest_low) / denominator_safe * 100
+    rsv = rsv.where(denominator != 0, pd.NA)
+    rsv = rsv.ffill().fillna(50)
+
+    alpha_k = 1 / smooth_k  # = 1/3
+    alpha_d = 1 / smooth_d  # = 1/3
+
+    # K=50, D=50 を初期値として EWM 計算
+    k = _ewm_with_init(rsv, alpha=alpha_k, init=50.0)
+    d = _ewm_with_init(k,   alpha=alpha_d, init=50.0)
     j = 3 * k - 2 * d
-    
+
     df["K"] = k
     df["D"] = d
     df["J"] = j
-    
     return df
-
 
 def calculate_sar_tradingview(
     df: pd.DataFrame,
@@ -259,8 +271,8 @@ def calculate_sar_tradingview(
     # 将结果写入 DataFrame
     df["SAR"] = sar
     df["SAR_trend"] = trend
-    df["SAR_long"] = pd.Series(sar).where(trend == 1, pd.NA)
-    df["SAR_short"] = pd.Series(sar).where(trend == -1, pd.NA)
+    df["SAR_long"]  = np.where(trend == 1,  sar, np.nan)   # ← ① 修正
+    df["SAR_short"] = np.where(trend == -1, sar, np.nan)   # ← ① 修正
     
     return df
 
@@ -280,7 +292,7 @@ def get_all_indicators(time_frame: str, symbol: str) -> pd.DataFrame:
     
     # 2. 对所有数据计算指标
     df_full = calculate_macd_tradingview(df_full)
-    df_full = calculate_kdj_tradingview(df_full)
+    df_full = calculate_kdj_tradingview(df_full)  # 使用新的简洁版
     df_full = calculate_sar_tradingview(df_full)
     
     # 3. 丢弃开头的预热数据
@@ -302,7 +314,7 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     # MACD: MACD 线高于信号线时为 〇
     macd = "〇" if latest["MACD"] > latest["MACD_signal"] else "×"
     
-    # KDJ: K 高于 D 时为 〇（TradingView 标准）
+    # KDJ: K 高于 D 时为 〇（MEXC 标准）
     kdj = "〇" if latest["K"] > latest["D"] else "×"
     
     # KDJ 超买/超卖判断
@@ -395,7 +407,7 @@ def get_signals(request: Request) -> Response:
     errors: dict = {}
 
     # 根据目标数量动态分配线程
-    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(targets), 12)) as executor:
         futures = {
             executor.submit(_process_target, t["timeframe"], t["symbol"]): t
             for t in targets

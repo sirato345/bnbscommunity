@@ -67,7 +67,7 @@ def fetch_signals(targets: List[Dict] = None) -> Optional[Dict]:
     results: dict = {}
     errors:  dict = {}
 
-    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(targets), 12)) as executor:
         futures = {
             executor.submit(_process_target, t["timeframe"], t["symbol"]): t
             for t in targets
@@ -372,12 +372,24 @@ def check_position_exit(
 
 # ========== 修改：cal_trading_signals 函数（增加开仓时机检查）==========
 def is_entry_time() -> bool:
-    """检查当前是否为开仓时机（15m K线收盘后）"""
+    """
+    检查当前是否为开仓时机（15m K线收盘后）
+    
+    开仓窗口：收盘后5秒 ~ 3分20秒（200秒）
+    - 最早：收盘后5秒（数据已稳定）
+    - 最晚：收盘后5分钟（避免太迟入场）
+    """
     now_jst = datetime.now(JAPAN_TZ)
     minute = now_jst.minute
-    # 15m K线收盘时间：15, 30, 45, 0 → 对应分钟 1, 16, 31, 46（收盘后立即检查）
-    # 为了方便，在收盘后的第1分钟检查
-    return minute in [1, 16, 31, 46]
+    second = now_jst.second
+    
+    # 计算距离上次15m K线收盘的时间（秒）
+    # 15m K线收盘时刻：00, 15, 30, 45 分
+    current_close_minute = (minute // 15) * 15
+    seconds_since_close = (minute - current_close_minute) * 60 + second
+    
+    # 收盘后5秒到200秒（3分20秒）之间可以开仓
+    return 5 <= seconds_since_close <= 200
 
 
 def cal_trading_signals(targets: List[Dict] = None, use_cache: bool = True) -> Dict[str, str]:
@@ -421,9 +433,6 @@ def cal_trading_signals(targets: List[Dict] = None, use_cache: bool = True) -> D
     
     # 获取所有指标的完整数据
     formatted = get_all_indicators_dict(raw_data, targets)
-    
-    if targets is None:
-        targets = DEFAULT_TARGETS
     
     currency_order = []
     for target in targets:
