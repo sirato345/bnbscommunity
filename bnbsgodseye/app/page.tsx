@@ -50,7 +50,9 @@ export default function CryptoScreenerPage() {
     { timeframe: '4h', symbol: 'ETH/USDT' },
     { timeframe: '1h', symbol: 'BNB/USDT' },
     { timeframe: '4h', symbol: 'BNB/USDT' },
-  ]);
+    { timeframe: '1h', symbol: 'DOGE/USDT' },
+    { timeframe: '4h', symbol: 'DOGE/USDT' },
+  ]); 
 
   const [param] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
