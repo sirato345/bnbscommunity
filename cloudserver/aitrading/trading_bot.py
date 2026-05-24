@@ -213,45 +213,45 @@ class TradingSignalJob:
     # -------------------------------------------------------------------------
 
     def close_trade(self, parsed_data: Dict[str, List[str]]):
-        """检查并执行平仓（需要连续两次 sell 才平仓）"""
         try:
             for symbol, indicators in parsed_data.items():
                 if len(indicators) >= 3:
                     current_signal = indicators[2]
 
-                    # 连续 sell カウンターを更新
+                    # ✅ 先にポジション存在確認
+                    doc_ref = self.db.collection(self.collection_current).document(symbol)
+                    doc = doc_ref.get()
+
+                    if not doc.exists:
+                        # 持仓なし → カウンターはリセットのみ（不要な蓄積を防ぐ）
+                        if self.consecutive_sell_counter[symbol] > 0:
+                            print(f"🔄 {symbol} 持仓なし、sellカウンターをリセット")
+                            self.consecutive_sell_counter[symbol] = 0
+                        continue  # ← 以降の処理をスキップ
+
+                    # 持仓あり → カウンター更新
                     if current_signal == 'sell':
                         self.consecutive_sell_counter[symbol] += 1
                         print(f"📊 {symbol} 连续 sell 次数: {self.consecutive_sell_counter[symbol]}")
                     else:
                         if self.consecutive_sell_counter[symbol] > 0:
-                            print(f"🔄 {symbol} 信号变为 buy，重置连续 sell 计数")
+                            print(f"🔄 {symbol} 信号変為 buy，重置连续 sell 计数")
                         self.consecutive_sell_counter[symbol] = 0
 
-                    # 连続2回のsellで平倉実行
+                    # 連続2回のsellで平倉
                     if self.consecutive_sell_counter[symbol] >= 2:
-                        doc_ref = self.db.collection(self.collection_current).document(symbol)
-                        doc = doc_ref.get()
-
-                        if doc.exists:
-                            open_data = doc.to_dict()
-                            self.save_to_history(symbol, indicators, open_data)
-                            doc_ref.delete()
-                            print(f"✅ 连续两次 sell 触发平仓: {symbol}")
-                            self.consecutive_sell_counter[symbol] = 0
-                        else:
-                            print(f"⚠️ Firestore中不存在持仓: {symbol}，重置计数")
-                            self.consecutive_sell_counter[symbol] = 0
+                        open_data = doc.to_dict()
+                        self.save_to_history(symbol, indicators, open_data)
+                        doc_ref.delete()
+                        print(f"✅ 连续两次 sell 触发平仓: {symbol}")
+                        self.consecutive_sell_counter[symbol] = 0
                     else:
-                        doc_ref = self.db.collection(self.collection_current).document(symbol).get()
-                        if doc_ref.exists:
-                            print(
-                                f"⏳ {symbol} 当前信号为 {current_signal}，"
-                                f"连续 sell 次数 {self.consecutive_sell_counter[symbol]}，"
-                                f"未达到平仓条件"
-                            )
+                        print(
+                            f"⏳ {symbol} 当前信号为 {current_signal}，"
+                            f"连续 sell 次数 {self.consecutive_sell_counter[symbol]}，"
+                            f"未达到平仓条件"
+                        )
 
-            # ループ完了後に一括保存（Firestore書き込みを最小化）
             self._save_sell_counter()
 
         except Exception as e:
