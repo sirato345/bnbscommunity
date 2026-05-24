@@ -20,9 +20,8 @@ django.setup()
 from google.cloud import firestore
 
 # 导入 trading_signals 中的函数（复用逻辑）
-from apps.trading_signals import (
+from common.common import (
     get_all_indicators_dict,
-    check_signal,
 )
 
 
@@ -44,12 +43,12 @@ class TradingSignalJob:
         try:
             self.payload = {
                 "targets": [
-                    {'timeframe': '15m', 'symbol': 'ETH/USDT'},
-                    {'timeframe': '1h', 'symbol': 'ETH/USDT'},
-                    {'timeframe': '4h', 'symbol': 'ETH/USDT'},
                     {'timeframe': '15m', 'symbol': 'BTC/USDT'},
                     {'timeframe': '1h', 'symbol': 'BTC/USDT'},
                     {'timeframe': '4h', 'symbol': 'BTC/USDT'},
+                    {'timeframe': '15m', 'symbol': 'ETH/USDT'},
+                    {'timeframe': '1h', 'symbol': 'ETH/USDT'},
+                    {'timeframe': '4h', 'symbol': 'ETH/USDT'},
                     {'timeframe': '15m', 'symbol': 'BNB/USDT'},
                     {'timeframe': '1h', 'symbol': 'BNB/USDT'},
                     {'timeframe': '4h', 'symbol': 'BNB/USDT'},
@@ -86,7 +85,7 @@ class TradingSignalJob:
         
         返回格式:
         {
-            "BTC": [币种, 价格, 信号, 15m_KDJ, 15m_MACD, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ],
+            "BTC": [币种, 价格, 买卖, 15m_SAR, 15m_MACD, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ],
             ...
         }
         """
@@ -103,14 +102,7 @@ class TradingSignalJob:
         # 使用 trading_signals 的辅助函数获取指标
         formatted = get_all_indicators_dict(raw_data, self.payload.get('targets'))
         
-        # 判断每个币种的买卖信号（使用统一的 check_signal）
-        for currency, indicators in formatted.items():
-            if check_signal(indicators):
-                indicators[2] = 'buy'
-            else:
-                indicators[2] = 'sell'
-        
-        # 按 payload 中的顺序排列
+        # 按 payload 中的顺序排列（多线程，无顺序）
         currency_order = []
         if self.payload and 'targets' in self.payload:
             for target in self.payload['targets']:
@@ -213,8 +205,9 @@ class TradingSignalJob:
                 "SYMBOL": symbol,
                 "OPEN_DATE": open_date_str,
                 "OPEN_PRICE": round(open_price, 5),
-                "OPEN_15M_KDJ": open_data.get('OPEN_15M_KDJ', '—'),
+                "OPEN_15M_SAR": open_data.get('OPEN_15M_SAR', '—'),
                 "OPEN_15M_MACD": open_data.get('OPEN_15M_MACD', '—'),
+                "OPEN_15M_KDJ": open_data.get('OPEN_15M_KDJ', '—'),
                 "OPEN_1H_SAR": open_data.get('OPEN_1H_SAR', '—'),
                 "OPEN_1H_MACD": open_data.get('OPEN_1H_MACD', '—'),
                 "OPEN_1H_KDJ": open_data.get('OPEN_1H_KDJ', '—'),
@@ -223,14 +216,15 @@ class TradingSignalJob:
                 "OPEN_4H_KDJ": open_data.get('OPEN_4H_KDJ', '—'),
                 "CLOSE_DATE": close_date_str,
                 "CLOSE_PRICE": round(close_price, 5),
-                "CLOSE_15M_KDJ": current_indicators[3] if len(current_indicators) > 3 else '—',
+                "CLOSE_15M_SAR": current_indicators[3] if len(current_indicators) > 3 else '—',
                 "CLOSE_15M_MACD": current_indicators[4] if len(current_indicators) > 4 else '—',
-                "CLOSE_1H_SAR": current_indicators[5] if len(current_indicators) > 5 else '—',
-                "CLOSE_1H_MACD": current_indicators[6] if len(current_indicators) > 6 else '—',
-                "CLOSE_1H_KDJ": current_indicators[7] if len(current_indicators) > 7 else '—',
-                "CLOSE_4H_SAR": current_indicators[8] if len(current_indicators) > 8 else '—',
-                "CLOSE_4H_MACD": current_indicators[9] if len(current_indicators) > 9 else '—',
-                "CLOSE_4H_KDJ": current_indicators[10] if len(current_indicators) > 10 else '—',
+                "CLOSE_15M_KDJ": current_indicators[5] if len(current_indicators) > 5 else '—',
+                "CLOSE_1H_SAR": current_indicators[6] if len(current_indicators) > 6 else '—',
+                "CLOSE_1H_MACD": current_indicators[7] if len(current_indicators) > 7 else '—',
+                "CLOSE_1H_KDJ": current_indicators[8] if len(current_indicators) > 8 else '—',
+                "CLOSE_4H_SAR": current_indicators[9] if len(current_indicators) > 9 else '—',
+                "CLOSE_4H_MACD": current_indicators[10] if len(current_indicators) > 10 else '—',
+                "CLOSE_4H_KDJ": current_indicators[11] if len(current_indicators) > 11 else '—',
                 "PROFIT_OR_LOSS": round(profit_or_loss, 5),
                 "PROFIT_OR_LOSS_PERCENT": round(profit_or_loss_percent, 5),
                 "HOLD_TIME": hold_time
@@ -288,14 +282,15 @@ class TradingSignalJob:
                     "SYMBOL": buy_symbol,
                     "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
                     "OPEN_PRICE": price,
-                    "OPEN_15M_KDJ": buy_indicators[3] if len(buy_indicators) > 3 else '—',
+                    "OPEN_15M_SAR": buy_indicators[3] if len(buy_indicators) > 3 else '—',
                     "OPEN_15M_MACD": buy_indicators[4] if len(buy_indicators) > 4 else '—',
-                    "OPEN_1H_SAR": buy_indicators[5] if len(buy_indicators) > 5 else '—',
-                    "OPEN_1H_MACD": buy_indicators[6] if len(buy_indicators) > 6 else '—',
-                    "OPEN_1H_KDJ": buy_indicators[7] if len(buy_indicators) > 7 else '—',
-                    "OPEN_4H_SAR": buy_indicators[8] if len(buy_indicators) > 8 else '—',
-                    "OPEN_4H_MACD": buy_indicators[9] if len(buy_indicators) > 9 else '—',
-                    "OPEN_4H_KDJ": buy_indicators[10] if len(buy_indicators) > 10 else '—',
+                    "OPEN_15M_KDJ": buy_indicators[5] if len(buy_indicators) > 5 else '—',
+                    "OPEN_1H_SAR": buy_indicators[6] if len(buy_indicators) > 6 else '—',
+                    "OPEN_1H_MACD": buy_indicators[7] if len(buy_indicators) > 7 else '—',
+                    "OPEN_1H_KDJ": buy_indicators[8] if len(buy_indicators) > 8 else '—',
+                    "OPEN_4H_SAR": buy_indicators[9] if len(buy_indicators) > 9 else '—',
+                    "OPEN_4H_MACD": buy_indicators[10] if len(buy_indicators) > 10 else '—',
+                    "OPEN_4H_KDJ": buy_indicators[11] if len(buy_indicators) > 11 else '—',
                 }
                 
                 doc_ref = self.db.collection(self.collection_current).document(buy_symbol)

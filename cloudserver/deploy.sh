@@ -73,7 +73,9 @@ gcloud run deploy "${SERVICE}" \
   --port 8080 \
   --memory 2Gi \
   --cpu 1 \
-  --min-instances 1 \
+  --cpu-boost \
+  --concurrency 12 \
+  --min-instances 0 \
   --max-instances 1 \
   --timeout 300 \
   --set-env-vars "DJANGO_SETTINGS_MODULE=config.settings" \
