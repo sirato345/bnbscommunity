@@ -90,20 +90,20 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
       {open && (
         <div className="indicators-panel">
           {[
-            { label: '15M', macd: trade.OPEN_15M_MACD, kdj: trade.OPEN_15M_KDJ},
+            { label: '15M', sar: trade.OPEN_15M_SAR, macd: trade.OPEN_15M_MACD, kdj: trade.OPEN_15M_KDJ},
             { label: '1H', sar: trade.OPEN_1H_SAR, macd: trade.OPEN_1H_MACD, kdj: trade.OPEN_1H_KDJ},
             { label: '4H', sar: trade.OPEN_4H_SAR, macd: trade.OPEN_4H_MACD, kdj: trade.OPEN_4H_KDJ },
           ].map(g => (
             <div key={g.label} className="ind-group">
               <div className="ind-group-title">{g.label}</div>
-              {g.kdj !== undefined && (
-                <div className="ind-row"><span>KDJ</span><span>{g.kdj}</span></div>
+              {g.sar !== undefined && (
+                <div className="ind-row"><span>SAR</span><span>{g.sar}</span></div>
               )}
               {g.macd !== undefined && (
                 <div className="ind-row"><span>MACD</span><span>{g.macd}</span></div>
               )}
-              {g.sar !== undefined && (
-                <div className="ind-row"><span>SAR</span><span>{g.sar}</span></div>
+              {g.kdj !== undefined && (
+                <div className="ind-row"><span>KDJ</span><span>{g.kdj}</span></div>
               )}
             </div>
           ))}
