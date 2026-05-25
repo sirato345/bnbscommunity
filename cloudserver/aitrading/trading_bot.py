@@ -182,7 +182,9 @@ class TradingSignalJob:
         latest_doc = latest_trade_list[0]
         last_close_date_str = latest_doc.get('CLOSE_DATE')
         last_symbol = latest_doc.get('SYMBOL')
-        last_profit = latest_doc.get('PROFIT_OR_LOSS_PERCENT', 0)
+        last_profit = latest_doc.get('PROFIT_OR_LOSS_PERCENT')
+        if last_profit is None:
+            last_profit = 0
 
         if not last_close_date_str:
             return False, 0, last_symbol
