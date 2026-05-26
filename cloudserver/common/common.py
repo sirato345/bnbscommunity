@@ -13,28 +13,27 @@ def check_signal(indicators: List[str]) -> bool:
     [币种, 价格, 买卖, 15m_SAR, 15m_MACD, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
 
     条件:
-    1. 15分钟: SAR、MACD、KDJ 中至少两个金叉（〇）
+    1. 15分钟: SAR、MACD、KDJ 全部为金叉（三个都是 〇）
     2. 小时线: SAR、MACD、KDJ 全部为金叉（三个都是 〇）
-    3. 四小时: KDJ 必须为金叉，且 SAR 和 MACD 中至少一个为金叉
+    3. 四小时: SAR、MACD、KDJ 中至少两个金叉（〇）
     """
     if len(indicators) < 12:
         return False
 
-    # 1. 15m指标（索引3=SAR, 索引4=MACD, 索引5=KDJ）- 至少2个为〇
-    fifteen_indicators = [indicators[3], indicators[4], indicators[5]]
-    fifteen_ok_count = sum(1 for ind in fifteen_indicators if ind == '〇')
-    fifteen_ok = fifteen_ok_count >= 2
+    # 1. 15m指标（索引3=SAR, 索引4=MACD, 索引5=KDJ）- 全部为〇
+    fifteen_ok = (indicators[3] == '〇' and 
+                indicators[4] == '〇' and 
+                indicators[5] == '〇')
 
     # 2. 1h指标（索引6=SAR, 索引7=MACD, 索引8=KDJ）- 全部为〇
     one_hour_ok = (indicators[6] == '〇' and 
-                   indicators[7] == '〇' and 
-                   indicators[8] == '〇')
+                indicators[7] == '〇' and 
+                indicators[8] == '〇')
 
-    # 3. 4h指标（索引9=SAR, 索引10=MACD, 索引11=KDJ）
-    #    KDJ 必须为金叉，且 SAR 和 MACD 中至少一个为金叉
-    four_hour_kdj_ok = indicators[11] == '〇'  # KDJ 必须为〇
-    four_hour_sar_or_macd_ok = (indicators[9] == '〇' or indicators[10] == '〇')  # SAR 或 MACD 至少一个为〇
-    four_hour_ok = four_hour_kdj_ok and four_hour_sar_or_macd_ok
+    # 3. 4h指标（索引9=SAR, 索引10=MACD, 索引11=KDJ）- 至少2个为〇
+    four_hour_indicators = [indicators[9], indicators[10], indicators[11]]
+    four_hour_ok_count = sum(1 for ind in four_hour_indicators if ind == '〇')
+    four_hour_ok = four_hour_ok_count >= 2
 
     return fifteen_ok and one_hour_ok and four_hour_ok
 
