@@ -73,7 +73,6 @@ gcloud run deploy "${SERVICE}" \
   --port 8080 \
   --memory 2Gi \
   --cpu 1 \
-  --cpu-boost \
   --concurrency 12 \
   --min-instances 0 \
   --max-instances 1 \

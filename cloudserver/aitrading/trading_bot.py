@@ -158,14 +158,14 @@ class TradingSignalJob:
         return ordered_formatted
 
     # -------------------------------------------------------------------------
-    # 检查冷却时间（全シンボル共通: 最後の平倉から30分）
+    # 检查冷却时间（全シンボル共通: 最後の平倉から60分）
     # -------------------------------------------------------------------------
 
     def check_cooldown(self) -> tuple[bool, int, str]:
         """
         从历史记录检查冷却状态
         返回: (是否在冷却中, 剩余秒数, 上次平仓的symbol)
-        规则: 盈利平仓无冷却，亏损平仓冷却30分钟
+        规则: 盈利平仓无冷却，亏损平仓冷却60分钟
         """
         history_ref = self.db.collection(self.collection_history)
         latest_trade = (
@@ -197,12 +197,12 @@ class TradingSignalJob:
         current_time = datetime.now(self.japan_tz)
         time_diff_seconds = (current_time - last_close_date).total_seconds()
 
-        # 盈利平仓无冷却
         if last_profit > 0:
-            return False, 0, last_symbol
-
-        # 亏损平仓：统一冷却30分钟
-        required_seconds = 30 * 60
+            # 盈利平仓：统一冷却30分钟
+            required_seconds = 30 * 60
+        else:
+            # 亏损平仓：统一冷却60分钟
+            required_seconds = 60 * 60
 
         if time_diff_seconds < required_seconds:
             remaining = int(required_seconds - time_diff_seconds)
