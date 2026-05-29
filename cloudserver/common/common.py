@@ -33,7 +33,7 @@ def check_signal(indicators: List[str]) -> bool:
     # 3. 4h指标（索引9=SAR, 索引10=MACD, 索引11=KDJ）- 至少2个为〇
     four_hour_indicators = [indicators[9], indicators[10], indicators[11]]
     four_hour_ok_count = sum(1 for ind in four_hour_indicators if ind == '〇')
-    four_hour_ok = four_hour_ok_count >= 2
+    four_hour_ok = four_hour_ok_count >= 3
 
     return fifteen_ok and one_hour_ok and four_hour_ok
 
