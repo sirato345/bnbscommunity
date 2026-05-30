@@ -202,14 +202,14 @@ class TradingSignalJob:
         current_time = datetime.now(self.japan_tz)
         time_diff_seconds = (current_time - last_close_date).total_seconds()
 
-        if last_profit > 0:
-            required_seconds = 30 * 60
-        else:
-            required_seconds = 30 * 60
+        # if last_profit > 0:
+        #     required_seconds = 30 * 60
+        # else:
+        #     required_seconds = 30 * 60
 
-        if time_diff_seconds < required_seconds:
-            remaining = int(required_seconds - time_diff_seconds)
-            return True, remaining, last_symbol
+        # if time_diff_seconds < required_seconds:
+        #     remaining = int(required_seconds - time_diff_seconds)
+        #     return True, remaining, last_symbol
 
         return False, 0, last_symbol
 
