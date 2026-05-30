@@ -17,8 +17,12 @@ export interface TradeHistoryData {
   SYMBOL: string;
   OPEN_DATE: string;
   OPEN_PRICE: number;
-  OPEN_15M_KDJ: string;    // 新增
-  OPEN_15M_MACD: string;
+  OPEN_5M_SAR: string | number;
+  OPEN_5M_MACD: string | number;
+  OPEN_5M_KDJ: string | number;
+  OPEN_15M_SAR: string | number;
+  OPEN_15M_MACD: string | number;
+  OPEN_15M_KDJ: string | number;
   OPEN_1H_SAR: string | number;
   OPEN_1H_MACD: string | number;
   OPEN_1H_KDJ: string | number;
@@ -27,8 +31,12 @@ export interface TradeHistoryData {
   OPEN_4H_KDJ: string | number;
   CLOSE_DATE: string;
   CLOSE_PRICE: number;
-  CLOSE_15M_KDJ: string;    // 新增
-  CLOSE_15M_MACD: string;
+  CLOSE_5M_SAR: string | number;
+  CLOSE_5M_MACD: string | number;
+  CLOSE_5M_KDJ: string | number;
+  CLOSE_15M_SAR: string | number;
+  CLOSE_15M_MACD: string | number;
+  CLOSE_15M_KDJ: string | number;
   CLOSE_1H_SAR: string | number;
   CLOSE_1H_MACD: string | number;
   CLOSE_1H_KDJ: string | number;
@@ -59,7 +67,6 @@ export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeH
   const [error, setError]       = useState<Error | null>(null);
 
   useEffect(() => {
-    // ✅ 修正: symbolFilter の実装を正しい where() 句に変更
     const constraints: QueryConstraint[] = [
       orderBy('CLOSE_DATE', 'desc'),
       // limit(maxRecords),
@@ -76,32 +83,40 @@ export function useTradeHistory(options: UseTradeHistoryOptions = {}): UseTradeH
         const data: TradeHistoryData[] = snapshot.docs.map(doc => {
           const d = doc.data();
           return {
-            id:                   doc.id,
-            SYMBOL:               d.SYMBOL,
-            OPEN_DATE:            d.OPEN_DATE,
-            OPEN_PRICE:           d.OPEN_PRICE,
-            OPEN_15M_KDJ:         d.OPEN_15M_KDJ ?? '—',
-            OPEN_15M_MACD:        d.OPEN_15M_MACD ?? '—',
-            OPEN_1H_SAR:          d.OPEN_1H_SAR  ?? '—',
-            OPEN_1H_MACD:         d.OPEN_1H_MACD ?? '—',
-            OPEN_1H_KDJ:          d.OPEN_1H_KDJ  ?? '—',
-            OPEN_4H_SAR:          d.OPEN_4H_SAR  ?? '—',
-            OPEN_4H_MACD:         d.OPEN_4H_MACD ?? '—',
-            OPEN_4H_KDJ:          d.OPEN_4H_KDJ  ?? '—',
-            CLOSE_DATE:           d.CLOSE_DATE,
-            CLOSE_PRICE:          d.CLOSE_PRICE,
-            CLOSE_15M_KDJ:        d.CLOSE_15M_KDJ ?? '—',
-            CLOSE_15M_MACD:       d.CLOSE_15M_MACD ?? '—',
-            CLOSE_1H_SAR:         d.CLOSE_1H_SAR  ?? '—',
-            CLOSE_1H_MACD:        d.CLOSE_1H_MACD ?? '—',
-            CLOSE_1H_KDJ:         d.CLOSE_1H_KDJ  ?? '—',
-            CLOSE_4H_SAR:         d.CLOSE_4H_SAR  ?? '—',
-            CLOSE_4H_MACD:        d.CLOSE_4H_MACD ?? '—',
-            CLOSE_4H_KDJ:         d.CLOSE_4H_KDJ  ?? '—',
+            id:                     doc.id,
+            SYMBOL:                 d.SYMBOL,
+            OPEN_DATE:              d.OPEN_DATE,
+            OPEN_PRICE:             d.OPEN_PRICE,
+            OPEN_5M_SAR:            d.OPEN_5M_SAR   ?? '—',
+            OPEN_5M_MACD:           d.OPEN_5M_MACD  ?? '—',
+            OPEN_5M_KDJ:            d.OPEN_5M_KDJ   ?? '—',
+            OPEN_15M_SAR:           d.OPEN_15M_SAR  ?? '—',
+            OPEN_15M_MACD:          d.OPEN_15M_MACD ?? '—',
+            OPEN_15M_KDJ:           d.OPEN_15M_KDJ  ?? '—',
+            OPEN_1H_SAR:            d.OPEN_1H_SAR   ?? '—',
+            OPEN_1H_MACD:           d.OPEN_1H_MACD  ?? '—',
+            OPEN_1H_KDJ:            d.OPEN_1H_KDJ   ?? '—',
+            OPEN_4H_SAR:            d.OPEN_4H_SAR   ?? '—',
+            OPEN_4H_MACD:           d.OPEN_4H_MACD  ?? '—',
+            OPEN_4H_KDJ:            d.OPEN_4H_KDJ   ?? '—',
+            CLOSE_DATE:             d.CLOSE_DATE,
+            CLOSE_PRICE:            d.CLOSE_PRICE,
+            CLOSE_5M_SAR:           d.CLOSE_5M_SAR   ?? '—',
+            CLOSE_5M_MACD:          d.CLOSE_5M_MACD  ?? '—',
+            CLOSE_5M_KDJ:           d.CLOSE_5M_KDJ   ?? '—',
+            CLOSE_15M_SAR:          d.CLOSE_15M_SAR  ?? '—',
+            CLOSE_15M_MACD:         d.CLOSE_15M_MACD ?? '—',
+            CLOSE_15M_KDJ:          d.CLOSE_15M_KDJ  ?? '—',
+            CLOSE_1H_SAR:           d.CLOSE_1H_SAR   ?? '—',
+            CLOSE_1H_MACD:          d.CLOSE_1H_MACD  ?? '—',
+            CLOSE_1H_KDJ:           d.CLOSE_1H_KDJ   ?? '—',
+            CLOSE_4H_SAR:           d.CLOSE_4H_SAR   ?? '—',
+            CLOSE_4H_MACD:          d.CLOSE_4H_MACD  ?? '—',
+            CLOSE_4H_KDJ:           d.CLOSE_4H_KDJ   ?? '—',
             PROFIT_OR_LOSS:         d.PROFIT_OR_LOSS         ?? 0,
             PROFIT_OR_LOSS_PERCENT: d.PROFIT_OR_LOSS_PERCENT ?? 0,
-            HOLD_TIME:            d.HOLD_TIME,
-            created_at:           d.created_at,
+            HOLD_TIME:              d.HOLD_TIME,
+            created_at:             d.created_at,
           };
         });
         setHistory(data);

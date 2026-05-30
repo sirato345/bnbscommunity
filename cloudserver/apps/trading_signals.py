@@ -15,15 +15,19 @@ from rest_framework.response import Response
 
 # 默认交易对列表
 DEFAULT_TARGETS = [
+    {'timeframe': '5m',  'symbol': 'BTC/USDT'},
     {'timeframe': '15m', 'symbol': 'BTC/USDT'},
     {'timeframe': '1h',  'symbol': 'BTC/USDT'},
     {'timeframe': '4h',  'symbol': 'BTC/USDT'},
+    {'timeframe': '5m',  'symbol': 'ETH/USDT'},
     {'timeframe': '15m', 'symbol': 'ETH/USDT'},
     {'timeframe': '1h',  'symbol': 'ETH/USDT'},
     {'timeframe': '4h',  'symbol': 'ETH/USDT'},
+    {'timeframe': '5m',  'symbol': 'BNB/USDT'},
     {'timeframe': '15m', 'symbol': 'BNB/USDT'},
     {'timeframe': '1h',  'symbol': 'BNB/USDT'},
     {'timeframe': '4h',  'symbol': 'BNB/USDT'},
+    {'timeframe': '5m',  'symbol': 'DOGE/USDT'},
     {'timeframe': '15m', 'symbol': 'DOGE/USDT'},
     {'timeframe': '1h',  'symbol': 'DOGE/USDT'},
     {'timeframe': '4h',  'symbol': 'DOGE/USDT'},
@@ -41,7 +45,7 @@ def fetch_signals(targets: List[Dict] = None) -> Optional[Dict]:
     results: dict = {}
     errors: dict = {}
 
-    with ThreadPoolExecutor(max_workers=min(len(targets), 12)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(targets), 16)) as executor:
         futures = {
             executor.submit(_process_target, t["timeframe"], t["symbol"]): t
             for t in targets
@@ -88,7 +92,6 @@ def cal_trading_signals(targets: List[Dict] = None) -> Dict[str, str]:
     result: Dict[str, str] = {}
     for currency in currency_order:
         if currency in formatted:
-            # 直接使用格式化后的信号（已在 get_all_indicators_dict 中通过 check_signal 赋值）
             result[currency] = formatted[currency][2]
         else:
             result[currency] = 'sell'

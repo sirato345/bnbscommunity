@@ -79,15 +79,19 @@ class TradingSignalJob:
         try:
             self.payload = {
                 "targets": [
+                    {'timeframe': '5m',  'symbol': 'BTC/USDT'},
                     {'timeframe': '15m', 'symbol': 'BTC/USDT'},
                     {'timeframe': '1h',  'symbol': 'BTC/USDT'},
                     {'timeframe': '4h',  'symbol': 'BTC/USDT'},
+                    {'timeframe': '5m',  'symbol': 'ETH/USDT'},
                     {'timeframe': '15m', 'symbol': 'ETH/USDT'},
                     {'timeframe': '1h',  'symbol': 'ETH/USDT'},
                     {'timeframe': '4h',  'symbol': 'ETH/USDT'},
+                    {'timeframe': '5m',  'symbol': 'BNB/USDT'},
                     {'timeframe': '15m', 'symbol': 'BNB/USDT'},
                     {'timeframe': '1h',  'symbol': 'BNB/USDT'},
                     {'timeframe': '4h',  'symbol': 'BNB/USDT'},
+                    {'timeframe': '5m',  'symbol': 'DOGE/USDT'},
                     {'timeframe': '15m', 'symbol': 'DOGE/USDT'},
                     {'timeframe': '1h',  'symbol': 'DOGE/USDT'},
                     {'timeframe': '4h',  'symbol': 'DOGE/USDT'},
@@ -124,8 +128,11 @@ class TradingSignalJob:
 
         返回格式:
         {
-            "BTC": [币种, 价格, 买卖, 15m_SAR, 15m_MACD, 15m_KDJ,
-                    1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ],
+            "BTC": [币种, 价格, 买卖,
+                    5m_SAR, 5m_MACD, 5m_KDJ,
+                    15m_SAR, 15m_MACD, 15m_KDJ,
+                    1h_SAR, 1h_MACD, 1h_KDJ,
+                    4h_SAR, 4h_MACD, 4h_KDJ],
             ...
         }
         """
@@ -139,7 +146,6 @@ class TradingSignalJob:
 
         print(f"解析原始数据，共 {len(results)} 条记录")
 
-        # 使用 trading_signals 的辅助函数获取指标
         formatted = get_all_indicators_dict(raw_data, self.payload.get('targets'))
 
         # 按 payload 中的顺序排列（多线程，无顺序）
@@ -190,7 +196,6 @@ class TradingSignalJob:
             return False, 0, last_symbol
 
         last_close_date = datetime.fromisoformat(last_close_date_str)
-        # タイムゾーン情報がない場合は日本時間として扱う
         if last_close_date.tzinfo is None:
             last_close_date = self.japan_tz.localize(last_close_date)
 
@@ -198,11 +203,9 @@ class TradingSignalJob:
         time_diff_seconds = (current_time - last_close_date).total_seconds()
 
         if last_profit > 0:
-            # 盈利平仓：统一冷却30分钟
             required_seconds = 30 * 60
         else:
-            # 亏损平仓：统一冷却60分钟
-            required_seconds = 60 * 60
+            required_seconds = 30 * 60
 
         if time_diff_seconds < required_seconds:
             remaining = int(required_seconds - time_diff_seconds)
@@ -220,27 +223,19 @@ class TradingSignalJob:
                 if len(indicators) >= 3:
                     current_signal = indicators[2]
 
-                    # ✅ 先にポジション存在確認
                     doc_ref = self.db.collection(self.collection_current).document(symbol)
                     doc = doc_ref.get()
 
                     if not doc.exists:
-                        # 持仓なし → カウンターはリセットのみ（不要な蓄積を防ぐ）
                         if self.consecutive_sell_counter[symbol] > 0:
                             print(f"🔄 {symbol} 持仓なし、sellカウンターをリセット")
                             self.consecutive_sell_counter[symbol] = 0
-                        continue  # ← 以降の処理をスキップ
+                        continue
 
-                    # 持仓あり → カウンター更新
                     if current_signal == 'sell':
                         self.consecutive_sell_counter[symbol] += 1
                         print(f"📊 {symbol} 连续 sell 次数: {self.consecutive_sell_counter[symbol]}")
-                    else:
-                        if self.consecutive_sell_counter[symbol] > 0:
-                            print(f"🔄 {symbol} 信号変為 buy，重置连续 sell 计数")
-                        self.consecutive_sell_counter[symbol] = 0
 
-                    # 連続2回のsellで平倉
                     if self.consecutive_sell_counter[symbol] >= 2:
                         open_data = doc.to_dict()
                         self.save_to_history(symbol, indicators, open_data)
@@ -289,32 +284,42 @@ class TradingSignalJob:
                 "SYMBOL": symbol,
                 "OPEN_DATE": open_date_str,
                 "OPEN_PRICE": round(open_price, 5),
-                "OPEN_15M_SAR": open_data.get('OPEN_15M_SAR', '—'),
-                "OPEN_15M_MACD": open_data.get('OPEN_15M_MACD', '—'),
-                "OPEN_15M_KDJ": open_data.get('OPEN_15M_KDJ', '—'),
-                "OPEN_1H_SAR": open_data.get('OPEN_1H_SAR', '—'),
-                "OPEN_1H_MACD": open_data.get('OPEN_1H_MACD', '—'),
-                "OPEN_1H_KDJ": open_data.get('OPEN_1H_KDJ', '—'),
-                "OPEN_4H_SAR": open_data.get('OPEN_4H_SAR', '—'),
-                "OPEN_4H_MACD": open_data.get('OPEN_4H_MACD', '—'),
-                "OPEN_4H_KDJ": open_data.get('OPEN_4H_KDJ', '—'),
+                "OPEN_5M_SAR":   open_data.get('OPEN_5M_SAR',  '—'),
+                "OPEN_5M_MACD":  open_data.get('OPEN_5M_MACD', '—'),
+                "OPEN_5M_KDJ":   open_data.get('OPEN_5M_KDJ',  '—'),
+                "OPEN_15M_SAR":  open_data.get('OPEN_15M_SAR', '—'),
+                "OPEN_15M_MACD": open_data.get('OPEN_15M_MACD','—'),
+                "OPEN_15M_KDJ":  open_data.get('OPEN_15M_KDJ', '—'),
+                "OPEN_1H_SAR":   open_data.get('OPEN_1H_SAR',  '—'),
+                "OPEN_1H_MACD":  open_data.get('OPEN_1H_MACD', '—'),
+                "OPEN_1H_KDJ":   open_data.get('OPEN_1H_KDJ',  '—'),
+                "OPEN_4H_SAR":   open_data.get('OPEN_4H_SAR',  '—'),
+                "OPEN_4H_MACD":  open_data.get('OPEN_4H_MACD', '—'),
+                "OPEN_4H_KDJ":   open_data.get('OPEN_4H_KDJ',  '—'),
                 "CLOSE_DATE": close_date_str,
                 "CLOSE_PRICE": round(close_price, 5),
-                "CLOSE_15M_SAR":  current_indicators[3]  if len(current_indicators) > 3  else '—',
-                "CLOSE_15M_MACD": current_indicators[4]  if len(current_indicators) > 4  else '—',
-                "CLOSE_15M_KDJ":  current_indicators[5]  if len(current_indicators) > 5  else '—',
-                "CLOSE_1H_SAR":   current_indicators[6]  if len(current_indicators) > 6  else '—',
-                "CLOSE_1H_MACD":  current_indicators[7]  if len(current_indicators) > 7  else '—',
-                "CLOSE_1H_KDJ":   current_indicators[8]  if len(current_indicators) > 8  else '—',
-                "CLOSE_4H_SAR":   current_indicators[9]  if len(current_indicators) > 9  else '—',
-                "CLOSE_4H_MACD":  current_indicators[10] if len(current_indicators) > 10 else '—',
-                "CLOSE_4H_KDJ":   current_indicators[11] if len(current_indicators) > 11 else '—',
+                # インデックス: 0=币种, 1=価格, 2=買売,
+                #   3=5m_SAR,  4=5m_MACD,  5=5m_KDJ,
+                #   6=15m_SAR, 7=15m_MACD, 8=15m_KDJ,
+                #   9=1h_SAR, 10=1h_MACD, 11=1h_KDJ,
+                #  12=4h_SAR, 13=4h_MACD, 14=4h_KDJ
+                "CLOSE_5M_SAR":   current_indicators[3]  if len(current_indicators) > 3  else '—',
+                "CLOSE_5M_MACD":  current_indicators[4]  if len(current_indicators) > 4  else '—',
+                "CLOSE_5M_KDJ":   current_indicators[5]  if len(current_indicators) > 5  else '—',
+                "CLOSE_15M_SAR":  current_indicators[6]  if len(current_indicators) > 6  else '—',
+                "CLOSE_15M_MACD": current_indicators[7]  if len(current_indicators) > 7  else '—',
+                "CLOSE_15M_KDJ":  current_indicators[8]  if len(current_indicators) > 8  else '—',
+                "CLOSE_1H_SAR":   current_indicators[9]  if len(current_indicators) > 9  else '—',
+                "CLOSE_1H_MACD":  current_indicators[10] if len(current_indicators) > 10 else '—',
+                "CLOSE_1H_KDJ":   current_indicators[11] if len(current_indicators) > 11 else '—',
+                "CLOSE_4H_SAR":   current_indicators[12] if len(current_indicators) > 12 else '—',
+                "CLOSE_4H_MACD":  current_indicators[13] if len(current_indicators) > 13 else '—',
+                "CLOSE_4H_KDJ":   current_indicators[14] if len(current_indicators) > 14 else '—',
                 "PROFIT_OR_LOSS": round(profit_or_loss, 5),
                 "PROFIT_OR_LOSS_PERCENT": round(profit_or_loss_percent, 5),
                 "HOLD_TIME": hold_time
             }
 
-            # コロンを含むisoformatはFirestoreのdoc_idとして不安定なため成形する
             doc_id = datetime.now(self.japan_tz).strftime('%Y%m%dT%H%M%S')
             doc_ref = self.db.collection(self.collection_history).document(doc_id)
             doc_ref.set(history_data)
@@ -338,14 +343,12 @@ class TradingSignalJob:
     def open_trade(self, parsed_data: Dict[str, List[str]]):
         """检查并执行开仓（1ポジションのみ保有。先頭のbuyシグナルを採用）"""
         try:
-            # 现有持仓があれば开仓しない
             current_trades = list(self.db.collection(self.collection_current).get())
 
             if current_trades:
                 print(f"⚠️ 当前有持仓，跳过开仓")
                 return
 
-            # 全buyシグナルを収集
             buy_symbols = []
             for symbol, indicators in parsed_data.items():
                 if len(indicators) >= 3 and indicators[2] == 'buy':
@@ -357,7 +360,6 @@ class TradingSignalJob:
 
             print(f"📊 找到 {len(buy_symbols)} 个buy信号: {[s[0] for s in buy_symbols]}")
 
-            # buyシグナル順にcooldownを確認し、最初に条件を満たした1件だけ开仓
             for buy_symbol, buy_indicators in buy_symbols:
                 print(f"\n🔍 检查 {buy_symbol} 是否符合开仓条件...")
 
@@ -368,28 +370,34 @@ class TradingSignalJob:
                     print(f"      上次平仓币种: {last_symbol}, 还需等待 {remaining // 60} 分钟")
                     continue
 
-                # 开仓実行
                 price = float(buy_indicators[1]) if buy_indicators[1] != '—' else 0
 
+                # インデックス: 0=币种, 1=価格, 2=買売,
+                #   3=5m_SAR,  4=5m_MACD,  5=5m_KDJ,
+                #   6=15m_SAR, 7=15m_MACD, 8=15m_KDJ,
+                #   9=1h_SAR, 10=1h_MACD, 11=1h_KDJ,
+                #  12=4h_SAR, 13=4h_MACD, 14=4h_KDJ
                 doc_data = {
                     "SYMBOL": buy_symbol,
                     "OPEN_DATE": datetime.now(self.japan_tz).isoformat(),
                     "OPEN_PRICE": price,
-                    "OPEN_15M_SAR":  buy_indicators[3]  if len(buy_indicators) > 3  else '—',
-                    "OPEN_15M_MACD": buy_indicators[4]  if len(buy_indicators) > 4  else '—',
-                    "OPEN_15M_KDJ":  buy_indicators[5]  if len(buy_indicators) > 5  else '—',
-                    "OPEN_1H_SAR":   buy_indicators[6]  if len(buy_indicators) > 6  else '—',
-                    "OPEN_1H_MACD":  buy_indicators[7]  if len(buy_indicators) > 7  else '—',
-                    "OPEN_1H_KDJ":   buy_indicators[8]  if len(buy_indicators) > 8  else '—',
-                    "OPEN_4H_SAR":   buy_indicators[9]  if len(buy_indicators) > 9  else '—',
-                    "OPEN_4H_MACD":  buy_indicators[10] if len(buy_indicators) > 10 else '—',
-                    "OPEN_4H_KDJ":   buy_indicators[11] if len(buy_indicators) > 11 else '—',
+                    "OPEN_5M_SAR":   buy_indicators[3]  if len(buy_indicators) > 3  else '—',
+                    "OPEN_5M_MACD":  buy_indicators[4]  if len(buy_indicators) > 4  else '—',
+                    "OPEN_5M_KDJ":   buy_indicators[5]  if len(buy_indicators) > 5  else '—',
+                    "OPEN_15M_SAR":  buy_indicators[6]  if len(buy_indicators) > 6  else '—',
+                    "OPEN_15M_MACD": buy_indicators[7]  if len(buy_indicators) > 7  else '—',
+                    "OPEN_15M_KDJ":  buy_indicators[8]  if len(buy_indicators) > 8  else '—',
+                    "OPEN_1H_SAR":   buy_indicators[9]  if len(buy_indicators) > 9  else '—',
+                    "OPEN_1H_MACD":  buy_indicators[10] if len(buy_indicators) > 10 else '—',
+                    "OPEN_1H_KDJ":   buy_indicators[11] if len(buy_indicators) > 11 else '—',
+                    "OPEN_4H_SAR":   buy_indicators[12] if len(buy_indicators) > 12 else '—',
+                    "OPEN_4H_MACD":  buy_indicators[13] if len(buy_indicators) > 13 else '—',
+                    "OPEN_4H_KDJ":   buy_indicators[14] if len(buy_indicators) > 14 else '—',
                 }
 
                 doc_ref = self.db.collection(self.collection_current).document(buy_symbol)
                 doc_ref.set(doc_data)
 
-                # 开仓後はそのシンボルのsellカウンターをリセットして保存
                 self.consecutive_sell_counter[buy_symbol] = 0
                 self._save_sell_counter()
 
@@ -427,16 +435,16 @@ class TradingSignalJob:
         parsed_data = self.parse_signals_data(raw_data)
         print(f"\n📈 解析后的数据:")
         for symbol, indicators in parsed_data.items():
-            print(f"  {symbol}: 信号={indicators[2]}, 价格={indicators[1]}")
+            print(f"  {symbol}: 信号={indicators[2]}, 価格={indicators[1]}")
 
-        # 3. 连続sellカウンターの現在状態を表示
+        # 3. 連続sellカウンターの現在状態を表示
         active_counts = {s: c for s, c in self.consecutive_sell_counter.items() if c > 0}
         if active_counts:
             print(f"\n📊 当前连续 sell 计数:")
             for symbol, count in active_counts.items():
                 print(f"  {symbol}: {count} 次")
 
-        # 4. 平仓检查（连続2回のsell）
+        # 4. 平仓检查（連続2回のsell）
         self.close_trade(parsed_data)
 
         # 5. 开仓检查

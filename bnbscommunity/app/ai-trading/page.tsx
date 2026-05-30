@@ -90,6 +90,7 @@ function TradeCard({ trade }: { trade: CurrentTradeData }) {
       {open && (
         <div className="indicators-panel">
           {[
+            { label: '5M', sar: trade.OPEN_5M_SAR, macd: trade.OPEN_5M_MACD, kdj: trade.OPEN_5M_KDJ},
             { label: '15M', sar: trade.OPEN_15M_SAR, macd: trade.OPEN_15M_MACD, kdj: trade.OPEN_15M_KDJ},
             { label: '1H', sar: trade.OPEN_1H_SAR, macd: trade.OPEN_1H_MACD, kdj: trade.OPEN_1H_KDJ},
             { label: '4H', sar: trade.OPEN_4H_SAR, macd: trade.OPEN_4H_MACD, kdj: trade.OPEN_4H_KDJ },
