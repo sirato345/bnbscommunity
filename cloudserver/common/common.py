@@ -5,43 +5,83 @@ apps/common.py
 from typing import Dict, List, Optional
 
 
+# def check_signal(indicators: List[str]) -> bool:
+#     """
+#     买入信号检查（入场条件）
+
+#     indicators 格式:
+#     [币种, 价格, 买卖, 5m_SAR, 5m_MACD, 5m_KDJ, 15m_SAR, 15m_MACD, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
+
+#     条件:
+#     1. 4時間: SAR・MACD・KDJ すべて〇
+#     2. 1時間: SAR・MACD・KDJ すべて〇
+#     3. 15分: 三つすべて〇、または二つ以上が〇かつ5mのSARが〇
+#     """
+#     if len(indicators) < 15:
+#         return False
+
+#     # 1. 4h指標（インデックス12=SAR, 13=MACD, 14=KDJ）- すべて〇
+#     four_hour_ok = (indicators[12] == '〇' and
+#                     indicators[13] == '〇' and
+#                     indicators[14] == '〇')
+
+#     # 2. 1h指標（インデックス9=SAR, 10=MACD, 11=KDJ）- すべて〇
+#     one_hour_ok = (indicators[9]  == '〇' and
+#                    indicators[10] == '〇' and
+#                    indicators[11] == '〇')
+
+#     # 3. 15m指標（インデックス6=SAR, 7=MACD, 8=KDJ）
+#     fifteen_indicators = [indicators[6], indicators[7], indicators[8]]
+#     fifteen_ok_count = sum(1 for ind in fifteen_indicators if ind == '〇')
+
+#     five_m_sar_ok = (indicators[3] == '〇')  # 5m_SAR（インデックス3）
+
+#     fifteen_ok = (
+#         fifteen_ok_count == 3  # 三つすべて〇
+#         or (fifteen_ok_count >= 2 and five_m_sar_ok)  # 二つ以上〇 かつ 5m_SARが〇
+#     )
+
+#     return four_hour_ok and one_hour_ok and fifteen_ok
+
 def check_signal(indicators: List[str]) -> bool:
     """
-    买入信号检查（入场条件）
+    买入信号检查（入场条件）- 基于分析结论优化版
 
     indicators 格式:
     [币种, 价格, 买卖, 5m_SAR, 5m_MACD, 5m_KDJ, 15m_SAR, 15m_MACD, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
 
-    条件:
-    1. 4時間: SAR・MACD・KDJ すべて〇
-    2. 1時間: SAR・MACD・KDJ すべて〇
-    3. 15分: 三つすべて〇、または二つ以上が〇かつ5mのSARが〇
+    条件（全部必须满足）:
+    1. 4H级别: SAR・MACD・KDJ すべて〇
+    2. 1H级别: SAR・MACD・KDJ すべて〇
+    3. 15M级别: SAR == 〇, MACD == 〇 (KDJ可容忍×)
+    4. 5M级别: MACD == 〇, 且 (KDJ == 〇 or SAR == 〇)
     """
     if len(indicators) < 15:
         return False
 
-    # 1. 4h指標（インデックス12=SAR, 13=MACD, 14=KDJ）- すべて〇
+    # 1. 4H指标（索引12=SAR, 13=MACD, 14=KDJ）- 必须全〇
     four_hour_ok = (indicators[12] == '〇' and
                     indicators[13] == '〇' and
                     indicators[14] == '〇')
 
-    # 2. 1h指標（インデックス9=SAR, 10=MACD, 11=KDJ）- すべて〇
+    # 2. 1H指标（索引9=SAR, 10=MACD, 11=KDJ）- 必须全〇
     one_hour_ok = (indicators[9]  == '〇' and
                    indicators[10] == '〇' and
                    indicators[11] == '〇')
 
-    # 3. 15m指標（インデックス6=SAR, 7=MACD, 8=KDJ）
-    fifteen_indicators = [indicators[6], indicators[7], indicators[8]]
-    fifteen_ok_count = sum(1 for ind in fifteen_indicators if ind == '〇')
+    # 3. 15M指标（索引6=SAR, 7=MACD, 8=KDJ）
+    #    SAR必须〇, MACD必须〇, KDJ可容忍×（不检查）
+    fifteen_ok = (indicators[6] == '〇' and   # 15M_SAR
+                  indicators[7] == '〇')      # 15M_MACD
 
-    five_m_sar_ok = (indicators[3] == '〇')  # 5m_SAR（インデックス3）
+    # 4. 5M指标（索引3=SAR, 4=MACD, 5=KDJ）
+    #    MACD必须〇, 且 (KDJ==〇 或 SAR==〇)
+    five_m_macd_ok = (indicators[4] == '〇')
+    five_m_extra_ok = (indicators[5] == '〇' or indicators[3] == '〇')  # KDJ或SAR至少一个〇
 
-    fifteen_ok = (
-        fifteen_ok_count == 3  # 三つすべて〇
-        or (fifteen_ok_count >= 2 and five_m_sar_ok)  # 二つ以上〇 かつ 5m_SARが〇
-    )
+    five_min_ok = five_m_macd_ok and five_m_extra_ok
 
-    return four_hour_ok and one_hour_ok and fifteen_ok
+    return four_hour_ok and one_hour_ok and fifteen_ok and five_min_ok
 
 
 def get_all_indicators_dict(
