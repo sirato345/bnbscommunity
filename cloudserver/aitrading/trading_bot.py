@@ -363,12 +363,12 @@ class TradingSignalJob:
             for buy_symbol, buy_indicators in buy_symbols:
                 print(f"\n🔍 检查 {buy_symbol} 是否符合开仓条件...")
 
-                in_cooldown, remaining, last_symbol = self.check_cooldown()
+                # in_cooldown, remaining, last_symbol = self.check_cooldown()
 
-                if in_cooldown:
-                    print(f"   ❌ 冷却期未过: {buy_symbol}")
-                    print(f"      上次平仓币种: {last_symbol}, 还需等待 {remaining // 60} 分钟")
-                    continue
+                # if in_cooldown:
+                #     print(f"   ❌ 冷却期未过: {buy_symbol}")
+                #     print(f"      上次平仓币种: {last_symbol}, 还需等待 {remaining // 60} 分钟")
+                #     continue
 
                 price = float(buy_indicators[1]) if buy_indicators[1] != '—' else 0
 
