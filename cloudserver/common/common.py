@@ -72,7 +72,9 @@ def check_signal(indicators: List[str]) -> bool:
     # 3. 15M指标（索引6=SAR, 7=MACD, 8=KDJ）
     #    SAR必须〇, MACD必须〇, KDJ可容忍×（不检查）
     fifteen_ok = (indicators[6] == '〇' and   # 15M_SAR
-                  indicators[7] == '〇')      # 15M_MACD
+                  indicators[7] == '〇' and   # 15M_MACD
+                  indicators[8] == '〇')      # 15M_KDJ
+                  
 
     # 4. 5M指标（索引3=SAR, 4=MACD, 5=KDJ）
     #    MACD必须〇, 且 (KDJ==〇 或 SAR==〇)
