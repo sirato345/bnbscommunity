@@ -351,6 +351,11 @@ class TradingSignalJob:
 
             buy_symbols = []
             for symbol, indicators in parsed_data.items():
+                # ========== BTC 跳过 ==========
+                if symbol == "BTC":
+                    print(f"⏭️ BTC 跳过（根据策略设定不交易BTC）")
+                    continue
+
                 if len(indicators) >= 3 and indicators[2] == 'buy':
                     buy_symbols.append((symbol, indicators))
 

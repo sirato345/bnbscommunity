@@ -4,7 +4,7 @@ apps/trading_signals.py
 """
 from __future__ import annotations
 from .signals import _process_target
-from common.common import get_all_indicators_dict, check_signal
+from common.common import get_all_indicators_dict
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
