@@ -6,51 +6,43 @@ from typing import Dict, List, Optional
 
 def check_signal(indicators: List[str]) -> bool:
     """
-    买入信号检查（入场条件）- 基于历史回测最佳规则
+    买入信号检查（入场条件）- 基于分析结论优化版
 
     indicators 格式:
     [币种, 价格, 买卖, 5m_SAR, 5m_MACD, 5m_KDJ, 15m_SAR, 15m_MACD, 15m_KDJ, 1h_SAR, 1h_MACD, 1h_KDJ, 4h_SAR, 4h_MACD, 4h_KDJ]
-    
-    索引说明:
-    [0]币种, [1]价格, [2]买卖, [3]5m_SAR, [4]5m_MACD, [5]5m_KDJ, 
-    [6]15m_SAR, [7]15m_MACD, [8]15m_KDJ, [9]1h_SAR, [10]1h_MACD, [11]1h_KDJ,
-    [12]4h_SAR, [13]4h_MACD, [14]4h_KDJ
 
-    最佳规则（胜率76.9%，盈亏比2.5）:
-    1. 4H级别: SAR・MACD・KDJ 全部为〇（3/3）
-    2. 1H级别: SAR・MACD・KDJ 全部为〇（3/3）
-    3. 15M级别: SAR必须为〇 + (MACD或KDJ至少一个为〇) → 至少2个金叉且强制SAR
-    4. 5M级别: SAR必须为〇 + (MACD或KDJ至少一个为〇) → 至少2个金叉且强制SAR
+    条件（全部必须满足）:
+    1. 4H级别: SAR・MACD・KDJ すべて〇
+    2. 1H级别: SAR・MACD・KDJ すべて〇
+    3. 15M级别: SAR == 〇, MACD == 〇, KDJ == 〇
+    4. 5M级别: MACD == 〇, 且 (KDJ == 〇 or SAR == 〇)
     """
     if len(indicators) < 15:
         return False
 
-    # ========== 1. 4H级别（必须全部为〇）==========
-    # 索引12=4h_SAR, 13=4h_MACD, 14=4h_KDJ
+    # 1. 4H指标（索引12=SAR, 13=MACD, 14=KDJ）- 必须全〇
     four_hour_ok = (indicators[12] == '〇' and
                     indicators[13] == '〇' and
                     indicators[14] == '〇')
 
-    # ========== 2. 1H级别（必须全部为〇）==========
-    # 索引9=1h_SAR, 10=1h_MACD, 11=1h_KDJ
+    # 2. 1H指标（索引9=SAR, 10=MACD, 11=KDJ）- 必须全〇
     one_hour_ok = (indicators[9]  == '〇' and
                    indicators[10] == '〇' and
                    indicators[11] == '〇')
 
-    # ========== 3. 15M级别（强制SAR + 至少一个其他）==========
-    # 索引6=15m_SAR, 7=15m_MACD, 8=15m_KDJ
-    fifteen_sar_ok = (indicators[6] == '〇')                                    # SAR必须〇
-    fifteen_other_ok = (indicators[7] == '〇' or indicators[8] == '〇')         # MACD或KDJ至少一个〇
-    fifteen_ok = fifteen_sar_ok and fifteen_other_ok
+    # 3. 15M指标（索引6=SAR, 7=MACD, 8=KDJ）
+    #    SAR必须〇, MACD必须〇, KDJ必须〇
+    fifteen_ok = (indicators[6] == '〇' and   # 15M_SAR
+                  indicators[7] == '〇' and   # 15M_MACD
+                  indicators[8] == '〇')      # 15M_KDJ
+                  
 
-    # ========== 4. 5M级别（强制SAR + 至少一个其他）==========
-    # 索引3=5m_SAR, 4=5m_MACD, 5=5m_KDJ
-    five_sar_ok = (indicators[3] == '〇')                                      # SAR必须〇
-    five_other_ok = (indicators[4] == '〇' or indicators[5] == '〇')           # MACD或KDJ至少一个〇
-    five_ok = five_sar_ok and five_other_ok
+    # 4. 5M指标（索引3=SAR, 4=MACD, 5=KDJ）
+    #    SAR必须〇, KDJ必须〇
+    five_m_ok = (indicators[3] == '〇' and indicators[5] == '〇')
 
-    # ========== 最终判断 ==========
-    return four_hour_ok and one_hour_ok and fifteen_ok and five_ok
+    return four_hour_ok and one_hour_ok and fifteen_ok and five_m_ok
+
 
 def get_all_indicators_dict(
     raw_data: Dict,
