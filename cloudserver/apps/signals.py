@@ -317,6 +317,13 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     # KDJ: K 高于 D 时为 〇（MEXC 标准）
     kdj = "〇" if latest["K"] > latest["D"] else "×"
     
+    # 获取前一根 KDJ 状态
+    if len(df) >= 2:
+        prev = df.iloc[-2]
+        prev_kdj = "〇" if prev["K"] > prev["D"] else "×"
+    else:
+        prev_kdj = "—"  # 没有前一根数据
+    
     # KDJ 超买/超卖判断
     if latest["K"] > 80 or latest["D"] > 80:
         kdj_over = "OverBuy"
@@ -334,7 +341,9 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
     else:
         price_str = f"{price:.2f}"
     
-    return [symbol, str(df.index[-1]), price_str, sar, macd, kdj, kdj_over]
+    # 原有7个元素 + 追加 prev_kdj
+    # [symbol, datetime, price, sar, macd, kdj, kdj_over, prev_kdj]
+    return [symbol, str(df.index[-1]), price_str, sar, macd, kdj, kdj_over, prev_kdj]
 
 
 # ─────────────────────────────────────────────
