@@ -63,10 +63,10 @@ def check_signal(indicators: List[str]) -> bool:
         # 如果是双重死叉（前一根和当前都是×），则条件不满足
         is_double_death_cross = (prev_kdj == '×' and current_kdj == '×')
         
-        five_m_ok = (indicators[3] == '〇' and not is_double_death_cross)
+        five_m_ok = (indicators[3] == '〇' and indicators[4] == '〇' and not is_double_death_cross)
     else:
         # 兼容旧版（无前一根判断）
-        five_m_ok = (indicators[3] == '〇' and indicators[5] == '〇')
+        five_m_ok = (indicators[3] == '〇' and indicators[4] == '〇' and indicators[5] == '〇')
 
     return four_hour_ok and one_hour_ok and fifteen_ok and five_m_ok
 
