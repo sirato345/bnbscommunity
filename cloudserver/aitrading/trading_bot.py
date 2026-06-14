@@ -38,6 +38,9 @@ class TradingSignalJob:
         self.collection_job_state = "JOB_STATE"  # 連続sellカウンター永続化用
         self.japan_tz = pytz.timezone('Asia/Tokyo')
         self.payload = None
+        
+        # 止损阈值：0.2%
+        self.STOP_LOSS_PERCENT = -0.002
 
         # Firestoreから永続化されたカウンターを読み込む
         self.consecutive_sell_counter: Dict[str, int] = self._load_sell_counter()
@@ -171,7 +174,7 @@ class TradingSignalJob:
         """
         从历史记录检查冷却状态
         返回: (是否在冷却中, 剩余秒数, 上次平仓的symbol)
-        规则: 盈利平仓无冷却，亏损平仓冷却60分钟
+        规则: 盈利平仓冷却30分钟，亏损平仓冷却60分钟
         """
         history_ref = self.db.collection(self.collection_history)
         latest_trade = (
@@ -214,11 +217,64 @@ class TradingSignalJob:
         return False, 0, last_symbol
 
     # -------------------------------------------------------------------------
-    # 平仓检查（需要连续两次 sell 才平仓）
+    # 止损检查（新增）
+    # -------------------------------------------------------------------------
+
+    def check_stop_loss(self, symbol: str, current_indicators: List[str]) -> bool:
+        """
+        检查是否触发止损
+        返回: True 表示触发了止损
+        """
+        doc_ref = self.db.collection(self.collection_current).document(symbol)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            return False
+        
+        open_data = doc.to_dict()
+        open_price = open_data.get('OPEN_PRICE', 0)
+        
+        # 获取当前价格
+        current_price = float(current_indicators[1]) if current_indicators[1] != '—' else 0
+        
+        if open_price == 0 or current_price == 0:
+            return False
+        
+        # 计算盈亏百分比
+        profit_percent = (current_price - open_price) / open_price
+        
+        # 检查是否触发止损（亏损超过 0.2%）
+        if profit_percent <= self.STOP_LOSS_PERCENT:
+            print(f"🛑 触发止损! {symbol}: 开仓价={open_price}, 当前价={current_price}, 亏损={profit_percent*100:.2f}%")
+            
+            # 保存到历史记录
+            self.save_to_history(symbol, current_indicators, open_data)
+            
+            # 删除当前持仓
+            doc_ref.delete()
+            
+            # 重置计数器
+            self.consecutive_sell_counter[symbol] = 0
+            self._save_sell_counter()
+            
+            return True
+        
+        return False
+
+    # -------------------------------------------------------------------------
+    # 平仓检查（连续两次 sell 才平仓 + 止损优先）
     # -------------------------------------------------------------------------
 
     def close_trade(self, parsed_data: Dict[str, List[str]]):
         try:
+            # ========== 第一步：优先检查止损（在所有平仓逻辑之前） ==========
+            for symbol, indicators in parsed_data.items():
+                if len(indicators) >= 3:
+                    # 检查止损
+                    if self.check_stop_loss(symbol, indicators):
+                        print(f"✅ 止损平仓完成: {symbol}")
+            
+            # ========== 第二步：重新获取持仓列表（止损可能已平仓） ==========
             for symbol, indicators in parsed_data.items():
                 if len(indicators) >= 3:
                     current_signal = indicators[2]
@@ -280,6 +336,9 @@ class TradingSignalJob:
             profit_or_loss = close_price - open_price
             profit_or_loss_percent = profit_or_loss / open_price if open_price != 0 else 0
 
+            # 标记是否是止损平仓
+            is_stop_loss = profit_or_loss_percent <= self.STOP_LOSS_PERCENT
+
             history_data = {
                 "SYMBOL": symbol,
                 "OPEN_DATE": open_date_str,
@@ -317,15 +376,17 @@ class TradingSignalJob:
                 "CLOSE_4H_KDJ":   current_indicators[14] if len(current_indicators) > 14 else '—',
                 "PROFIT_OR_LOSS": round(profit_or_loss, 5),
                 "PROFIT_OR_LOSS_PERCENT": round(profit_or_loss_percent, 5),
-                "HOLD_TIME": hold_time
+                "HOLD_TIME": hold_time,
+                "IS_STOP_LOSS": is_stop_loss  # 新增字段，标记是否是止损平仓
             }
 
-            doc_id = datetime.now(self.japan_tz).strftime('%Y%m%dT%H%M%S')
+            doc_id = datetime.now(self.japan_tz).strftime('%Y%m%dT%H%M%S%f')[:-3]  # 增加毫秒避免重复
             doc_ref = self.db.collection(self.collection_history).document(doc_id)
             doc_ref.set(history_data)
 
+            stop_loss_flag = " (止损)" if is_stop_loss else ""
             print(
-                f"✅ 保存平仓记录: {symbol}, "
+                f"✅ 保存平仓记录{stop_loss_flag}: {symbol}, "
                 f"价格: {open_price} → {close_price}, "
                 f"盈亏: {round(profit_or_loss, 5)} ({round(profit_or_loss_percent * 100, 2)}%), "
                 f"持仓: {hold_time}"
@@ -368,12 +429,12 @@ class TradingSignalJob:
             for buy_symbol, buy_indicators in buy_symbols:
                 print(f"\n🔍 检查 {buy_symbol} 是否符合开仓条件...")
 
-                # in_cooldown, remaining, last_symbol = self.check_cooldown()
+                in_cooldown, remaining, last_symbol = self.check_cooldown()
 
-                # if in_cooldown:
-                #     print(f"   ❌ 冷却期未过: {buy_symbol}")
-                #     print(f"      上次平仓币种: {last_symbol}, 还需等待 {remaining // 60} 分钟")
-                #     continue
+                if in_cooldown:
+                    print(f"   ❌ 冷却期未过: {buy_symbol}")
+                    print(f"      上次平仓币种: {last_symbol}, 还需等待 {remaining // 60} 分钟")
+                    continue
 
                 price = float(buy_indicators[1]) if buy_indicators[1] != '—' else 0
 
@@ -425,6 +486,7 @@ class TradingSignalJob:
         print(f"🚀 交易信号Job开始执行: {datetime.now(self.japan_tz)}")
         print("=" * 50)
         print(f"📋 平仓规则: 需要连续两次 'sell' 信号才平仓")
+        print(f"🛑 止损规则: 亏损超过 0.2% 立即平仓（优先于sell信号）")
         print("=" * 50)
 
         # 1. 获取信号数据
@@ -449,7 +511,7 @@ class TradingSignalJob:
             for symbol, count in active_counts.items():
                 print(f"  {symbol}: {count} 次")
 
-        # 4. 平仓检查（連続2回のsell）
+        # 4. 平仓检查（止损优先，然后检查连续sell）
         self.close_trade(parsed_data)
 
         # 5. 开仓检查
