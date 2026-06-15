@@ -206,9 +206,9 @@ class TradingSignalJob:
         time_diff_seconds = (current_time - last_close_date).total_seconds()
 
         if last_profit > 0:
-            required_seconds = 30 * 60
+            required_seconds = 15 * 60
         else:
-            required_seconds = 60 * 60
+            required_seconds = 30 * 60
 
         if time_diff_seconds < required_seconds:
             remaining = int(required_seconds - time_diff_seconds)

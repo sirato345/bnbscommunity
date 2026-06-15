@@ -56,19 +56,21 @@ def check_signal(indicators: List[str]) -> bool:
 
     # 4. 5M指标 - SAR必须〇，且 KDJ 不是双重死叉
     #    双重死叉 = 前一根是 × 且 当前也是 ×
-    if len(indicators) >= 16:
-        current_kdj = indicators[5]      # 当前 5m_KDJ
-        prev_kdj = indicators[15]        # 前一根 5m_KDJ
+    # if len(indicators) >= 16:
+    #     current_kdj = indicators[5]      # 当前 5m_KDJ
+    #     prev_kdj = indicators[15]        # 前一根 5m_KDJ
         
-        # 如果是双重死叉（前一根和当前都是×），则条件不满足
-        is_double_death_cross = (prev_kdj == '×' and current_kdj == '×')
+    #     # 如果是双重死叉（前一根和当前都是×），则条件不满足
+    #     is_double_death_cross = (prev_kdj == '×' and current_kdj == '×')
         
-        five_m_ok = (indicators[3] == '〇' and indicators[4] == '〇' and not is_double_death_cross)
-    else:
-        # 兼容旧版（无前一根判断）
-        five_m_ok = (indicators[3] == '〇' and indicators[4] == '〇' and indicators[5] == '〇')
+    #     five_m_ok = (indicators[3] == '〇' and indicators[4] == '〇' and not is_double_death_cross)
+    # else:
+
+    # 兼容旧版（无前一根判断）
+    five_m_ok = sum([indicators[3] == '〇', indicators[4] == '〇', indicators[5] == '〇']) >= 2
 
     return four_hour_ok and one_hour_ok and fifteen_ok and five_m_ok
+
 
 
 def get_all_indicators_dict(
