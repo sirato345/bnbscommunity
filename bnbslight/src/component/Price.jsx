@@ -14,7 +14,7 @@ function Price() {
   const [isUpdating, setIsUpdating] = useState(false); // 添加加载状态
 
   const BNBs_PRICE_API =
-    "https://www.mexc.com/api/dex/v1/data/get_market_info?chain_id=56&pair_ca=0x74716187C587866EC151990e2f22806a160493F4&token_ca=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
+    "https://www.mexc.com/api/dex/v1/onchain/get_token_price_info?chain_id=56&token_cas=0xc07ef1c7af6112c34a110809c6c8efb343e63a64";
   const BNB_PRICE_API =
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
 
