@@ -49,34 +49,49 @@ function Price() {
   };
 
   const getBNBsInfo = async () => {
-    const random = Math.random();
-    const allOriginsUrl1 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
-      BNBs_PRICE_API + `?nocache=${random}`
-    )}`;
-    const allOriginsUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(
-      BNBs_PRICE_API + `?nocache=${random}`
-    )}`;
-    try {
-      const res = await instance.get(allOriginsUrl1);
-      console.log("✅ 成功进入 then");
-      const contents = JSON.parse(JSON.stringify(res.data.data));
-      const bnbsPrice = contents.token_price.toFixed(6);
-      const marketCap = Math.trunc(contents.circulate_mkt_cap);
+    const cacheBust = `?nocache=${Date.now()}`;
+    const endpoints = [
+      `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
+        "https://api.dexscreener.com/latest/dex/tokens/0xc07ef1c7af6112c34a110809c6c8efb343e63a64" + cacheBust
+      )}`,
+      `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(
+        BNBs_PRICE_API + cacheBust
+      )}`,
+    ];
 
-      console.log("bnbsPrice:" + bnbsPrice);
-      console.log("marketCap:" + marketCap);
-      return [bnbsPrice, marketCap];
-    } catch (error) {
-      console.log("❌ 进入 catch");
-      const res = await instance.get(allOriginsUrl2);
-      const contents = JSON.parse(JSON.stringify(res.data.data));
-      const bnbsPrice = contents.token_price.toFixed(6);
-      const marketCap = Math.trunc(contents.circulate_mkt_cap);
+    for (const endpoint of endpoints) {
+      try {
+        const res = await instance.get(endpoint, { timeout: 15000 });
+        const payload =
+          typeof res.data === "string" ? JSON.parse(res.data) : res.data;
 
-      console.log("bnbsPrice:" + bnbsPrice);
-      console.log("marketCap:" + marketCap);
-      return [bnbsPrice, marketCap];
+        let bnbsPrice = null;
+        let marketCap = null;
+
+        if (payload?.pairs?.[0]) {
+          bnbsPrice = payload.pairs[0].priceUsd;
+          marketCap = payload.pairs[0].marketCap;
+        } else {
+          const tokenData = payload?.data?.token_list?.[0] ?? payload?.data ?? payload;
+          bnbsPrice = tokenData?.price ?? tokenData?.token_price;
+          marketCap = tokenData?.market_cap ?? tokenData?.circulate_mkt_cap;
+        }
+
+        const normalizedPrice = Number(bnbsPrice);
+        const normalizedMarketCap = Math.trunc(Number(marketCap ?? 0));
+
+        if (Number.isFinite(normalizedPrice) && Number.isFinite(normalizedMarketCap)) {
+          const displayPrice = normalizedPrice.toFixed(6);
+          console.log("bnbsPrice:" + displayPrice);
+          console.log("marketCap:" + normalizedMarketCap);
+          return [displayPrice, normalizedMarketCap];
+        }
+      } catch (error) {
+        console.warn("BNBs price request failed:", endpoint, error);
+      }
     }
+
+    throw new Error("Unable to load BNBs price data");
   };
 
   const initOnce = useRef(false);

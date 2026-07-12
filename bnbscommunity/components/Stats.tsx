@@ -88,23 +88,31 @@ function StatCard({ stat, start }: { stat: StatConfig; start: boolean }) {
 }
 
 const BNBs_PRICE_API =
-  'https://www.mexc.com/api/dex/v1/onchain/get_token_price_info?chain_id=56&token_cas=0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
+  'https://api.dexscreener.com/latest/dex/tokens/0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
 
 const getBNBsInfo = async (): Promise<[number, number]> => {
-  const random = Math.random();
-  const allOriginsUrl1 = `https://allorigins.hexlet.app/raw?url=${encodeURIComponent(BNBs_PRICE_API + `?nocache=${random}`)}`;
-  const allOriginsUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(BNBs_PRICE_API + `?nocache=${random}`)}`;
   try {
-    const res = await fetch(allOriginsUrl1);
-    const json = await res.json();
-    const contents = json.data;
-    return [contents.token_price, Math.trunc(contents.circulate_mkt_cap)];
-  } catch {
-    const res = await fetch(allOriginsUrl2);
-    const json = await res.json();
-    const contents = JSON.parse(json.contents).data;
-    return [contents.token_price, Math.trunc(contents.circulate_mkt_cap)];
+    const res = await fetch(BNBs_PRICE_API, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+
+    const payload = await res.json();
+    const pair = payload?.pairs?.[0];
+    const price = Number(pair?.priceUsd ?? 0);
+    const marketCap = Math.trunc(Number(pair?.marketCap ?? 0));
+
+    if (Number.isFinite(price) && Number.isFinite(marketCap)) {
+      return [price, marketCap];
+    }
+  } catch (error) {
+    console.warn('BNBs price request failed:', error);
   }
+
+  throw new Error('Unable to load BNBs price data');
 };
 
 const BASE_STATS: StatConfig[] = [
