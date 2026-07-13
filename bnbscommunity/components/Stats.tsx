@@ -12,7 +12,11 @@ function useCounter(
   const [count, setCount] = useState(initValue);
 
   useEffect(() => {
-    if (!start) return;
+    if (!start) {
+      setCount(target);
+      return;
+    }
+
     let startTime: number | null = null;
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -87,13 +91,13 @@ function StatCard({ stat, start }: { stat: StatConfig; start: boolean }) {
   );
 }
 
-const BNBs_PRICE_API =
-  'https://api.dexscreener.com/latest/dex/tokens/0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
+const BNBs_PRICE_API = '/api/bnbs-price';
 
 const getBNBsInfo = async (): Promise<[number, number]> => {
   try {
-    const res = await fetch(BNBs_PRICE_API, {
-      headers: { Accept: 'application/json' },
+    const res = await fetch(`${BNBs_PRICE_API}?t=${Date.now()}`, {
+      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      cache: 'no-store',
     });
 
     if (!res.ok) {
@@ -101,11 +105,10 @@ const getBNBsInfo = async (): Promise<[number, number]> => {
     }
 
     const payload = await res.json();
-    const pair = payload?.pairs?.[0];
-    const price = Number(pair?.priceUsd ?? 0);
-    const marketCap = Math.trunc(Number(pair?.marketCap ?? 0));
+    const price = Number(payload?.priceUsd ?? 0);
+    const marketCap = Math.trunc(Number(payload?.marketCap ?? 0));
 
-    if (Number.isFinite(price) && Number.isFinite(marketCap)) {
+    if (Number.isFinite(price) && Number.isFinite(marketCap) && price > 0) {
       return [price, marketCap];
     }
   } catch (error) {
@@ -146,35 +149,24 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
   const fetchStatsData = async (isRetry = false): Promise<boolean> => {
     try {
       const [price, marketCap] = await getBNBsInfo();
-      
+
       if (!mountedRef.current) return false;
 
-      // 检查 PRICE 是否为默认值 0.00001（三秒后检测）
-      if (price === 0.00001 && retryCountRef.current < 2 && !isRetry) {
-        console.log(`PRICE 仍为默认值 0.00001，触发重试... (${retryCountRef.current + 1}/2)`);
-        retryCountRef.current++;
-        
-        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = setTimeout(() => fetchStatsData(true), 3000);
-        return false;
-      }
+      console.log('Fetched BNBs stats:', { price, marketCap });
 
-      // 成功获取到真实数据
       setStats(prev => prev.map(s => {
         if (s.label === 'PRICE') return { ...s, value: price };
         if (s.label === 'MARKET CAP') return { ...s, value: marketCap };
         return s;
       }));
-      
-      // 成功后重置重试计数
+
       retryCountRef.current = 0;
       isFirstLoadRef.current = false;
       return true;
-      
+
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      
-      // 请求失败时也进行重试
+
       if (retryCountRef.current < 2 && !isRetry) {
         retryCountRef.current++;
         console.log(`请求失败，触发重试... (${retryCountRef.current}/2)`);
@@ -185,26 +177,10 @@ export default function Stats({ logoSectionRef, statsSectionRef, statsInView }: 
     }
   };
 
-  // 3秒超时检测 PRICE 是否还是默认值
-  const checkPriceAndRetry = useCallback(() => {
-    const currentPrice = stats.find(s => s.label === 'PRICE')?.value;
-    if (currentPrice === 0.00001 && retryCountRef.current < 2 && isFirstLoadRef.current) {
-      console.log('3秒后 PRICE 仍为 0.00001，触发重试...');
-      retryCountRef.current++;
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = setTimeout(() => fetchStatsData(true), 0);
-    }
-  }, [stats]);
-
   // 初始加载
   useEffect(() => {
     fetchStatsData();
-    
-    // 3秒后检测 PRICE 是否为默认值
-    const timeoutId = setTimeout(checkPriceAndRetry, 3000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [checkPriceAndRetry]);
+  }, []);
 
   // 进入视口时获取最新数据
   useEffect(() => {
