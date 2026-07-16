@@ -7,49 +7,56 @@ const BNBs_CONTRACT = '0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
 const FALLBACK_PRICE_USD = 0.00001;
 const FALLBACK_MARKET_CAP = 1_000;
 
-async function tryMexc() {
+// GeckoTerminal indexes on-chain DEX pool data (like DexScreener), and does
+// have this token indexed. It's a public, keyless API and, like DexScreener,
+// is designed for server-side consumption so it shouldn't block requests
+// coming from Vercel's IPs.
+async function tryGeckoTerminal() {
   try {
     const res = await fetch(
-      'https://www.mexc.com/api/dex/v1/onchain/get_token_price_info?chain_id=56&token_cas=0xc07ef1c7af6112c34a110809c6c8efb343e63a64',
+      `https://api.geckoterminal.com/api/v2/networks/bsc/tokens/${BNBs_CONTRACT}`,
       {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'Mozilla/5.0',
-        },
+        headers: { Accept: 'application/json' },
         cache: 'no-store',
       }
     );
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn('[bnbs-price] GeckoTerminal request failed with status', res.status);
+      return null;
+    }
 
     const payload = (await res.json()) as Record<string, unknown>;
     const data = payload?.data && typeof payload.data === 'object' ? payload.data as Record<string, unknown> : null;
-    const tokenList = Array.isArray(data?.token_list) ? data.token_list as Array<Record<string, unknown>> : [];
-    const firstToken = tokenList[0];
-    const priceUsd = Number(firstToken?.price ?? data?.price ?? data?.price_usd ?? data?.usd ?? 0);
-    const marketCap = Number(firstToken?.market_cap ?? firstToken?.marketCap ?? data?.market_cap ?? data?.marketCap ?? data?.usd_market_cap ?? 0);
+    const attributes = data?.attributes && typeof data.attributes === 'object' ? data.attributes as Record<string, unknown> : null;
+
+    const priceUsd = Number(attributes?.price_usd ?? 0);
+    const marketCap = Number(attributes?.market_cap_usd ?? attributes?.fdv_usd ?? 0);
 
     if (Number.isFinite(priceUsd) && priceUsd > 0) {
       return {
         priceUsd,
         marketCap: Math.trunc(marketCap),
-        source: 'mexc',
+        source: 'geckoterminal',
       };
     }
-  } catch {
-    // Fallback to other providers.
+
+    console.warn('[bnbs-price] GeckoTerminal response had no usable price field', JSON.stringify(payload).slice(0, 500));
+  } catch (err) {
+    console.error('[bnbs-price] GeckoTerminal request threw', err);
   }
 
   return null;
 }
 
 export async function GET() {
-  const mexcStats = await tryMexc();
-  if (mexcStats) {
+  const stats = await tryGeckoTerminal();
+
+  if (stats) {
     return NextResponse.json({
-      priceUsd: mexcStats.priceUsd,
-      marketCap: mexcStats.marketCap,
-      source: mexcStats.source,
+      priceUsd: stats.priceUsd,
+      marketCap: stats.marketCap,
+      source: stats.source,
     }, { status: 200 });
   }
 
