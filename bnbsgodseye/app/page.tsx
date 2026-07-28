@@ -228,7 +228,7 @@ export default function CryptoScreenerPage() {
   return (
     <>
       {/* ================================================================ */}
-      {/* ★★★ 加载状态 - 使用 transform 居中，无视任何容器限制 ★★★ */}
+      {/* ★★★ 加载状态 - 纯透明背景，只在画面中央显示动画 ★★★ */}
       {/* ================================================================ */}
       {loading && data.length === 0 && (
         <div
@@ -237,14 +237,7 @@ export default function CryptoScreenerPage() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             zIndex: 999999,
-            padding: '40px',
-            borderRadius: '12px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
           }}
         >
           <div className="text-center">
