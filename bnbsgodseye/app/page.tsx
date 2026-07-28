@@ -228,11 +228,22 @@ export default function CryptoScreenerPage() {
   return (
     <>
       {/* ================================================================ */}
-      {/* ★★★ 加载状态 - 画面全体の中央に表示（动画效果保持不变） ★★★ */}
+      {/* ★★★ 加载状态 - 无视 iframe，强制在整个视口居中 ★★★ */}
       {/* ================================================================ */}
       {loading && data.length === 0 && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            zIndex: 99999,
+          }}
         >
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
