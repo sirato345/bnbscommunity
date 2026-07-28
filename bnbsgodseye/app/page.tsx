@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import ReactDOM from 'react-dom';
 import axios from 'axios';
 import Image from 'next/image';
 import CryptoExtractor from './CryptoExtractor';
@@ -226,51 +225,34 @@ export default function CryptoScreenerPage() {
     }
   };
 
-  // 获取顶层 document.body（突破 iframe 限制）
-  const getTopBody = () => {
-    try {
-      if (window.top && window.top.document) {
-        return window.top.document.body;
-      }
-    } catch (e) {
-      // 跨域限制，使用当前 document.body
-    }
-    return document.body;
-  };
-
-  // 加载动画组件 - 使用 Portal 渲染到顶层 document.body
-  const LoadingOverlay = () => {
-    if (!loading || data.length > 0) return null;
-    
-    const targetBody = getTopBody();
-    
-    return ReactDOM.createPortal(
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          zIndex: 99999,
-        }}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>,
-      targetBody
-    );
-  };
-
   return (
     <>
-      <LoadingOverlay />
+      {/* ================================================================ */}
+      {/* ★★★ 加载状态 - 使用 transform 居中，无视任何容器限制 ★★★ */}
+      {/* ================================================================ */}
+      {loading && data.length === 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            zIndex: 999999,
+            padding: '40px',
+            borderRadius: '12px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          }}
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      )}
 
       <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-white p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
