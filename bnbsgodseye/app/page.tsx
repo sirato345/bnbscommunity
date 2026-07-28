@@ -436,21 +436,27 @@ export default function CryptoScreenerPage() {
               </div>
             ))}
           </div>
-
-          {/* 加载状态 */}
-          {loading && data.length === 0 && (
-            <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-                <p className="text-gray-600">Loading...</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ================================================================ */}
+      {/* ★★★ 修正: 加载状态 - 画面全体の中央に表示 ★★★ */}
+      {/* ================================================================ */}
+      {loading && data.length === 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90"
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      )}
+
       <MobileView>
         <div className="h-[80px] bg-white"></div>
       </MobileView>
+      
       {/* 内容 */}
       <CryptoExtractor onCallback={onAddCrypto} />
     </>
