@@ -226,9 +226,23 @@ export default function CryptoScreenerPage() {
     }
   };
 
-  // 加载动画组件 - 使用 Portal 渲染到 document.body
+  // 获取顶层 document.body（突破 iframe 限制）
+  const getTopBody = () => {
+    try {
+      if (window.top && window.top.document) {
+        return window.top.document.body;
+      }
+    } catch (e) {
+      // 跨域限制，使用当前 document.body
+    }
+    return document.body;
+  };
+
+  // 加载动画组件 - 使用 Portal 渲染到顶层 document.body
   const LoadingOverlay = () => {
     if (!loading || data.length > 0) return null;
+    
+    const targetBody = getTopBody();
     
     return ReactDOM.createPortal(
       <div
@@ -250,7 +264,7 @@ export default function CryptoScreenerPage() {
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>,
-      document.body
+      targetBody
     );
   };
 
