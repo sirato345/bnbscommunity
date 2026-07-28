@@ -228,38 +228,15 @@ export default function CryptoScreenerPage() {
   return (
     <>
       {/* ================================================================ */}
-      {/* ★★★ 加载状态 - 使用 absolute + 100vh/100vw 确保在 iframe 中居中 ★★★ */}
+      {/* ★★★ 加载状态 - 画面全体の中央に表示（动画效果保持不变） ★★★ */}
       {/* ================================================================ */}
       {loading && data.length === 0 && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100vw',
-            height: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
-            zIndex: 9999,
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90"
         >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                border: '4px solid #e5e7eb',
-                borderTopColor: '#3b82f6',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite',
-                margin: '0 auto 16px auto',
-              }}
-            />
-            <p style={{ color: '#6b7280', fontSize: '14px' }}>Loading...</p>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+            <p className="text-gray-600">Loading...</p>
           </div>
         </div>
       )}
