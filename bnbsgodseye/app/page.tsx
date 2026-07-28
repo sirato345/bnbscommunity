@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import Image from 'next/image';
 import CryptoExtractor from './CryptoExtractor';
@@ -225,32 +226,37 @@ export default function CryptoScreenerPage() {
     }
   };
 
+  // 加载动画组件 - 使用 Portal 渲染到 document.body
+  const LoadingOverlay = () => {
+    if (!loading || data.length > 0) return null;
+    
+    return ReactDOM.createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          zIndex: 99999,
+        }}
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   return (
     <>
-      {/* ================================================================ */}
-      {/* ★★★ 加载状态 - 无视 iframe，强制在整个视口居中 ★★★ */}
-      {/* ================================================================ */}
-      {loading && data.length === 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            zIndex: 99999,
-          }}
-        >
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-      )}
+      <LoadingOverlay />
 
       <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-white p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
