@@ -91,11 +91,6 @@ export default function CryptoScreenerPage() {
   }
 
   // ─── 一括リモートデータ取得 ───────────────────
-  /**
-   * dataSource を1回の POST で送信し、バックエンドがマルチスレッドで処理した結果を受け取る。
-   * レスポンス形式:
-   *   { results: { "1h_BTC/USDT": [...], ... }, errors: { "4h_BNB/USDT": "msg" } }
-   */
   async function getRemoteData(targets: DataSource[]): Promise<CryptoData[]> {
     const response = await axios.post(
       `${API_BASE}/signals`,
@@ -108,13 +103,11 @@ export default function CryptoScreenerPage() {
       errors:  Record<string, string>;
     };
 
-    // 成功行をCryptoData[]に変換（targetsの順序を維持）
     const cryptoList: CryptoData[] = targets.map(source => {
       const key = `${source.timeframe}_${source.symbol}`;
       const raw = results[key];
 
       if (!raw) {
-        // バックエンド側でエラーになった行はプレースホルダーを返す
         console.error(`[bulk] error for ${key}:`, errors[key] ?? 'unknown');
         return {
           symbol:    source.symbol,
@@ -168,7 +161,7 @@ export default function CryptoScreenerPage() {
     
     try {
       const results = await getRemoteData(dataSource);
-      setData(prevData => [...prevData, ...results]);  // ※基于最新状态更新  
+      setData(prevData => [...prevData, ...results]);
       setLastUpdate(formatTime(new Date()));
     } catch (err) {
       setError('Failed to fetch data, please check your network connection or API status.');
@@ -181,7 +174,6 @@ export default function CryptoScreenerPage() {
   // 计算两个时间框架的总看跌数量
   function calculateSignal(data1h: CryptoData, data4h: CryptoData): string {
     let signal;
-    // 计算每个时间框架的看跌数量
     const bearishCount1h = [data1h.sar, data1h.macd, data1h.kdj].filter(v => v === '×').length;
     const bearishCount4h = [data4h.sar, data4h.macd, data4h.kdj].filter(v => v === '×').length;
     
@@ -198,13 +190,10 @@ export default function CryptoScreenerPage() {
   
   // 初始加载
   useEffect(() => {
-    // 只在组件挂载时执行一次
     fetchData();
-    // 设置定时刷新（每600秒 = 10分钟）
-    const interval = setInterval(fetchData, 600000); // 600000ms = 10分钟
-    // 组件卸载时清理定时器
+    const interval = setInterval(fetchData, 600000);
     return () => clearInterval(interval);
-  }, [fetchData]); // 空依赖数组
+  }, [fetchData]);
 
   // 按交易对分组显示
   const groupBySymbol = (data: CryptoData[]) => {
@@ -238,6 +227,43 @@ export default function CryptoScreenerPage() {
 
   return (
     <>
+      {/* ================================================================ */}
+      {/* ★★★ 加载状态 - 使用 absolute + 100vh/100vw 确保在 iframe 中居中 ★★★ */}
+      {/* ================================================================ */}
+      {loading && data.length === 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            zIndex: 9999,
+          }}
+        >
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                border: '4px solid #e5e7eb',
+                borderTopColor: '#3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+                margin: '0 auto 16px auto',
+              }}
+            />
+            <p style={{ color: '#6b7280', fontSize: '14px' }}>Loading...</p>
+          </div>
+        </div>
+      )}
+
       <div className="w-full md:w-3/5 lg:w-3/5 md:mx-auto bg-white p-4 md:p-4 min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
@@ -323,7 +349,6 @@ export default function CryptoScreenerPage() {
                 </div>
 
                 {/* 表格 */}
-                {/* 表格 - 移除横向滚动，添加纵向滚动控制 */}
                 <div key={symbol} className="-mx-2 overflow-y-auto max-h-[400px]">
                   <table className="w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
                     <thead className="bg-gray-50 dark:bg-gray-900">
@@ -353,25 +378,21 @@ export default function CryptoScreenerPage() {
                       {symbolData.length >= 1 && (
                         <tr className="bg-white dark:bg-gray-800">
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            {/* 1.5倍放大：1h/4h标签 */}
                             <span className="inline-flex items-center justify-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
                               {symbolData[0].timeframe}
                             </span>
                           </td>
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            {/* 1.5倍放大：SAR圆圈 */}
                             <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].sar)}`}>
                               {symbolData[0].sar}
                             </span>
                           </td>
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            {/* 1.5倍放大：MACD圆圈 */}
                             <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].macd)}`}>
                               {symbolData[0].macd}
                             </span>
                           </td>
                           <td className="px-1 py-2 sm:px-2 sm:py-3 text-center whitespace-nowrap">
-                            {/* 1.5倍放大：KDJ圆圈 */}
                             <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full text-sm sm:text-base font-bold ${getIndicatorStyle(symbolData[0].kdj)}`}>
                               {symbolData[0].kdj}
                             </span>
@@ -438,20 +459,6 @@ export default function CryptoScreenerPage() {
           </div>
         </div>
       </div>
-
-      {/* ================================================================ */}
-      {/* ★★★ 修正: 加载状态 - 画面全体の中央に表示 ★★★ */}
-      {/* ================================================================ */}
-      {loading && data.length === 0 && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90"
-        >
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4 mx-auto"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-      )}
 
       <MobileView>
         <div className="h-[80px] bg-white"></div>
