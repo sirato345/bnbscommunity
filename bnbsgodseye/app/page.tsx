@@ -87,8 +87,6 @@ export default function CryptoScreenerPage() {
       return price.toFixed(5);  // DOGE 保留5位
     } else if (baseSymbol === 'SHIB' || baseSymbol === 'PEPE') {
       return price.toFixed(8);  // 更小的币种保留8位
-    } else if (baseSymbol === 'TRUMP') {
-      return price.toFixed(3);  // 更小的币种保留8位
     } else {
       return price.toFixed(2);  // BTC, ETH, BNB 等保留2位
     }
