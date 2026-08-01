@@ -110,7 +110,8 @@ const CRYPTO_LIST = [
     { symbol: "ZIL", name: "Zilliqa", chinese: "齐利卡" },
     { symbol: "FTT", name: "FTX Token", chinese: "FTX代币" },
     { symbol: "BGB", name: "Bitget Token", chinese: "比特儿代币" },
-    { symbol: "JUP", name: "Jupiter", chinese: "木星币" }
+    { symbol: "JUP", name: "Jupiter", chinese: "木星币" },
+    { symbol: "TRUMP", name: "Trump", chinese: "川普币" }
 ];
 
 export async function POST(request: NextRequest) {
