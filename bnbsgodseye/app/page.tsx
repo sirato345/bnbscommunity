@@ -54,10 +54,10 @@ export default function CryptoScreenerPage() {
     { timeframe: '4h', symbol: 'DOGE/USDT' },
   ]); 
 
-  const [param] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('homepage');
-  });
+  // const [param] = useState<string | null>(() => {
+  //   if (typeof window === 'undefined') return null;
+  //   return new URLSearchParams(window.location.search).get('homepage');
+  // });
 
   // 定义回调函数，接收子组件数据
   const onAddCrypto = (crypto: DataSource[]) => {
@@ -251,11 +251,11 @@ export default function CryptoScreenerPage() {
         <div className="max-w-7xl mx-auto">
           {/* 标题区域 */}
           <div className="mb-5">
-            {param === 'true' ? '' : 
+            {/* {param === 'true' ? '' : 
             (<h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center ml-0.5">
               <Image src="BNBs.svg" alt="Logo" width={32} height={32} className="w-8 h-8 rounded-full object-cover"/>
               <span className='px-1 font-semibold text-[20px] text-black text-left'>BNBs AI Analyse</span>
-            </h1>)}
+            </h1>)} */}
             
             <div className="flex flex-wrap justify-end gap-4">
               <div className="flex items-center gap-4">
