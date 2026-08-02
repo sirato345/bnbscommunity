@@ -25,8 +25,6 @@ const formatPrice = (symbol: string, price: number): string => {
     case 'SHIB':
     case 'PEPE':
       return price.toFixed(8);  // SHIB、PEPE保留8位
-    case 'TRUMP':
-      return price.toFixed(3);  // TRUMP保留3位 
     default:
       return price.toFixed(2);  // BTC、ETH、BNB等保留2位
   }
