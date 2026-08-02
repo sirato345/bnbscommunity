@@ -338,6 +338,8 @@ def build_display(symbol: str, df: pd.DataFrame) -> list:
         price_str = f"{price:.5f}"
     elif 'SHIB' in symbol or 'PEPE' in symbol:
         price_str = f"{price:.8f}"
+    elif 'TRUMP' in symbol:
+        price_str = f"{price:.3f}"
     else:
         price_str = f"{price:.2f}"
     
