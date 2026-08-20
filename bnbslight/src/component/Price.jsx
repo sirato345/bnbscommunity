@@ -14,7 +14,8 @@ function Price() {
   const [isUpdating, setIsUpdating] = useState(false); // 添加加载状态
 
   const BNBs_CONTRACT = "0xc07ef1c7af6112c34a110809c6c8efb343e63a64";
-  const BNBs_PRICE_API = `https://api.geckoterminal.com/api/v2/networks/bsc/tokens/${BNBs_CONTRACT}`;
+  const BNBs_PRICE_API =
+    "https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=56&contractAddress=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
   const BNB_PRICE_API =
     "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
 
@@ -56,14 +57,9 @@ function Price() {
 
       const data =
         payload?.data && typeof payload.data === "object" ? payload.data : null;
-      const attributes =
-        data?.attributes && typeof data.attributes === "object"
-          ? data.attributes
-          : null;
-
-      const bnbsPrice = Number(attributes?.price_usd ?? 0);
+      const bnbsPrice = Number(data?.price ?? 0);
       const marketCap = Math.trunc(
-        Number(attributes?.market_cap_usd ?? attributes?.fdv_usd ?? 0)
+        Number(data?.marketCap ?? data?.market_cap ?? 0)
       );
 
       if (Number.isFinite(bnbsPrice) && bnbsPrice > 0) {
