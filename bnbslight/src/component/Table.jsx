@@ -40,7 +40,7 @@ function Table(props) {
           <table className="Table-search-area">
             <tr>
               <td className="Table-search-td1">
-                <span>BNBs total holders: {props.data.length}</span>
+                <span>BNBs total holders: {props.data.length.toLocaleString()}</span>
               </td>
               <td rowSpan="2" className="Table-search-td2">
                 <input
@@ -58,7 +58,7 @@ function Table(props) {
             </tr>
             <tr>
               <td className="Table-search-td1">
-                <span>BNBs total amount: 21000000</span>
+                <span>BNBs total amount: 21,000,000</span>
               </td>
             </tr>
           </table>
@@ -95,12 +95,12 @@ function Table(props) {
             </colgroup>
             <tr>
               <td colspan="2" className="Table-total1-mobile">
-                <span>BNBs total holders: {props.data.length}</span>
+                <span>BNBs total holders: {props.data.length.toLocaleString()}</span>
               </td>
             </tr>
             <tr>
               <td colspan="2" className="Table-total2-mobile">
-                <span>BNBs total amount: 21000000</span>
+                <span>BNBs total amount: 21,000,000</span>
               </td>
             </tr>
             <tr>

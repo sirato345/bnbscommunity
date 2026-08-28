@@ -115,7 +115,7 @@ function Price() {
               </td>
               <td>
                 <span>
-                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm}{" "}
+                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm.toLocaleString()}{" "}
                   BNBs
                 </span>
               </td>
@@ -125,7 +125,7 @@ function Price() {
                 <span className="Price-span3">MarketCap</span>
               </td>
               <td>
-                <span>{marketCapForm === null ? "update" : marketCapForm} $</span>
+                <span>{marketCapForm === null ? "update" : marketCapForm.toLocaleString()} $</span>
               </td>
             </tr>
             <tr className="Price-tr">
@@ -183,7 +183,7 @@ function Price() {
               </td>
               <td>
                 <span>
-                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm}{" "}
+                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm.toLocaleString()}{" "}
                   BNBs
                 </span>
               </td>
@@ -193,7 +193,7 @@ function Price() {
                 <span className="Price-span3">MarketCap</span>
               </td>
               <td>
-                <span>{marketCapForm === null ? "update" : marketCapForm} $</span>
+                <span>{marketCapForm === null ? "update" : marketCapForm.toLocaleString()} $</span>
               </td>
             </tr>
             <tr className="Price-tr">
