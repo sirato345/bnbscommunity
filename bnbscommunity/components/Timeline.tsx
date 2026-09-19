@@ -217,9 +217,7 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                         {item.date}
                       </div>
                       <p
-                        className={`text-sm sm:text-base lg:text-lg ${
-                          item.date === 'CA' || item.date.startsWith('Pool Size') ? 'font-bold' : ''
-                        }`}
+                        className="text-sm sm:text-base lg:text-lg"
                         style={{
                           color: '#666',
                           lineHeight: 1.6,
