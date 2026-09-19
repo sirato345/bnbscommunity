@@ -4,9 +4,58 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const BNBs_CONTRACT = '0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
-const BINANCE_PRICE_URL = `https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=56&contractAddress=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64`;
+const BINANCE_PRICE_URL = `https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=56&contractAddress=${BNBs_CONTRACT}`;
+const DEXSCREENER_URL = `https://api.dexscreener.com/token-pairs/v1/bsc/${BNBs_CONTRACT}`;
 const FALLBACK_PRICE_USD = 0.00001;
 const FALLBACK_MARKET_CAP = 1_000;
+
+type DexScreenerPair = {
+  liquidity?: { usd?: number };
+  baseToken?: { symbol?: string };
+  quoteToken?: { symbol?: string };
+};
+
+async function tryDexScreenerPools(): Promise<{ totalPoolSizeUsd: number; poolCount: number } | null> {
+  try {
+    const res = await fetch(DEXSCREENER_URL, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      console.warn('[bnbs-price] DexScreener request failed with status', res.status);
+      return null;
+    }
+
+    const pairs = (await res.json()) as DexScreenerPair[];
+
+    if (!Array.isArray(pairs) || pairs.length === 0) {
+      console.warn('[bnbs-price] DexScreener returned no pairs');
+      return null;
+    }
+
+    // 汇总所有池子的流动性
+    const totalPoolSizeUsd = pairs.reduce((sum, pair) => {
+      const liquidity = Number(pair.liquidity?.usd ?? 0);
+      return sum + (Number.isFinite(liquidity) ? liquidity : 0);
+    }, 0);
+
+    if (!Number.isFinite(totalPoolSizeUsd) || totalPoolSizeUsd <= 0) {
+      console.warn('[bnbs-price] DexScreener total liquidity not usable:', totalPoolSizeUsd);
+      return null;
+    }
+
+    console.log(`[bnbs-price] DexScreener found ${pairs.length} pools, total liquidity: $${totalPoolSizeUsd}`);
+
+    return {
+      totalPoolSizeUsd,
+      poolCount: pairs.length,
+    };
+  } catch (err) {
+    console.error('[bnbs-price] DexScreener request threw', err);
+    return null;
+  }
+}
 
 async function tryBinancePrice() {
   try {
@@ -24,7 +73,9 @@ async function tryBinancePrice() {
     }
 
     const payload = (await res.json()) as Record<string, unknown>;
-    const data = payload?.data && typeof payload.data === 'object' ? payload.data as Record<string, unknown> : null;
+    const data = payload.data && typeof payload.data === 'object'
+      ? payload.data as Record<string, unknown>
+      : null;
 
     const priceUsd = Number(data?.price ?? 0);
     const marketCap = Number(data?.marketCap ?? data?.market_cap ?? 0);
@@ -46,7 +97,12 @@ async function tryBinancePrice() {
 }
 
 export async function GET() {
-  const stats = await tryBinancePrice();
+  const [stats, dexPools] = await Promise.all([
+    tryBinancePrice(),
+    tryDexScreenerPools(),
+  ]);
+
+  const totalPoolSizeUsd = dexPools?.totalPoolSizeUsd ?? null;
 
   if (stats) {
     return NextResponse.json(
@@ -54,6 +110,8 @@ export async function GET() {
         priceUsd: stats.priceUsd,
         marketCap: stats.marketCap,
         source: stats.source,
+        totalPoolSizeUsd,
+        poolCount: dexPools?.poolCount ?? 0,
       },
       { status: 200 }
     );
@@ -64,6 +122,8 @@ export async function GET() {
       priceUsd: FALLBACK_PRICE_USD,
       marketCap: FALLBACK_MARKET_CAP,
       source: 'fallback',
+      totalPoolSizeUsd,
+      poolCount: dexPools?.poolCount ?? 0,
       error: 'Unable to load live BNBs price data',
     },
     { status: 200 }

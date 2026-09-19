@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const TIMELINE = [
+const TIMELINE_BASE = [
   { date: 'What is BNBs?',  desc: 'BNBs is the leading BNB Chain inscription, publicly minted on 2023 via the EVM platform (evm.ink). The inscription has been fully converted into a meme token on Pinklock. BNBs is an inscription meme token that combines a fair launch mechanism — inherited from the inscription model — with a meme-style swap trading mechanism.' },
   { date: 'CA',  desc: '0xC07ef1C7af6112C34A110809C6c8Efb343e63A64' },
   { date: '2026.04',  desc: 'New official website launched: www.bnbscommunity.com' },
@@ -16,6 +16,45 @@ const TIMELINE = [
   { date: '2023.11.09', desc: 'BNBs inscription public mint, the BNBs community was established.' },
 ];
 
+const BNBs_PRICE_API = '/api/bnbs-price';
+
+function formatInteger(value: number): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+type BnbsData = {
+  poolSize: number;
+  marketCap: number;
+};
+
+async function getBnbsData(): Promise<BnbsData | null> {
+  try {
+    const res = await fetch(`${BNBs_PRICE_API}?t=${Date.now()}`, {
+      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+
+    const payload = await res.json();
+    const totalPoolSizeUsd = Number(payload?.totalPoolSizeUsd ?? NaN);
+    const marketCap = Number(payload?.marketCap ?? NaN);
+
+    if (
+      Number.isFinite(totalPoolSizeUsd) && totalPoolSizeUsd > 0 &&
+      Number.isFinite(marketCap) && marketCap > 0
+    ) {
+      return { poolSize: totalPoolSizeUsd, marketCap };
+    }
+  } catch (error) {
+    console.warn('BNBs data request failed:', error);
+  }
+
+  return null;
+}
+
 interface TimelineProps {
   sectionRef: React.RefObject<HTMLDivElement>;
   inView: boolean;
@@ -26,8 +65,75 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
   if (inView) hasBeenInView.current = true;
   const visible = hasBeenInView.current;
 
+  const [data, setData] = useState<BnbsData | null>(null);
+  const mountedRef = useRef(true);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
+
+  const fetchBnbsData = useCallback(async (isRetry = false) => {
+    const value = await getBnbsData();
+    if (!mountedRef.current) return;
+
+    if (value !== null) {
+      setData(value);
+      retryCountRef.current = 0;
+      return;
+    }
+
+    if (retryCountRef.current < 2 && !isRetry) {
+      retryCountRef.current++;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = setTimeout(() => fetchBnbsData(true), 3000);
+    }
+  }, []);
+
+  // 初始加载
+  useEffect(() => {
+    fetchBnbsData();
+  }, [fetchBnbsData]);
+
+  // 进入视口时刷新
+  useEffect(() => {
+    if (inView) {
+      retryCountRef.current = 0;
+      fetchBnbsData();
+    }
+  }, [inView, fetchBnbsData]);
+
+  // 进入视口后定期刷新（每 30 秒）
+  useEffect(() => {
+    if (!inView) return;
+
+    const interval = setInterval(() => {
+      retryCountRef.current = 0;
+      fetchBnbsData();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [inView, fetchBnbsData]);
+
+  const timeline = React.useMemo(() => {
+    const poolItem = {
+      date: 'Pool Size（Pool Size vs Market Cap）',
+      desc:
+        data !== null
+          ? `${formatInteger(data.poolSize)} USD（${((data.poolSize / data.marketCap) * 100).toFixed(2)} %）`
+          : '—',
+    };
+    const next = [...TIMELINE_BASE];
+    next.splice(2, 0, poolItem); // 插在 CA (index 1) 之后
+    return next;
+  }, [data]);
+
   return (
-    // モバイル: w-full px-3 py-3 / PC(md以上): w-1/2 pr-4 py-4
     <section ref={sectionRef} className="w-full md:w-1/2 py-3 md:py-4 px-3 md:px-0 md:pr-4" style={{ marginBottom: 20 }}>
       <div
         className="relative z-10"
@@ -53,13 +159,12 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
             }}
           />
 
-          {/* モバイル: space-y-[10px] / PC: space-y-[15px] */}
           <div className="space-y-[10px] sm:space-y-[15px] pb-5">
-            {TIMELINE.map((item, i) => {
+            {timeline.map((item, i) => {
               const isEven = i % 2 === 0;
               return (
                 <div
-                  key={i}
+                  key={item.date + i}
                   className="relative"
                   style={{
                     opacity: visible ? 1 : 0,
@@ -72,7 +177,6 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                     className="absolute z-20"
                     style={{ left: '12px', top: '0px', transform: 'translateX(-50%)' }}
                   >
-                    {/* モバイル: w-3 h-3 / PC: w-4 h-4 */}
                     <div
                       className="w-3 h-3 sm:w-4 sm:h-4 rounded-full"
                       style={{
@@ -86,7 +190,6 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                   </div>
 
                   {/* Card */}
-                  {/* モバイル: paddingLeft 28px / PC: 38px */}
                   <div style={{ paddingLeft: 'clamp(28px, 6vw, 38px)' }}>
                     <div
                       className="minimal-card rounded-xl hover:shadow-lg transition-all duration-300"
@@ -97,14 +200,12 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                         border: isEven
                           ? '1px solid rgba(91,127,255,0.2)'
                           : '1px solid rgba(0,208,132,0.2)',
-                        // モバイル: padding小さめ / PC: 14.4px 17.6px
                         padding: 'clamp(8px, 2vw, 14.4px) clamp(10px, 2.5vw, 17.6px)',
                         width: '110%',
                         maxWidth: 'calc(100% - 10px)',
                         textAlign: 'left',
                       }}
                     >
-                      {/* 日付ラベル: モバイル text-xs / PC text-sm */}
                       <div
                         className="text-xs sm:text-sm font-bold mb-1"
                         style={{
@@ -115,14 +216,12 @@ export default function Timeline({ sectionRef, inView }: TimelineProps) {
                       >
                         {item.date}
                       </div>
-                      {/* 本文: モバイル text-xs / sm text-sm / lg text-base */}
                       <p
                         className="text-xs sm:text-sm lg:text-base"
                         style={{
                           color: '#666',
                           lineHeight: 1.6,
                           fontFamily: "'Noto Sans SC', sans-serif",
-                          // 長いCA文字列などが画面外にはみ出さないよう折り返す
                           wordBreak: 'break-all',
                           overflowWrap: 'break-word',
                         }}
