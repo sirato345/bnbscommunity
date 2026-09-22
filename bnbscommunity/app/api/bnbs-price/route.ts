@@ -2,62 +2,26 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const runtime = 'nodejs';
 
 const BNBs_CONTRACT = '0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
 const BINANCE_PRICE_URL = `https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=56&contractAddress=${BNBs_CONTRACT}`;
-const DEXSCREENER_URL = `https://api.dexscreener.com/token-pairs/v1/bsc/${BNBs_CONTRACT}`;
+
 const FALLBACK_PRICE_USD = 0.00001;
 const FALLBACK_MARKET_CAP = 1_000;
 
-type DexScreenerPair = {
-  liquidity?: { usd?: number };
-  baseToken?: { symbol?: string };
-  quoteToken?: { symbol?: string };
+// ===== 缓存配置 =====
+const CACHE_TTL_MS = 15 * 1000;
+
+type PriceResult = {
+  priceUsd: number;
+  marketCap: number;
+  source: string;
 };
 
-async function tryDexScreenerPools(): Promise<{ totalPoolSizeUsd: number; poolCount: number } | null> {
-  try {
-    const res = await fetch(DEXSCREENER_URL, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    });
+let priceCache: { data: PriceResult | null; timestamp: number } | null = null;
 
-    if (!res.ok) {
-      console.warn('[bnbs-price] DexScreener request failed with status', res.status);
-      return null;
-    }
-
-    const pairs = (await res.json()) as DexScreenerPair[];
-
-    if (!Array.isArray(pairs) || pairs.length === 0) {
-      console.warn('[bnbs-price] DexScreener returned no pairs');
-      return null;
-    }
-
-    // 汇总所有池子的流动性
-    const totalPoolSizeUsd = pairs.reduce((sum, pair) => {
-      const liquidity = Number(pair.liquidity?.usd ?? 0);
-      return sum + (Number.isFinite(liquidity) ? liquidity : 0);
-    }, 0);
-
-    if (!Number.isFinite(totalPoolSizeUsd) || totalPoolSizeUsd <= 0) {
-      console.warn('[bnbs-price] DexScreener total liquidity not usable:', totalPoolSizeUsd);
-      return null;
-    }
-
-    console.log(`[bnbs-price] DexScreener found ${pairs.length} pools, total liquidity: $${totalPoolSizeUsd}`);
-
-    return {
-      totalPoolSizeUsd,
-      poolCount: pairs.length,
-    };
-  } catch (err) {
-    console.error('[bnbs-price] DexScreener request threw', err);
-    return null;
-  }
-}
-
-async function tryBinancePrice() {
+async function tryBinancePrice(): Promise<PriceResult | null> {
   try {
     const res = await fetch(BINANCE_PRICE_URL, {
       headers: {
@@ -73,9 +37,10 @@ async function tryBinancePrice() {
     }
 
     const payload = (await res.json()) as Record<string, unknown>;
-    const data = payload.data && typeof payload.data === 'object'
-      ? payload.data as Record<string, unknown>
-      : null;
+    const data =
+      payload.data && typeof payload.data === 'object'
+        ? (payload.data as Record<string, unknown>)
+        : null;
 
     const priceUsd = Number(data?.price ?? 0);
     const marketCap = Number(data?.marketCap ?? data?.market_cap ?? 0);
@@ -88,7 +53,10 @@ async function tryBinancePrice() {
       };
     }
 
-    console.warn('[bnbs-price] Binance response had no usable price field', JSON.stringify(payload).slice(0, 500));
+    console.warn(
+      '[bnbs-price] Binance response had no usable price field',
+      JSON.stringify(payload).slice(0, 500)
+    );
   } catch (err) {
     console.error('[bnbs-price] Binance request threw', err);
   }
@@ -97,35 +65,42 @@ async function tryBinancePrice() {
 }
 
 export async function GET() {
-  const [stats, dexPools] = await Promise.all([
-    tryBinancePrice(),
-    tryDexScreenerPools(),
-  ]);
+  const now = Date.now();
 
-  const totalPoolSizeUsd = dexPools?.totalPoolSizeUsd ?? null;
-
-  if (stats) {
+  // 1. 命中缓存
+  if (priceCache && now - priceCache.timestamp < CACHE_TTL_MS) {
+    console.log('[bnbs-price] price cache hit');
+    const cached = priceCache.data;
     return NextResponse.json(
-      {
-        priceUsd: stats.priceUsd,
-        marketCap: stats.marketCap,
-        source: stats.source,
-        totalPoolSizeUsd,
-        poolCount: dexPools?.poolCount ?? 0,
+      cached ?? {
+        priceUsd: FALLBACK_PRICE_USD,
+        marketCap: FALLBACK_MARKET_CAP,
+        source: 'fallback',
       },
       { status: 200 }
     );
   }
 
-  return NextResponse.json(
-    {
-      priceUsd: FALLBACK_PRICE_USD,
-      marketCap: FALLBACK_MARKET_CAP,
-      source: 'fallback',
-      totalPoolSizeUsd,
-      poolCount: dexPools?.poolCount ?? 0,
-      error: 'Unable to load live BNBs price data',
-    },
-    { status: 200 }
-  );
+  // 2. 请求真实数据
+  const stats = await tryBinancePrice();
+
+  if (stats) {
+    priceCache = { data: stats, timestamp: now };
+    return NextResponse.json(stats, { status: 200 });
+  }
+
+  // 3. 失败时返回旧缓存（如果有）
+  if (priceCache?.data) {
+    console.warn('[bnbs-price] returning stale price cache');
+    return NextResponse.json(priceCache.data, { status: 200 });
+  }
+
+  // 4. 彻底失败，写 fallback 到缓存
+  const fallback: PriceResult = {
+    priceUsd: FALLBACK_PRICE_USD,
+    marketCap: FALLBACK_MARKET_CAP,
+    source: 'fallback',
+  };
+  priceCache = { data: fallback, timestamp: now };
+  return NextResponse.json(fallback, { status: 200 });
 }

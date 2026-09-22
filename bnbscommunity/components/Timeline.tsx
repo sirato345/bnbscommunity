@@ -16,7 +16,7 @@ const TIMELINE_BASE = [
   { date: '2023.11.09', desc: 'BNBs inscription public mint, the BNBs community was established.' },
 ];
 
-const BNBs_PRICE_API = '/api/bnbs-price';
+const BNBs_POOL_API = '/api/bnbs-pool';
 
 function formatInteger(value: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -29,24 +29,36 @@ type BnbsData = {
 
 async function getBnbsData(): Promise<BnbsData | null> {
   try {
-    const res = await fetch(`${BNBs_PRICE_API}?t=${Date.now()}`, {
-      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
-      cache: 'no-store',
-    });
+    // 池子大小和市值分别来自两个 API
+    const [poolRes, priceRes] = await Promise.all([
+      fetch(`${BNBs_POOL_API}?t=${Date.now()}`, {
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+        cache: 'no-store',
+      }),
+      fetch(`/api/bnbs-price?t=${Date.now()}`, {
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+        cache: 'no-store',
+      }),
+    ]);
 
-    if (!res.ok) {
-      throw new Error(`Request failed with status ${res.status}`);
+    if (!poolRes.ok) {
+      throw new Error(`Pool request failed with status ${poolRes.status}`);
     }
 
-    const payload = await res.json();
-    const totalPoolSizeUsd = Number(payload?.totalPoolSizeUsd ?? NaN);
-    const marketCap = Number(payload?.marketCap ?? NaN);
+    const poolPayload = await poolRes.json();
+    const totalPoolSizeUsd = Number(poolPayload?.totalPoolSizeUsd ?? NaN);
 
-    if (
-      Number.isFinite(totalPoolSizeUsd) && totalPoolSizeUsd > 0 &&
-      Number.isFinite(marketCap) && marketCap > 0
-    ) {
-      return { poolSize: totalPoolSizeUsd, marketCap };
+    let marketCap = NaN;
+    if (priceRes.ok) {
+      const pricePayload = await priceRes.json();
+      marketCap = Number(pricePayload?.marketCap ?? NaN);
+    }
+
+    if (Number.isFinite(totalPoolSizeUsd) && totalPoolSizeUsd > 0) {
+      return {
+        poolSize: totalPoolSizeUsd,
+        marketCap: Number.isFinite(marketCap) && marketCap > 0 ? marketCap : 0,
+      };
     }
   } catch (error) {
     console.warn('BNBs data request failed:', error);
