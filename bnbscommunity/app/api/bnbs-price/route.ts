@@ -11,7 +11,7 @@ const FALLBACK_PRICE_USD = 0.00001;
 const FALLBACK_MARKET_CAP = 1_000;
 
 // ===== 缓存配置 =====
-const CACHE_TTL_MS = 15 * 1000;
+const CACHE_TTL_MS = 8 * 1000;
 
 type PriceResult = {
   priceUsd: number;
