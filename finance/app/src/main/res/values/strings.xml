@@ -1,0 +1,26 @@
+<resources>
+    <string name="symbol_btc">BTC</string>
+    <string name="symbol_eth">ETH</string>
+    <string name="symbol_dow">Dow Jones</string>
+    <string name="symbol_sp500">S&amp;P500</string>
+    <string name="symbol_nasdaq">Nasdaq</string>
+    <string name="symbol_nikkei">Nikkei</string>
+    <string name="symbol_dollor">Dollor Index</string>
+    <string name="symbol_usbond">US 10-year Yield</string>
+    <string name="symbol_gold">Gold</string>
+    <string name="symbol_silver">Silver</string>
+
+    <string name="macd_single">MACD\nSingal</string>
+    <string name="macd_double">MACD\nDouble</string>
+    <string name="k_line_normal">Candle\nChart </string>
+    <string name="k_line_average">Average\nChart</string>
+
+    <string name="timeframe_day">Daily</string>
+    <string name="timeframe_week">Weekly</string>
+    <string name="timeframe_month">Monthly</string>
+    <string name="timeframe_quarter">3-Month</string>
+    <string name="timeframe_year">Yearly</string>
+
+    <string name="action_settings">Setting</string>
+    <string name="icon_label">BNBs Finance</string>
+</resources>

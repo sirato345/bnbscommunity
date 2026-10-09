@@ -1,0 +1,16 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+    </style>
+
+        <style name="ChildActivityTheme" parent="android:style/Theme.Dialog">
+        <!-- styles.xml中に利用 -->
+        <item name="android:windowBackground">@drawable/background</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+        <item name="android:windowNoTitle">true</item>
+        </style>
+
+    </resources>

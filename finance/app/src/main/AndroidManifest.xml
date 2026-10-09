@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.finance">
+
+    <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- 存储权限（Android 10+需要分区存储适配） -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />  <!-- Android 10以上不需要 -->
+
+    <!-- 其他权限 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.GET_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- 移除 sharedUserId="android.uid.system" - 这是系统应用才需要的，普通应用会导致Google Play拒绝 -->
+    <application
+        android:name="com.finance.common.MyApp"
+        android:allowBackup="true"
+        android:icon="@drawable/finance"
+        android:label="@string/icon_label"
+        android:theme="@style/AppTheme"
+        android:configChanges="orientation|screenSize|keyboardHidden"
+        android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true">  <!-- Android 10临时适配 -->
+
+        <!-- 主Activity -->
+        <activity
+            android:name=".view.ChartActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">  <!-- 根据需求设置 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 子Activity -->
+        <activity
+            android:name=".view.ChildActivity"
+            android:theme="@style/ChildActivityTheme"
+            android:exported="false" />  <!-- 如果是内部使用，添加exported=false -->
+
+    </application>
+</manifest>

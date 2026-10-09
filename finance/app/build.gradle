@@ -1,0 +1,82 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'  // 添加Kotlin插件
+
+android {
+    // 👇 添加这一行，指定命名空间
+    namespace 'com.finance'
+
+    compileSdk rootProject.ext.compile_sdk_version  // 使用根变量
+
+    defaultConfig {
+        applicationId "com.finance"
+        minSdk rootProject.ext.min_sdk_version
+        targetSdk rootProject.ext.target_sdk_version
+        versionCode 1
+        versionName "1.0"
+
+        // 添加矢量图支持
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true  // 建议开启混淆
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+    }
+
+    // 源集配置保持不变
+    sourceSets {
+        main {
+            resources.srcDirs = [
+                    'src/main/resources',
+                    'src/main/resources/property',
+                    'src/main/resources/graphic',
+                    'src/main/resources/initialdata'
+            ]
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17  // 升级到Java 17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 添加Kotlin编译选项
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // 添加打包选项
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/*.kotlin_module']
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    // Kotlin标准库（根版本已定义）
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    // AndroidX核心库（更新到最新）
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // 生命周期组件（如果需要）
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+
+    // 测试依赖
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
