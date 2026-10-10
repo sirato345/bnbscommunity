@@ -110,8 +110,11 @@ public class ChildActivity extends Activity {
         if (symbol.equals(Const.Symbol.xagusd.toString())) {
             button = (Button)this.findViewById(R.id.button_silver);
         }
-        Drawable drawable= getResources().getDrawable(R.drawable.button_symbol_select);
-        button.setBackground(drawable);
+        if (button != null) {
+            Drawable drawable = getResources().getDrawable(R.drawable.button_symbol_select);
+            button.setBackground(drawable);
+        }
+        Drawable drawable;
         if (macd.equals(Const.Macd.Single.toString())) {
             button = (Button)this.findViewById(R.id.button_macd_single);
         }
