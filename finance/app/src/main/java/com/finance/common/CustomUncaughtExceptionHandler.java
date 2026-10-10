@@ -1,5 +1,6 @@
 package com.finance.common;
 
+import android.app.Application;
 import android.util.Log;
 
 import java.io.PrintWriter;
@@ -10,25 +11,28 @@ public class CustomUncaughtExceptionHandler implements Thread.UncaughtExceptionH
 
     private static final String TAG = "CustomUncaughtExceptionHandler";
     private static CustomUncaughtExceptionHandler handler;
-    private LogWriter logWriter;
+    private volatile LogWriter logWriter;
+    private volatile Thread.UncaughtExceptionHandler defaultHandler;
 
-    private CustomUncaughtExceptionHandler() {
-        // 私有构造函数，防止外部实例化
+    CustomUncaughtExceptionHandler() {
+        // Keep construction within the common package.
     }
 
-    public static CustomUncaughtExceptionHandler getInstance() {
+    public static synchronized CustomUncaughtExceptionHandler getInstance() {
         if (handler == null) {
             handler = new CustomUncaughtExceptionHandler();
         }
         return handler;
     }
 
-    /**
-     * 初始化方法，需要在Application中调用
-     */
-    public void init(android.app.Application application) {
+    public synchronized void init(Application application) {
         this.logWriter = LogWriter.getInstance(application);
-        Thread.setDefaultUncaughtExceptionHandler(this);
+        Thread.UncaughtExceptionHandler currentHandler =
+                Thread.getDefaultUncaughtExceptionHandler();
+        if (currentHandler != this) {
+            defaultHandler = currentHandler;
+            Thread.setDefaultUncaughtExceptionHandler(this);
+        }
     }
 
     @Override
@@ -46,7 +50,12 @@ public class CustomUncaughtExceptionHandler implements Thread.UncaughtExceptionH
             Log.e(TAG, stackTrace);
         }
 
-        // デフォルト例外ハンドラを実行し、強制終了します。
-        Thread.getDefaultUncaughtExceptionHandler().uncaughtException(thread, ex);
+        Thread.UncaughtExceptionHandler delegate = defaultHandler;
+        if (delegate != null && delegate != this) {
+            delegate.uncaughtException(thread, ex);
+        } else {
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(10);
+        }
     }
 }

@@ -1,27 +1,37 @@
 package com.finance.common;
 
 import android.content.Context;
-import android.os.Environment;
 import android.util.Log;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class LogWriter {
     private static final String TAG = "LogWriter";
-    private static final SimpleDateFormat contentFormat = new SimpleDateFormat("[yyyy.MM.dd HH:mm:ss]: ");
-    private static final SimpleDateFormat logFileFormat = new SimpleDateFormat("yyyy.MM.dd");
-    private static final SimpleDateFormat errFileFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
+    private static final DateTimeFormatter CONTENT_FORMAT =
+            DateTimeFormatter.ofPattern("'['yyyy.MM.dd HH:mm:ss']': ", Locale.US);
+    private static final DateTimeFormatter LOG_FILE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy.MM.dd", Locale.US);
+    private static final DateTimeFormatter ERROR_FILE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss", Locale.US);
 
     private static LogWriter instance;
-    private Context context;
+    private final File logDirectory;
 
     private LogWriter(Context context) {
-        this.context = context != null ? context.getApplicationContext() : null;
+        Context applicationContext = context == null ? null : context.getApplicationContext();
+        if (applicationContext == null) {
+            logDirectory = null;
+            return;
+        }
+        File externalDirectory = applicationContext.getExternalFilesDir("logs");
+        logDirectory = externalDirectory != null
+                ? externalDirectory : new File(applicationContext.getFilesDir(), "logs");
     }
 
     public static synchronized LogWriter getInstance(Context context) {
@@ -33,7 +43,7 @@ public class LogWriter {
 
     public static synchronized LogWriter getWriter() {
         if (instance == null) {
-            instance = new LogWriter(null);
+            throw new IllegalStateException("LogWriter has not been initialized");
         }
         return instance;
     }
@@ -69,7 +79,7 @@ public class LogWriter {
             }
 
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, append))) {
-                writer.write(contentFormat.format(new Date()));
+                writer.write(CONTENT_FORMAT.format(LocalDateTime.now()));
                 writer.write(content);
                 writer.write("\n");
                 writer.flush();
@@ -80,37 +90,24 @@ public class LogWriter {
     }
 
     private File getLogFile() {
-        return getLogFile(Const.LOG_FILE + logFileFormat.format(new Date()) + ".txt");
+        return getLogFile(Const.LOG_FILE + LOG_FILE_FORMAT.format(LocalDateTime.now()) + ".txt");
     }
 
     private File getErrFile() {
-        return getLogFile(Const.ERR_FILE + errFileFormat.format(new Date()) + ".txt");
+        return getLogFile(Const.ERR_FILE + ERROR_FILE_FORMAT.format(LocalDateTime.now()) + ".txt");
     }
 
     private File getLogFile(String fileName) {
-        File logDir;
-
-        if (context == null) {
-            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-                logDir = Environment.getExternalStorageDirectory();
-            } else {
-                logDir = new File("/sdcard");
-            }
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            // Android 10+ 使用应用专属目录
-            logDir = context.getExternalFilesDir(null);
-            if (logDir == null) {
-                logDir = context.getFilesDir();
-            }
-        } else {
-            // Android 9 及以下
-            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-                logDir = Environment.getExternalStorageDirectory();
-            } else {
-                logDir = context.getFilesDir();
-            }
+        if (logDirectory == null) {
+            throw new IllegalStateException("LogWriter requires an application context");
         }
+        return new File(logDirectory, fileName);
+    }
 
-        return new File(logDir, fileName);
+    File getLogDirectory() {
+        if (logDirectory == null) {
+            throw new IllegalStateException("LogWriter requires an application context");
+        }
+        return logDirectory;
     }
 }

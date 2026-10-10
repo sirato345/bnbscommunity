@@ -10,6 +10,7 @@ import androidx.fragment.app.DialogFragment;
 import com.finance.controller.Controller;
 
 import java.util.Calendar;
+import java.util.Locale;
 
 public class DatePickerFragment extends DialogFragment
         implements DatePickerDialog.OnDateSetListener {
@@ -31,8 +32,8 @@ public class DatePickerFragment extends DialogFragment
     }
 
     public void onDateSet(DatePicker view, int year, int month, int day) {
-        String monthStr = String.format("%02d", month + 1);
-        String dateStr = String.format("%02d", day);
+        String monthStr = String.format(Locale.US, "%02d", month + 1);
+        String dateStr = String.format(Locale.US, "%02d", day);
         // 選択された日付
         String dateSelect = new StringBuffer().append(year).append(monthStr).append(dateStr).toString();
         int[] offsets = controller.getOffset(activity.getSymbol(), activity.getTimeFrame(), dateSelect);

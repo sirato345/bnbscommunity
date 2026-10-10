@@ -75,7 +75,7 @@ public class NetConnectorYahoo extends AsyncTask<Object, Void, String> {
         }
     }
 
-    private List<String> parseChartResponse(String response) throws Exception {
+    List<String> parseChartResponse(String response) throws Exception {
         List<String> parsedRecords = new ArrayList<>();
         JSONObject chart = new JSONObject(response).getJSONObject("chart");
         if (!chart.isNull("error")) {

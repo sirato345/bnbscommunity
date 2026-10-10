@@ -90,7 +90,7 @@ public class NetConnectorBinanceIntraday
         }
     }
 
-    private List<String> parseCandles(String response) throws Exception {
+    List<String> parseCandles(String response) throws Exception {
         JSONArray candles = new JSONArray(response);
         List<String> records = new ArrayList<>();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);

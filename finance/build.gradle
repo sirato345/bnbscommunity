@@ -2,9 +2,7 @@
 
 buildscript {
     ext {
-        // 定义全局版本变量
-        kotlin_version = '1.9.24'  // 最新稳定版Kotlin
-        gradle_version = '8.4.2'    // 匹配Android Gradle插件
+        android_gradle_plugin_version = '8.9.1'
         compile_sdk_version = 35
         target_sdk_version = 35
         min_sdk_version = 26
@@ -14,8 +12,7 @@ buildscript {
         mavenCentral()  // 替换jcenter()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:$gradle_version"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.android.tools.build:gradle:$android_gradle_plugin_version"
     }
 }
 

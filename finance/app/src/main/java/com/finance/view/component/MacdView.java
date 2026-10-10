@@ -14,6 +14,7 @@ import com.finance.R;
 import com.finance.common.Const;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdInfo;
+import com.finance.view.component.macd.MacdCalculator;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.StickInfo;
 
@@ -159,7 +160,8 @@ public class MacdView  extends View {
     private void calcMacd() {
         for (int i = start_Macd; i >= endOfStick; i--) {
             MacdInfo macdInfo = macdList.get(i);
-            float macd = macdInfo.getEmaFast() - macdInfo.getEmaSlow();
+            float macd = MacdCalculator.calculateMacd(
+                    macdInfo.getEmaFast(), macdInfo.getEmaSlow());
             macdInfo.setMacd(macd);
         }
     }
@@ -187,7 +189,8 @@ public class MacdView  extends View {
     private void calcMacd_osci() {
         for (int i = start_Macd_Osci; i >= endOfStick; i--) {
             MacdInfo macdInfo = macdList.get(i);
-            float macd_osci = macdInfo.getMacd() - macdInfo.getSignal();
+            float macd_osci = MacdCalculator.calculateHistogram(
+                    macdInfo.getMacd(), macdInfo.getSignal());
             macdInfo.setMacd_osci(macd_osci);
         }
     }
@@ -236,9 +239,7 @@ public class MacdView  extends View {
 
     /* 指数平滑移動平均計算 */
     private float getCurrentEMA(float close, int peroid, float emaBefore) {
-        float a = 2f / (peroid + 1);
-        float emaCurrent = emaBefore + a * (close - emaBefore);
-        return emaCurrent;
+        return MacdCalculator.calculateNextEma(close, peroid, emaBefore);
     }
 
     @Override

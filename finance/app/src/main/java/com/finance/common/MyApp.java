@@ -17,8 +17,8 @@ public class MyApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        // 设置未捕获异常处理器
-        Thread.setDefaultUncaughtExceptionHandler(CustomUncaughtExceptionHandler.getInstance());
+        LogWriter.getInstance(this);
+        CustomUncaughtExceptionHandler.getInstance().init(this);
     }
 
     public synchronized boolean isNeedConnect(@NonNull String symbol) {

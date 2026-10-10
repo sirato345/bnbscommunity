@@ -12,7 +12,6 @@ import android.widget.Button;
 
 import com.finance.R;
 import com.finance.common.Const;
-import com.finance.common.CustomUncaughtExceptionHandler;
 
 /**
  * 設定画面：銘柄、MACD、ローソク線、タイムフレーム
@@ -22,8 +21,6 @@ public class ChildActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // 想定外異常の処理ハンドラを設定
-        this.setExceptionHandler();
         // View設定
         super.setContentView(R.layout.activity_child);
         // 画面サイズ設定
@@ -35,12 +32,6 @@ public class ChildActivity extends Activity {
     /* 横竖屏取得 */
     public int getOrientation() {
         return this.getResources().getConfiguration().orientation;
-    }
-
-    /* 想定外異常の処理ハンドラを設定 */
-    private void setExceptionHandler() {
-        CustomUncaughtExceptionHandler handler = CustomUncaughtExceptionHandler.getInstance();
-        Thread.setDefaultUncaughtExceptionHandler(handler);
     }
 
     /* 画面サイズ設定 */

@@ -17,7 +17,6 @@ import android.os.Handler;
 
 import com.finance.R;
 import com.finance.common.Const;
-import com.finance.common.CustomUncaughtExceptionHandler;
 import com.finance.common.LogCleaner;
 import com.finance.common.LogWriter;
 import com.finance.common.MyApp;
@@ -44,10 +43,6 @@ import java.util.Set;
 public class ChartActivity extends FragmentActivity implements Observer,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
-    static {
-        // 想定外異常の処理ハンドラを設定
-        setExceptionHandler();
-    }
     // 画面サイズ共通情報
     ComnInfo comnInfo;
     // コントローラー
@@ -132,7 +127,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // CSVファイルからDBにデータをロード
         this.controller.loadCsvData();
         // ログファイルクリア
-        LogCleaner.startClean();
+        LogCleaner.startClean(this);
     }
 
     @Override
@@ -538,12 +533,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return stickList;
     }
 
-    /* 想定外異常の処理ハンドラを設定 */
-    private static void setExceptionHandler() {
-        CustomUncaughtExceptionHandler handler = CustomUncaughtExceptionHandler.getInstance();
-        Thread.setDefaultUncaughtExceptionHandler(handler);
-    }
-
     /* 画面初期化 */
     private void initiallize() {
         // タイトル非表示
@@ -571,6 +560,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 設定後、Activity再表示のため、onResumeにより画面再度更新 */
     protected void onActivityResult(int requestCode, int resultCode, Intent intent)
     {
+        super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == Const.REQUEST_CODE && resultCode == Const.REQUEST_CODE)
         {
             Bundle bundle = intent.getExtras();

@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.finance">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-    <!-- 存储权限（Android 10+需要分区存储适配） -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />  <!-- Android 10以上不需要 -->
-
-    <!-- 其他权限 -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.GET_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-
-    <!-- 移除 sharedUserId="android.uid.system" - 这是系统应用才需要的，普通应用会导致Google Play拒绝 -->
     <application
         android:name="com.finance.common.MyApp"
         android:allowBackup="true"
@@ -24,8 +12,7 @@
         android:label="@string/icon_label"
         android:theme="@style/AppTheme"
         android:configChanges="orientation|screenSize|keyboardHidden"
-        android:supportsRtl="true"
-        android:requestLegacyExternalStorage="true">  <!-- Android 10临时适配 -->
+        android:supportsRtl="true">
 
         <!-- 主Activity -->
         <activity
