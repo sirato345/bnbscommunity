@@ -34,10 +34,11 @@ public class Controller {
     /**
      * 過日データをロード
      */
-    public void loadPastData(@NonNull String symbol) {
+    public boolean loadPastData(@NonNull String symbol) {
         if (model != null) {
-            model.loadPastData(symbol);
+            return model.loadPastData(symbol);
         }
+        return false;
     }
 
     /**
@@ -64,27 +65,11 @@ public class Controller {
     }
 
     /**
-     * 過日データ更新可否判定
-     */
-    public boolean hasPastData(@NonNull String symbol) {
-        return model != null && model.hasPastData(symbol);
-    }
-
-    /**
      * 当日データをロード
      */
     public void loadIntraDayData(@NonNull String symbol) {
         if (model != null) {
             model.loadIntraDayData(symbol);
-        }
-    }
-
-    /**
-     * 休日情報を最新化
-     */
-    public void loadCalendarData(@NonNull String symbol) {
-        if (model != null) {
-            model.loadCalendarData(symbol);
         }
     }
 
@@ -137,12 +122,4 @@ public class Controller {
         }
     }
 
-    /**
-     * 删除节假日数据
-     */
-    public void deleteHolidays() {
-        if (model != null) {
-            model.deleteHolidays();
-        }
-    }
 }

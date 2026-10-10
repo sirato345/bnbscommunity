@@ -9,10 +9,6 @@ public class Const {
 
     public static final String SYMBOL_PROPERTY = "symbol.properties";
 
-    public static final String GOOGLE_CALENDAR_PROPERTY = "GoogleCalendar.properties";
-
-    public static final String CALENDAR_TABLE = "calendar";
-
     public static final String TREND_LINE_TABLE = "trendline";
 
     public static final String LOG_FILE = "finance_log_";
@@ -101,27 +97,15 @@ public class Const {
 
     public static final String MESSAGE_2 = "DB初期データ定義ファイル取得失敗。";
 
-    public static final String MESSAGE_3 = "Yahoo URL ファイルの取得に失敗しました。";
-
     public static final String MESSAGE_4 = "没有网络连接";
-
-    public static final String MESSAGE_5 = "Google Calendar URL ファイルの取得に失敗しました。";
 
     public static final String MESSAGE_6 = "アクセスURLが不正";
 
     public static final String SUCCESS = "成功";
     // 設定画面Activityの戻り値取得用
     public final static int REQUEST_CODE = 1;
-    // ネット接続失敗リトライ回数
-    public static final int CONNECT_TIMES = 3;
-    // ネットデータ更新の間隔
-    public static final long UPDATE_GAP = 900000L;
     // 画面の右側からのスペース数（DP）
     public static final int DEFAULT_OFFSET = 4;
-
-    public static final String CALENDAR_PREFIX = "DTSTART;VALUE=DATE:";
-
-    public static final String SUMMARY_PREFIX = "SUMMARY:";
 
     public static final int STATUS_BAR_HEIGHT = 75;
 }

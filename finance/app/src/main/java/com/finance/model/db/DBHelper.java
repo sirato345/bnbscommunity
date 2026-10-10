@@ -20,8 +20,6 @@ public class DBHelper extends SQLiteOpenHelper {
     private static final String TAG = "DBHelper";
     private static final String CREATE_TABLE_SQL =
             "CREATE TABLE IF NOT EXISTS %s (Date TEXT PRIMARY KEY, Open REAL, High REAL, Low REAL, Close REAL)";
-    private static final String CREATE_CALENDAR_TABLE_SQL =
-            "CREATE TABLE IF NOT EXISTS %s (Id INTEGER PRIMARY KEY AUTOINCREMENT, Date TEXT, Summary TEXT, Symbol TEXT)";
     private static final String CREATE_TREND_LINE_TABLE_SQL =
             "CREATE TABLE IF NOT EXISTS %s (Id INTEGER PRIMARY KEY AUTOINCREMENT, Symbol TEXT, Timeframe TEXT, " +
                     "Date1 TEXT, Price1 REAL, Date2 TEXT, Price2 REAL)";
@@ -69,10 +67,6 @@ public class DBHelper extends SQLiteOpenHelper {
                 db.execSQL(sql);
             }
 
-            // 创建日历表
-            String calendarSql = String.format(CREATE_CALENDAR_TABLE_SQL, Const.CALENDAR_TABLE);
-            db.execSQL(calendarSql);
-
             // 创建趋势线表
             String trendLineSql = String.format(CREATE_TREND_LINE_TABLE_SQL, Const.TREND_LINE_TABLE);
             db.execSQL(trendLineSql);
@@ -92,7 +86,6 @@ public class DBHelper extends SQLiteOpenHelper {
             for (String tableName : tableList) {
                 db.execSQL("DROP TABLE IF EXISTS " + tableName);
             }
-            db.execSQL("DROP TABLE IF EXISTS " + Const.CALENDAR_TABLE);
             db.execSQL("DROP TABLE IF EXISTS " + Const.TREND_LINE_TABLE);
             db.setTransactionSuccessful();
         } catch (Exception e) {

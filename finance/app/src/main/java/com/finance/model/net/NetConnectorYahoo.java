@@ -1,147 +1,145 @@
 package com.finance.model.net;
 
 import android.os.AsyncTask;
+
 import com.finance.common.Const;
 import com.finance.common.LogWriter;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
-import java.util.ArrayList;
-import java.util.List;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 /**
- * ネット接億クラス
+ * Downloads and parses Yahoo daily chart data.
  */
-public class NetConnectorYahoo extends AsyncTask {
+public class NetConnectorYahoo extends AsyncTask<Object, Void, String> {
 
-    private NetOperatorYahoo netOperator;
-    private String intraDayData;
-    private List<String> historyData;
-    private boolean historical;
+    private final NetOperatorYahoo netOperator;
     private String symbol;
+    private boolean historical;
+    private List<String> records;
 
     public NetConnectorYahoo(NetOperatorYahoo netOperator) {
         this.netOperator = netOperator;
     }
 
     @Override
-    protected Object doInBackground(Object[] params) {
-        this.symbol = (String)params[0];
+    protected String doInBackground(Object... params) {
+        symbol = (String)params[0];
         String url = (String)params[1];
-        this.historical = (Boolean)params[2];
-        URL getUrl;
-        // URLオブジェクト取得
+        historical = (Boolean)params[2];
+        HttpURLConnection connection = null;
         try {
-            getUrl = new URL(url);
-        } catch (MalformedURLException e) {
-            return Const.MESSAGE_6;
-        }
-        LogWriter.getWriter().printLog("アクセスURL：" + url);
-        HttpURLConnection conn = null;
-        try {
-            conn = (HttpURLConnection)getUrl.openConnection();
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; FinanceApp/1.0)");
-            conn.setRequestProperty("Accept", "application/json");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(15000);
-            int responseCode = conn.getResponseCode();
+            URL requestUrl = new URL(url);
+            LogWriter.getWriter().printLog("アクセスURL：" + url);
+            connection = (HttpURLConnection)requestUrl.openConnection();
+            connection.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (compatible; FinanceApp/1.0)");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(15000);
+
+            int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new java.io.IOException("HTTP " + responseCode + ": " + readError(conn));
+                throw new java.io.IOException("HTTP " + responseCode + ": " + readError(connection));
             }
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+
             StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
             }
-            reader.close();
-            List<String> records = parseChartResponse(response.toString());
-            if (records.isEmpty()) {
-                throw new java.io.IOException("No daily market data returned");
-            }
-            if (historical) {
-                historyData = records;
-            } else {
-                intraDayData = records.get(records.size() - 1);
-            }
+            records = parseChartResponse(response.toString());
+            return Const.SUCCESS;
         } catch (Exception e) {
             LogWriter.getWriter().printLog("銘柄：" + symbol + "、接続失敗: " + e.getMessage());
             return e.getMessage() == null ? "Market data request failed" : e.getMessage();
         } finally {
-            if (conn != null) {
-                conn.disconnect();
+            if (connection != null) {
+                connection.disconnect();
             }
         }
-        return Const.SUCCESS;
     }
 
     private List<String> parseChartResponse(String response) throws Exception {
-        List<String> records = new ArrayList<>();
+        List<String> parsedRecords = new ArrayList<>();
         JSONObject chart = new JSONObject(response).getJSONObject("chart");
         if (!chart.isNull("error")) {
             throw new java.io.IOException(chart.getJSONObject("error").optString("description"));
         }
         JSONArray results = chart.getJSONArray("result");
         if (results.length() == 0 || results.isNull(0)) {
-            return records;
+            return parsedRecords;
         }
+
         JSONObject result = results.getJSONObject(0);
         JSONArray timestamps = result.getJSONArray("timestamp");
-        JSONObject values = result.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0);
+        JSONObject values = result.getJSONObject("indicators")
+                .getJSONArray("quote").getJSONObject(0);
         JSONArray opens = values.getJSONArray("open");
         JSONArray highs = values.getJSONArray("high");
         JSONArray lows = values.getJSONArray("low");
         JSONArray closes = values.getJSONArray("close");
+        String exchangeTimeZone = result.getJSONObject("meta")
+                .optString("exchangeTimezoneName", "UTC");
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        for (int i = timestamps.length() - 1; i >= 0; i--) {
-            if (opens.isNull(i) || highs.isNull(i) || lows.isNull(i) || closes.isNull(i)) {
+        dateFormat.setTimeZone(TimeZone.getTimeZone(exchangeTimeZone));
+
+        for (int i = 0; i < timestamps.length(); i++) {
+            if (i >= opens.length() || i >= highs.length()
+                    || i >= lows.length() || i >= closes.length()
+                    || opens.isNull(i) || highs.isNull(i)
+                    || lows.isNull(i) || closes.isNull(i)) {
                 continue;
             }
             String date = dateFormat.format(new Date(timestamps.getLong(i) * 1000L));
-                records.add(date + "," + opens.getDouble(i) + "," + highs.getDouble(i)
+            parsedRecords.add(date + "," + opens.getDouble(i) + "," + highs.getDouble(i)
                     + "," + lows.getDouble(i) + "," + closes.getDouble(i));
         }
-            return records;
+        return parsedRecords;
     }
 
-    private String readError(HttpURLConnection conn) {
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "UTF-8"));
+    private String readError(HttpURLConnection connection) {
+        if (connection.getErrorStream() == null) {
+            return "No provider error details";
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                connection.getErrorStream(), StandardCharsets.UTF_8))) {
             StringBuilder response = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
                 response.append(line);
             }
-            reader.close();
             return response.toString();
         } catch (Exception e) {
-            return "Unable to read provider error";
+            return "Unable to read provider error: " + e.getMessage();
         }
     }
 
     @Override
-    protected void onPostExecute(Object o) {
-        super.onPostExecute(o);
-        if (o.equals(Const.SUCCESS)) {
+    protected void onPostExecute(String result) {
+        if (Const.SUCCESS.equals(result)) {
             if (historical) {
-                netOperator.updateDB(symbol, historyData);
-            } else if (intraDayData != null) {
-                netOperator.updateDB(symbol, intraDayData);
+                netOperator.updateHistory(symbol, records);
             } else {
-                netOperator.notifyError(symbol, "No daily market data returned");
+                netOperator.updateLatestData(symbol, records);
             }
         } else {
-            netOperator.notifyError(symbol, (String) o, historical);
+            netOperator.notifyError(symbol, result, historical);
         }
     }
 }

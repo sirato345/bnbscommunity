@@ -17,10 +17,12 @@ import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class StickView extends View {
@@ -45,7 +47,10 @@ public class StickView extends View {
     // 当前60均线价格
     private float current60;
     // 对小数四舍五入
-    private DecimalFormat digitFromat = new DecimalFormat("#.###");
+    private final DecimalFormat digitFormat = new DecimalFormat(
+            "#.###", DecimalFormatSymbols.getInstance(Locale.US));
+    private final DecimalFormat btcDigitFormat = new DecimalFormat(
+            "#0.0", DecimalFormatSymbols.getInstance(Locale.US));
     // タッチ箇所
     private Point touchPoint;
     // 編集モードの押下ポイント
@@ -684,9 +689,11 @@ public class StickView extends View {
         return startX;
     }
 
-    /* 取得三位小数数值 */
+    /* 价格显示精度 */
     public String getLimitDigit(float value) {
-        return digitFromat.format(value).replaceAll("-","－");
+        DecimalFormat format = "btc".equals(activity.getSymbol())
+                ? btcDigitFormat : digitFormat;
+        return format.format(value).replaceAll("-", "－");
     }
 
     public void setTouchPoint(Point touchPoint) {

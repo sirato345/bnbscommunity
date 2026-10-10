@@ -31,9 +31,11 @@ import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.Set;
 
 /**
  * 表示画面：ローソク線、MACD
@@ -63,6 +65,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String symbol = Const.Symbol.btc.toString();
     // 表示中のタイムフレーム
     private String timeFrame = Const.TimeFrame.d.toString();
+    private final Set<String> loadIntradayAfterHistory = new HashSet<>();
     // 滑动柱体数量
     private int offset;
     // 每次触摸前备份当前滑动柱体数量，该次触摸中每次移动后回设该数量值
@@ -71,7 +74,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 所以在抬起时必须将最后一次移动后的偏移量真正设置到偏移量变量中进行保存
     private int offsetLast;
     // 表示中のMACDタイプ
-    public String macd = Const.Macd.Double.toString();
+    public String macd = Const.Macd.Single.toString();
     // 表示中のローソク線のタイプ
     public String kLine = Const.K_Line.Normal.toString();
     //最后一次按下时的位置
@@ -131,25 +134,35 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* onRestoreInstanceStateの直後に呼び出される */
     protected void onResume() {
         super.onResume();
-        // 节假日clear
-//        this.controller.deleteHolidays();
-        // 休日情報を最新化
-        controller.loadCalendarData(symbol);
         // 日线以外数据再计算
         controller.calculateWMQY(symbol);
         // DBからデータを取得し、UIに表示
         this.showUI();
-        // 判断是否有历史数据
-        if (controller.hasPastData(symbol)) {// 有历史数据，更新当天数据
-            // 当日データ取得
-            controller.loadIntraDayData(symbol);
-        } else {// 无历史数据，先更新历史数据，再更新当天数据
-            if (app.isNeedConnect(symbol)) {
-                // 接続中状態に設定
-                app.setConnecting(symbol);
-                // ネットデータ取得
-                controller.loadPastData(symbol);
+        requestMarketData();
+    }
+
+    private void requestMarketData() {
+        boolean historySyncDue = app.isHistorySyncDue(symbol);
+        boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame);
+        if (historySyncDue) {
+            if (updateIntraday) {
+                loadIntradayAfterHistory.add(symbol);
+            } else {
+                loadIntradayAfterHistory.remove(symbol);
             }
+            if (!app.isNeedConnect(symbol)) {
+                return;
+            }
+            app.setConnecting(symbol);
+            if (controller.loadPastData(symbol)) {
+                app.markHistorySyncAttempted(symbol);
+            } else {
+                loadIntradayAfterHistory.remove(symbol);
+                app.setResult(symbol, false);
+            }
+        } else if (updateIntraday && app.isNeedConnect(symbol)) {
+            app.setConnecting(symbol);
+            controller.loadIntraDayData(symbol);
         }
     }
 
@@ -177,20 +190,31 @@ public class ChartActivity extends FragmentActivity implements Observer,
         Boolean updResult = (Boolean)resultParam[0];
         // 更新銘柄
         String updSymbol = (String)resultParam[1];
-        // ネットデータ更新状態をリセット
-        app.setResult(updSymbol, updResult);
         // DB更新結果判定
         if (updResult) {// 更新正常終了
+            app.markHistorySyncSucceeded(updSymbol);
+            boolean shouldLoadIntraday = loadIntradayAfterHistory.remove(updSymbol);
             // ネットデータが来る前に、画面切替をした場合、DB更新のみを行い、画面更新なし
             // ネットからの戻りデータが画面表示銘柄と一致する場合のみ画面更新
             if (symbol.equals(updSymbol)) {
                 // 历史数据取得后，先刷新画面
                 this.showUI();
                 // 历史数据更新完了后，再更新当天数据
-                controller.loadIntraDayData(symbol);
+                if (shouldLoadIntraday
+                        && Const.TimeFrame.d.toString().equals(timeFrame)) {
+                    controller.loadIntraDayData(symbol);
+                } else {
+                    app.setResult(updSymbol, true);
+                }
+            } else {
+                app.setResult(updSymbol, true);
             }
         } else {// ネットワック異常又は更新断られる
-            this.showUI();
+            loadIntradayAfterHistory.remove(updSymbol);
+            app.setResult(updSymbol, false);
+            if (symbol.equals(updSymbol)) {
+                this.showUI();
+            }
         }
     }
 
@@ -202,6 +226,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         Boolean updResult = (Boolean)resultParam[0];
         // 更新銘柄
         String updSymbol = (String)resultParam[1];
+        app.setResult(updSymbol, updResult);
         // DB更新結果判定
         if (updResult) {// 更新正常終了
             // ネットデータが来る前に、画面切替をした場合、DB更新のみを行い、画面更新なし
@@ -209,8 +234,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
             if (symbol.equals(updSymbol)) {
                 this.showUI();
             }
-        } else {// ネットワック異常又は更新断られる
-            this.showUI();
+        } else {// ネットワック異常又は当日データがまだ存在しない
+            if (symbol.equals(updSymbol)) {
+                this.showUI();
+            }
         }
     }
 
@@ -707,7 +734,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
             // 銘柄切替によりスクロールをリセット
             this.setOffset(0);
-            this.onResume();
+            this.showUI();
+            requestMarketData();
         } else if (y_move < -180 && (Math.abs(y_move / x_move) > 2)) {// 向下
             // 次のタイムフレームを特定
             for (int i = 0; i < length; i ++) {
@@ -724,7 +752,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
             // 銘柄切替によりスクロールをリセット
             this.setOffset(0);
-            this.onResume();
+            this.showUI();
+            requestMarketData();
         }
         return true;
     }

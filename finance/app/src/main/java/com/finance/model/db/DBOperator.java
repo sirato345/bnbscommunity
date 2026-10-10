@@ -4,12 +4,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
-import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.finance.common.Const;
 import com.finance.common.LogWriter;
-import com.finance.common.TimeZoneUtil;
 import com.finance.model.file.FileOperator;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.trendline.TrendLine;
@@ -105,217 +103,83 @@ public class DBOperator {
         return DatabaseUtils.queryNumEntries(dbReadable, tableName);
     }
 
-    // データ取得の開始日付を算出
-    // 該当タイムフレーム最新日付の前のローソク足の値を取得
-    // 更新処理は当面のローソク足のみ更新
-    public String getDateFrom(String symbol, String timeFrame) {
-        String tableName = symbol + "_" + timeFrame;
-        String query = "select date from " + tableName + " order by date desc limit 1,1";
-        Cursor cursor = dbReadable.rawQuery(query, null);
-        cursor.moveToFirst();
-        String secondDate = cursor.getString(0);
-        cursor.close();
-        return secondDate;
-    }
-
-    // StooqからのデータをDBにインサート
-    public void updateDB(String symbol, String timeFrame, List<String> netDataList) {
-        if (netDataList.size() == 0) {
+    public void updateDB(String symbol, String timeFrame, List<String> records) {
+        if (records == null || records.isEmpty()) {
             return;
         }
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
+        List<ContentValues> valuesList = new ArrayList<>();
+        for (String record : records) {
+            String[] fields = convertToRecord(record);
+            if (fields == null) {
+                throw new IllegalArgumentException("Invalid market data record: " + record);
+            }
+            ContentValues values = new ContentValues();
+            values.put("Date", fields[0]);
+            values.put("Open", fields[1]);
+            values.put("High", fields[2]);
+            values.put("Low", fields[3]);
+            values.put("Close", fields[4]);
+            valuesList.add(values);
+        }
+
         dbWritable.beginTransactionNonExclusive();
-        String table = symbol + "_" + timeFrame;
-
-        ///////////////////////取得開始日データの更新////////////////////////
-        String[] recordUpdate = convertToRecord(netDataList.get(0));
-        // 判断数据格式是否正确
-        if (recordUpdate == null) {
-            return;
-        }
-        String sql = "update " + table + " set OPEN='" + recordUpdate[1]
-                + "'" + " , HIGH='" + recordUpdate[2] + "'" + " , LOW='"
-                + recordUpdate[3] + "'" + " , CLOSE='" + recordUpdate[4]
-                + "'" + " where date='" + recordUpdate[0] + "'";
-        log("SQL実行:" + sql);
-        dbWritable.execSQL(sql);
-
-        ///////////////////////取得開始日以降データの登録/////////////////////
         try {
-            for (int i = 1; i < netDataList.size(); i++) {
-                String[] recordForInsert = convertToRecord(netDataList.get(i));
-                // 判断数据格式是否正确
-                if (recordForInsert == null) {
-                    return;
+            String table = symbol + "_" + timeFrame;
+            for (ContentValues values : valuesList) {
+                long rowId = dbWritable.insertWithOnConflict(
+                        table, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+                if (rowId == -1) {
+                    throw new IllegalStateException("Failed to save market data to " + table
+                            + " for date " + values.getAsString("Date"));
                 }
-                sql = "insert into " + table + " values ('" + recordForInsert[0]
-                        + "','" + recordForInsert[1] + "','" + recordForInsert[2]
-                        + "','" + recordForInsert[3] + "','" + recordForInsert[4]
-                        + "')";
-                dbWritable.execSQL(sql);
-                log("SQL実行:" + sql);
             }
-        } catch(SQLException e) {
-            for (int i = 0; i < netDataList.size(); i++) {
-                String[] recordForInsert = convertToRecord(netDataList.get(i));
-                sql = "delete from " + table + " where date = '" + recordForInsert[0]
-                        + "'";
-                dbWritable.execSQL(sql);
-                sql = "insert into " + table + " values ('" + recordForInsert[0]
-                        + "','" + recordForInsert[1] + "','" + recordForInsert[2]
-                        + "','" + recordForInsert[3] + "','" + recordForInsert[4]
-                        + "')";
-                dbWritable.execSQL(sql);
-            }
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
         }
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
-        // 日线数据加载后，重新计算周月季年数据
-        this.calculateWMQY(symbol);
-    }
-
-    // YahooからのデータをDBにインサート
-    public void updateDB(String symbol, String timeFrame, String intraDayData) {
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
-        dbWritable.beginTransactionNonExclusive();
-        String table = symbol + "_" + timeFrame;
-        String[] recordForInsert = convertToRecord(intraDayData);
-        // 判断数据格式是否正确
-        if (recordForInsert == null) {
-            return;
-        }
-        // 判断当日数据是否存在
-        if (hasData(table, recordForInsert[0])) {
-            return;
-        }
-        String sql = "insert into " + table + " values ('" + recordForInsert[0]
-                + "','" + recordForInsert[1] + "','" + recordForInsert[2]
-                + "','" + recordForInsert[3] + "','" + recordForInsert[4]
-                + "')";
-        dbWritable.execSQL(sql);
-        log("SQL実行:" + sql);
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
-        // 日线数据加载后，重新计算周月季年数据
-        this.calculateWMQY(symbol);
-    }
-
-    // GoogleからのデータをDBにインサート
-    public void updateDB(String symbol, List<String> calendarDataList) {
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
-        dbWritable.beginTransactionNonExclusive();
-        String localeYear = TimeZoneUtil.getLocaleYear(symbol);
-        String calendarPrefix = Const.CALENDAR_PREFIX + localeYear;
-        String calendarDate = null;
-        String summary = null;
-        String data = null;
-        for (int i = 0; i < calendarDataList.size(); i++) {
-            data = calendarDataList.get(i);
-            if (data.indexOf(calendarPrefix) >= 0) {
-                calendarDate = data.substring(Const.CALENDAR_PREFIX.length());
-            }
-            if (calendarDate != null &&
-                    data.indexOf(Const.SUMMARY_PREFIX) >= 0) {
-                summary = data.substring(Const.SUMMARY_PREFIX.length()).replaceAll("'","''");
-                // 法定节假日判断
-                if(symbol.equals("shc")) {
-                    if(summary.indexOf("元旦") < 0
-                            && summary.indexOf("春节") < 0
-                            && summary.indexOf("清明节") < 0
-                            && summary.indexOf("劳动节") < 0
-                            && summary.indexOf("端午节") < 0
-                            && summary.indexOf("中秋节") < 0
-                            && summary.indexOf("国庆节") < 0) {
-
-                        continue;
-                    }
-                }
-                if(symbol.equals("dow")) {
-                    if(summary.indexOf("Veterans") < 0
-                            && summary.indexOf("Thanksgiving") < 0
-                            && summary.indexOf("Presidents") < 0
-                            && summary.indexOf("New Year") < 0
-                            && summary.indexOf("Memorial") < 0
-                            && summary.indexOf("Martin Luther King") < 0
-                            && summary.indexOf("Labor") < 0
-                            && summary.indexOf("Independence") < 0
-                            && summary.indexOf("Christmas") < 0
-                            && summary.indexOf("Columbus") < 0) {
-                        continue;
-                    }
-                }
-                String sql = "insert into " + Const.CALENDAR_TABLE + " values (NULL,'" + calendarDate
-                        + "','" + summary + "','" + symbol
-                        + "')";
-                dbWritable.execSQL(sql);
-                log("SQL実行:" + sql);
-                calendarDate = null;
-            }
-        }
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
-    }
-
-    /* 指定銘柄の休日カレンダーが存在するかどうかを判断 */
-    public boolean hasCalendar(String symbol) {
-        String localeYear = TimeZoneUtil.getLocaleYear(symbol);
-        String query = "select * from " + Const.CALENDAR_TABLE +
-                " where date like '" + localeYear + "%' and symbol='" +
-                symbol + "'";
-        Cursor cursor = dbReadable.rawQuery(query, null);
-        int count = 0;
-        while (cursor.moveToNext()) {
-            count = cursor.getInt(0);
-        }
-        cursor.close();
-        if (count > 0) {
-            return true;
-        } else {
-            // 一次会取得去年，今年，明年数据，去年的数据和DB有重复，会导致一意制约，所以全部删除
-            this.deleteHolidays();
-            return false;
+        if ("d".equals(timeFrame)) {
+            calculateWMQY(symbol);
         }
     }
 
-    /* 指定銘柄の休日カレンダーが存在するかどうかを判断 */
-    public boolean isHoliday(String symbol, String localeDate) {
-        String query = "select count(*) from " + Const.CALENDAR_TABLE +
-                " where date = '" + localeDate + "' and symbol='" +
-                symbol + "'";
-        Cursor cursor = dbReadable.rawQuery(query, null);
-        int count = 0;
-        while (cursor.moveToNext()) {
-            count = cursor.getInt(0);
-        }
-        cursor.close();
-        if (count > 0) {
-            return true;
-        } else {
-            return false;
+    public void updateDB(String symbol, String timeFrame, String record) {
+        if (record != null && !record.trim().isEmpty()) {
+            updateDB(symbol, timeFrame, java.util.Collections.singletonList(record));
         }
     }
 
     // ネットからのデータをDBレコードに変更
     private String[] convertToRecord(String netData) {
+        if (netData == null) {
+            return null;
+        }
         String[] record = new String[5];
-        String[] temp = netData.split(",");
+        String[] temp = netData.split(",", -1);
         if (temp.length < 5) {
             logError("数据不整合:" + netData);
             return null;
         }
-        if (temp[0].indexOf("-") >= 0) {// stooqフォーマット
+        if (temp[0].matches("\\d{4}-\\d{2}-\\d{2}")) {
             temp[0] = temp[0].replace("-", "");
-        } else if (temp[0].indexOf("/") >= 0){// Yahooフォーマット
-            // 判断日期是否正确
+        } else if (temp[0].indexOf("/") >= 0) {
             try {
                 temp[0] = sf.format(sf2.parse(temp[0].replaceAll("\"","")));
             } catch (ParseException e) {
                 return null;
             }
-            // 判断是否为非数字
-            if ("N/A".equals(temp[1])) {
-                return null;
+        }
+        if (!temp[0].matches("\\d{8}")) {
+            return null;
+        }
+        try {
+            for (int i = 1; i <= 4; i++) {
+                float value = Float.parseFloat(temp[i]);
+                if (Float.isNaN(value) || Float.isInfinite(value)) {
+                    return null;
+                }
             }
+        } catch (NumberFormatException e) {
+            return null;
         }
         record[0] = temp[0];
         record[1] = temp[1];
@@ -416,17 +280,10 @@ public class DBOperator {
         String tableDaily = symbol + "_d";
         String tableWeek = symbol + "_w";
         String query = null;
-        if (symbol.equals("shc")) {
-            query = "select * from " + tableDaily + " where DATE >= " +
-                    "(select strftime('%Y%m%d',date(substr(max(DATE),1,4) || '-' " +
-                    "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2)," +
-                    "'-6 day')) from " + tableWeek + ") order by DATE";
-        } else {
-            query = "select * from " + tableDaily + " where DATE >= " +
-                    "(select strftime('%Y%m%d',date(substr(max(DATE),1,4) || '-' " +
-                    "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2)," +
-                    "'-4 day')) from " + tableWeek + ") order by DATE";
-        }
+        query = "select * from " + tableDaily + " where DATE >= " +
+                "(select strftime('%Y%m%d',date(substr(max(DATE),1,4) || '-' " +
+                "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2)," +
+                "'-4 day')) from " + tableWeek + ") order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> weekMap = new TreeMap<>();
@@ -568,11 +425,7 @@ public class DBOperator {
         calc.set(Calendar.DATE, 1);// 先初期化日期，以防在31日设置月，导致增加一个月
         calc.set(Calendar.MONTH, Integer.parseInt(date.substring(4, 6)) - 1);
         calc.set(Calendar.DATE, Integer.parseInt(date.substring(6, 8)));
-        if (symbol.equals("shc")) {
-            calc.add(Calendar.DATE, 8 - calc.get(Calendar.DAY_OF_WEEK));
-        } else {
-            calc.add(Calendar.DATE, 6 - calc.get(Calendar.DAY_OF_WEEK));
-        }
+        calc.add(Calendar.DATE, 6 - calc.get(Calendar.DAY_OF_WEEK));
         return sf.format(calc.getTime());
     }
 
@@ -611,14 +464,12 @@ public class DBOperator {
         calc.set(Calendar.DATE, 1);// 先初期化日期，以防在31日设置月，导致增加一个月
         calc.set(Calendar.MONTH, month - 1);
         calc.set(Calendar.DATE, calc.getActualMaximum(Calendar.DAY_OF_MONTH));
-        if (symbol.equals("shc") == false) {
-            for (int i = 1; i <= 2; i++) {
-                int day = calc.get(Calendar.DAY_OF_WEEK);
-                if (day == Calendar.SUNDAY || day == Calendar.SATURDAY) {
-                    calc.set(Calendar.DATE, calc.getActualMaximum(Calendar.DAY_OF_MONTH) - i);
-                } else {
-                    break;
-                }
+        for (int i = 1; i <= 2; i++) {
+            int day = calc.get(Calendar.DAY_OF_WEEK);
+            if (day == Calendar.SUNDAY || day == Calendar.SATURDAY) {
+                calc.set(Calendar.DATE, calc.getActualMaximum(Calendar.DAY_OF_MONTH) - i);
+            } else {
+                break;
             }
         }
         return sf.format(calc.getTime());
@@ -702,23 +553,6 @@ public class DBOperator {
         return offset;
     }
 
-    /* 判断指定日期的数据是否存在 */
-    private boolean hasData(String tableName, String date) {
-        String query = "select count(*) from " + tableName +
-                " where date = '" + date + "'";
-        Cursor cursor = dbReadable.rawQuery(query, null);
-        int count = 0;
-        while (cursor.moveToNext()) {
-            count = cursor.getInt(0);
-        }
-        cursor.close();
-        if (count > 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     public List<Object[]> loadTrendLines(String symbol, String timeFrame) {
         String query = "select * from " + Const.TREND_LINE_TABLE + " where Symbol = '" +
                 symbol + "' and Timeframe = '" + timeFrame + "' order by id";
@@ -765,12 +599,4 @@ public class DBOperator {
         dbWritable.endTransaction();
     }
 
-    public void deleteHolidays() {
-        dbWritable.beginTransactionNonExclusive();
-        String sql = "delete from " + Const.CALENDAR_TABLE;
-        dbWritable.execSQL(sql);
-        log("SQL実行:" + sql);
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
-    }
 }

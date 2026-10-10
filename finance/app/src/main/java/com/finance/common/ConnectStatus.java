@@ -9,8 +9,6 @@ public class ConnectStatus {
     private boolean connecting;
     // ネットアクセス結果
     private boolean connectResult;
-    // 前回のネットアクセス日時
-    private long previousAccess;
 
     public boolean isConnecting() {
         return connecting;
@@ -28,11 +26,4 @@ public class ConnectStatus {
         this.connectResult = connectResult;
     }
 
-    public long getPreviousAccess() {
-        return previousAccess;
-    }
-
-    public void setPreviousAccess(long previousAccess) {
-        this.previousAccess = previousAccess;
-    }
 }

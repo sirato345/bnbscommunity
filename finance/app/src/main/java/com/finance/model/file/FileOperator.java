@@ -58,18 +58,6 @@ public class FileOperator {
         return properties;
     }
 
-    // 銘柄定義ファイルから銘柄表示名と銘柄コードのセットを取得する
-    public static Properties getGoogleCalendarURLMap() {
-        Properties properties = new Properties();
-        try {
-            properties.load(FileOperator.class.getClassLoader().getResourceAsStream(Const.GOOGLE_CALENDAR_PROPERTY));
-        } catch (IOException e) {
-            Log.e(FileOperator.class.getName(), Const.MESSAGE_5, e);
-            throw new RuntimeException(e);
-        }
-        return properties;
-    }
-
     // 銘柄定義ファイルから銘柄表示名のリストを取得する
     public static List<String> getSymbols() {
         List<String> keyList = new ArrayList<>();
