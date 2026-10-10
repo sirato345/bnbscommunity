@@ -111,6 +111,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean isAvg20Disp = true;
     // 平均K線６０日表示フラグ
     public boolean isAvg60Disp = true;
+    public boolean isSarDisp = true;
 
     @Override
     /* 画面初期生成の場合呼び出される */
@@ -607,6 +608,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean(Const.KEY_AVG_10_DISP, this.isAvg10Disp);
         outState.putBoolean(Const.KEY_AVG_20_DISP, this.isAvg20Disp);
         outState.putBoolean(Const.KEY_AVG_60_DISP, this.isAvg60Disp);
+        outState.putBoolean("SarDisp", this.isSarDisp);
     }
 
     @Override
@@ -622,6 +624,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isAvg10Disp = savedInstanceState.getBoolean(Const.KEY_AVG_10_DISP);
         this.isAvg20Disp = savedInstanceState.getBoolean(Const.KEY_AVG_20_DISP);
         this.isAvg60Disp = savedInstanceState.getBoolean(Const.KEY_AVG_60_DISP);
+        this.isSarDisp = savedInstanceState.getBoolean("SarDisp", true);
     }
 
     /* 当面選択された銘柄 */
@@ -746,6 +749,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                     this.showUI();
                                 } else if(y >= (Const.FONT_SIZE_MIDDLE * 3 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT)) {
                                     this.isAvg60Disp = !this.isAvg60Disp;
+                                    isDispOperate = true;
+                                    this.showUI();
+                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT)) {
+                                    this.isSarDisp = !this.isSarDisp;
                                     isDispOperate = true;
                                     this.showUI();
                                 }
@@ -946,7 +953,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else if(point.y < (comnInfo.getStickHeight() + comnInfo.getMacdHeight())) {// MACD图内
             macdView.onSingleTapConfirmed(e);
         } else {// 日期图内
-            if (!newFragment.isAdded()) {
+            if (dateView.isDatePickerTap(point) && !newFragment.isAdded()) {
                 newFragment.show(getSupportFragmentManager(), "datePicker");
             }
         }

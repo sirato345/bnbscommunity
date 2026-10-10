@@ -14,6 +14,7 @@ import com.finance.view.ChartActivity;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.StickInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -58,6 +59,44 @@ public class DateView extends View {
             return date.substring(5, 7) + date.substring(8, 10) + date.substring(10, 16);
         }
         return date;
+    }
+
+    public boolean isDatePickerTap(Point point) {
+        int localY = point.y - comnInfo.getStickHeight() - comnInfo.getMacdHeight();
+        if (localY < comnInfo.getDateHeight() * 2 / 3
+                || localY >= comnInfo.getDateHeight()) {
+            return false;
+        }
+        for (int markerX : getDateMarkerPositions()) {
+            if (Math.abs(point.x - markerX) <= 8) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<Integer> getDateMarkerPositions() {
+        int maxStickCount = comnInfo.getMaxStickCount(stickList.size());
+        int dateOffset = offset;
+        if (maxStickCount < comnInfo.getMinDispCount()) {
+            dateOffset = 0;
+        } else {
+            dateOffset = Math.min(dateOffset, Const.DEFAULT_OFFSET);
+            if (Const.ZOOM_IN == activity.getStickWidth()) {
+                dateOffset += 4;
+            }
+        }
+        int interval = Const.ZOOM_OUT == activity.getStickWidth() ? 11 : 22;
+        List<Integer> markerPositions = new ArrayList<>();
+        for (int i = dateOffset; i < maxStickCount; i += interval) {
+            StickInfo stickInfo = stickList.get(i);
+            int markerX = stickInfo.getStickRect().centerX();
+            if (Const.ZOOM_IN == activity.getStickWidth()) {
+                markerX -= (int)(0.5 * Const.ZOOM_IN);
+            }
+            markerPositions.add(markerX);
+        }
+        return markerPositions;
     }
 
     @Override
