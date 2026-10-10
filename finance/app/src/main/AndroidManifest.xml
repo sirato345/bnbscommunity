@@ -31,7 +31,7 @@
         <activity
             android:name=".view.ChartActivity"
             android:exported="true"
-            android:screenOrientation="portrait">  <!-- 根据需求设置 -->
+            android:screenOrientation="sensor">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
