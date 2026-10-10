@@ -23,6 +23,7 @@ import com.finance.common.LogWriter;
 import com.finance.common.MyApp;
 import com.finance.controller.Controller;
 import com.finance.model.net.NetOperatorYahoo;
+import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
 import com.finance.view.component.StickView;
@@ -65,6 +66,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String symbol = Const.Symbol.btc.toString();
     // 表示中のタイムフレーム
     private String timeFrame = Const.TimeFrame.d.toString();
+    private String intradayInterval;
+    private final List<String> intradayRecords = new ArrayList<>();
+    private boolean intradayLoading;
+    private boolean intradayHasMore = true;
+    private long intradayGeneration;
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
     // 滑动柱体数量
     private int offset;
@@ -111,6 +117,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     protected void onCreate(Bundle savedInstanceState) {
         // UncaughtExceptionHandlerを実装したクラスをセットする。
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            intradayInterval = savedInstanceState.getString("IntradayInterval");
+        }
         // View設定
         this.initiallize();
         // 全局对象
@@ -134,14 +143,21 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* onRestoreInstanceStateの直後に呼び出される */
     protected void onResume() {
         super.onResume();
-        // 日线以外数据再计算
-        controller.calculateWMQY(symbol);
+        if (intradayInterval == null) {
+            controller.calculateWMQY(symbol);
+        }
         // DBからデータを取得し、UIに表示
         this.showUI();
         requestMarketData();
     }
 
     private void requestMarketData() {
+        if (intradayInterval != null) {
+            if (intradayRecords.isEmpty() && !intradayLoading) {
+                loadBinanceIntradayPage(null);
+            }
+            return;
+        }
         boolean historySyncDue = app.isHistorySyncDue(symbol);
         boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame);
         if (historySyncDue) {
@@ -250,18 +266,30 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // DBからの最新データを保持するリスト
         List<StickInfo> stickList;
         // K線図、平均K線図を判定
-        if (kLine.equals(Const.K_Line.Normal.toString())) {// K線図
+        if (intradayInterval != null) {
+            if (kLine.equals(Const.K_Line.Normal.toString())) {
+                stickList = getSticksOfKLine(intradayInterval);
+            } else {
+                List<Object[]> records = getIntradayObjectRecords();
+                stickList = calSticksOfAvgKLine(getSimpleAverage(records));
+            }
+        } else if (kLine.equals(Const.K_Line.Normal.toString())) {// K線図
             stickList = getSticksOfKLine(this.timeFrame);
         } else {// 平均K線図
             stickList = getSticksOfAvgKLine(this.timeFrame);
         }
-        List<TrendLine> trendLines = this.loadTrendLines();
+        List<TrendLine> trendLines = intradayInterval == null
+                ? this.loadTrendLines() : new ArrayList<>();
         stickView.setData(comnInfo, stickList, trendLines);
-        macdView.setData(comnInfo, stickList, symbol, timeFrame, macd, kLine);
-        dateView.setData(comnInfo, stickList, offset);
+        String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
+        macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
+        int dateOffset = intradayInterval == null
+                ? offset : Math.min(offset, Const.DEFAULT_OFFSET);
+        dateView.setData(comnInfo, stickList, dateOffset);
         stickView.invalidate();
         macdView.invalidate();
         dateView.invalidate();
+        maybeLoadMoreIntraday();
     }
 
     private List<TrendLine> loadTrendLines() {
@@ -283,6 +311,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     /* DBからデータを取得し、K線図のオリジナルデータのリストを作成 */
     public List<StickInfo> getSticksOfKLine(String timeFrame) {
+        if (intradayInterval != null) {
+            return getIntradaySticks();
+        }
         // 最小表示件数
         int minDisplayCount = comnInfo.getMaxStickCount();
         List<Object[]> dataList = controller.getData(symbol, timeFrame, 400, offset, minDisplayCount);
@@ -299,8 +330,139 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return stickList;
     }
 
+    private List<StickInfo> getIntradaySticks() {
+        List<Object[]> records = getIntradayObjectRecords();
+        List<StickInfo> stickList = new ArrayList<>();
+        for (Object[] record : records) {
+            StickInfo stickInfo = new StickInfo(comnInfo);
+            stickInfo.setDate((String)record[0]);
+            stickInfo.setOpen((Float)record[1]);
+            stickInfo.setHigh((Float)record[2]);
+            stickInfo.setLow((Float)record[3]);
+            stickInfo.setClose((Float)record[4]);
+            stickList.add(stickInfo);
+        }
+        return stickList;
+    }
+
+    private List<Object[]> getIntradayObjectRecords() {
+        int minDisplayCount = comnInfo.getMaxStickCount();
+        int maxOffset = Math.max(0, intradayRecords.size() - minDisplayCount);
+        if (offset > maxOffset) {
+            setOffset(maxOffset);
+        }
+        int start = Math.max(0, offset - Const.DEFAULT_OFFSET);
+        int end = Math.min(intradayRecords.size(), start + 400);
+        List<Object[]> records = new ArrayList<>();
+        for (int i = start; i < end; i++) {
+            String[] fields = intradayRecords.get(i).split(",", -1);
+            if (fields.length != 6) {
+                continue;
+            }
+            records.add(new Object[] {
+                    fields[1],
+                    Float.parseFloat(fields[2]),
+                    Float.parseFloat(fields[3]),
+                    Float.parseFloat(fields[4]),
+                    Float.parseFloat(fields[5])
+            });
+        }
+        return records;
+    }
+
+    private void maybeLoadMoreIntraday() {
+        if (intradayInterval == null || intradayLoading || !intradayHasMore) {
+            return;
+        }
+        if (intradayRecords.isEmpty()) {
+            loadBinanceIntradayPage(null);
+            return;
+        }
+        int visibleCount = comnInfo.getMaxStickCount();
+        if (offset + visibleCount >= intradayRecords.size() - 24) {
+            String oldestRecord = intradayRecords.get(intradayRecords.size() - 1);
+            long oldestOpenTime = Long.parseLong(oldestRecord.substring(0, oldestRecord.indexOf(',')));
+            loadBinanceIntradayPage(oldestOpenTime - 1L);
+        }
+    }
+
+    private void loadBinanceIntradayPage(Long endTime) {
+        if (intradayInterval == null || intradayLoading || !intradayHasMore) {
+            return;
+        }
+        intradayLoading = true;
+        final long requestGeneration = intradayGeneration;
+        controller.loadBinanceIntraday(symbol, intradayInterval, endTime,
+                (requestedSymbol, requestedInterval, records, error) -> {
+                    if (requestGeneration != intradayGeneration
+                            || !requestedSymbol.equals(symbol)
+                            || !requestedInterval.equals(intradayInterval)) {
+                        return;
+                    }
+                    intradayLoading = false;
+                    if (error != null) {
+                        LogWriter.getInstance(this).error(
+                                "Binance intraday request failed: " + error);
+                        android.widget.Toast.makeText(this, error,
+                                android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    Set<String> existingTimes = new HashSet<>();
+                    for (String record : intradayRecords) {
+                        existingTimes.add(record.substring(0, record.indexOf(',')));
+                    }
+                    int added = 0;
+                    for (int i = records.size() - 1; i >= 0; i--) {
+                        String record = records.get(i);
+                        String openTime = record.substring(0, record.indexOf(','));
+                        if (existingTimes.add(openTime)) {
+                            intradayRecords.add(record);
+                            added++;
+                        }
+                    }
+                    intradayHasMore = records.size()
+                            == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
+                    showUI();
+                });
+    }
+
+    public boolean isCryptoSymbol() {
+        return Const.Symbol.btc.toString().equals(symbol)
+                || Const.Symbol.eth.toString().equals(symbol);
+    }
+
+    public String getIntradayInterval() {
+        return intradayInterval;
+    }
+
+    public void selectBinanceInterval(String interval) {
+        if (!isCryptoSymbol()
+                || !("5m".equals(interval) || "1h".equals(interval) || "4h".equals(interval))) {
+            return;
+        }
+        intradayInterval = interval;
+        intradayGeneration++;
+        intradayRecords.clear();
+        intradayLoading = false;
+        intradayHasMore = true;
+        setOffset(0);
+        showUI();
+    }
+
+    private void clearIntradaySelection() {
+        intradayInterval = null;
+        intradayGeneration++;
+        intradayRecords.clear();
+        intradayLoading = false;
+        intradayHasMore = true;
+    }
+
     /* DBからデータを取得し、平均K線図のオリジナルデータのリストを作成 */
     public List<StickInfo> getSticksOfAvgKLine(String timeFrame) {
+        if (intradayInterval != null) {
+            return calSticksOfAvgKLine(getSimpleAverage(getIntradayObjectRecords()));
+        }
         // 最小表示件数
         int minDisplayCount = comnInfo.getMaxStickCount();
         // ＤＢ数据
@@ -413,10 +575,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
             Bundle bundle = intent.getExtras();
             Object result = bundle.get(Const.KEY_RESULT);
             if (result instanceof  Const.TimeFrame) {
+                clearIntradaySelection();
                 this.timeFrame = result.toString();
                 // タイムフレーム切替によりスクロールをリセット
                 this.setOffset(0);
             } else if (result instanceof  Const.Symbol) {
+                clearIntradaySelection();
                 this.symbol = result.toString();
                 // 銘柄切替によりスクロールをリセット
                 this.setOffset(0);
@@ -437,6 +601,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putString(Const.KEY_MACD, this.macd);
         outState.putString(Const.KEY_K_LINE, this.kLine);
         outState.putString(Const.KEY_TIME_FRAME, this.timeFrame);
+        outState.putString("IntradayInterval", intradayInterval);
         outState.putInt(Const.KEY_STICK_WIDTH, this.stickWidth);
         outState.putBoolean(Const.KEY_EDIT_MODE, this.isEidtMode);
         outState.putBoolean(Const.KEY_AVG_10_DISP, this.isAvg10Disp);
@@ -719,6 +884,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         int length = Const.timeFrames.length;
         // 上下移動判定
         if (y_move > 180 && (Math.abs(y_move / x_move) > 2)) {// 向上
+            clearIntradaySelection();
             // 前のタイムフレームを特定
             for (int i = 0; i < length; i ++) {
                 if (Const.timeFrames[i].equals(timeFrame)) {
@@ -737,6 +903,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             this.showUI();
             requestMarketData();
         } else if (y_move < -180 && (Math.abs(y_move / x_move) > 2)) {// 向下
+            clearIntradaySelection();
             // 次のタイムフレームを特定
             for (int i = 0; i < length; i ++) {
                 if (Const.timeFrames[i].equals(timeFrame)) {
@@ -768,6 +935,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean onSingleTapConfirmed(MotionEvent e) {
         Point point = this.ajustPoint(e);
         if (isLongPress || isEidtMode) {
+            return true;
+        }
+        if (macdView.handleIntradayControlTap(e)) {
             return true;
         }
         // 按下位置判断

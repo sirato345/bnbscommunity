@@ -67,6 +67,7 @@ public class MacdView  extends View {
     private Point touchPoint;
     // タッチ箇所の日付
     private String touchedDate;
+    private final Paint intervalButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public MacdView(Context context) {
         super(context);
@@ -253,6 +254,72 @@ public class MacdView  extends View {
         }
         this.drawText(canvas);
         this.drawTouchedLine(canvas);
+        drawIntradayControls(canvas);
+    }
+
+    private void drawIntradayControls(Canvas canvas) {
+        if (!activity.isCryptoSymbol()) {
+            return;
+        }
+        String[] intervals = {"4h", "1h", "5m"};
+        float density = getResources().getDisplayMetrics().density;
+        float buttonWidth = 58 * density;
+        float buttonHeight = 34 * density;
+        float gap = 6 * density;
+        float right = getWidth() - 8 * density;
+        float bottom = getHeight() - 7 * density;
+        float textSize = 14 * density;
+        intervalButtonPaint.setTextSize(textSize);
+        intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
+        intervalButtonPaint.setStrokeWidth(1.2f * density);
+        for (int i = 0; i < intervals.length; i++) {
+            float left = right - buttonWidth;
+            float top = bottom - buttonHeight;
+            boolean selected = intervals[i].equals(activity.getIntradayInterval());
+            intervalButtonPaint.setStyle(Paint.Style.FILL);
+            intervalButtonPaint.setColor(selected ? Color.rgb(30, 136, 229)
+                    : Color.rgb(38, 50, 65));
+            canvas.drawRoundRect(left, top, right, bottom, 10 * density,
+                    10 * density, intervalButtonPaint);
+            intervalButtonPaint.setStyle(Paint.Style.STROKE);
+            intervalButtonPaint.setColor(selected ? Color.rgb(144, 202, 249)
+                    : Color.rgb(96, 125, 139));
+            canvas.drawRoundRect(left, top, right, bottom, 10 * density,
+                    10 * density, intervalButtonPaint);
+            intervalButtonPaint.setStyle(Paint.Style.FILL);
+            intervalButtonPaint.setColor(Color.WHITE);
+            Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
+            float textY = top + (buttonHeight - fontMetrics.ascent - fontMetrics.descent) / 2;
+            canvas.drawText(intervals[i], (left + right) / 2, textY, intervalButtonPaint);
+            right = left - gap;
+        }
+    }
+
+    public boolean handleIntradayControlTap(MotionEvent event) {
+        if (!activity.isCryptoSymbol()) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        String[] intervals = {"4h", "1h", "5m"};
+        float density = getResources().getDisplayMetrics().density;
+        float buttonWidth = 58 * density;
+        float buttonHeight = 34 * density;
+        float gap = 6 * density;
+        float right = getWidth() - 8 * density;
+        float bottom = getHeight() - 7 * density;
+        for (String interval : intervals) {
+            float left = right - buttonWidth;
+            float top = bottom - buttonHeight;
+            if (x >= left && x <= right && y >= top && y <= bottom) {
+                activity.selectBinanceInterval(interval);
+                return true;
+            }
+            right = left - gap;
+        }
+        return false;
     }
 
     /* MACD双线柱体 */
@@ -368,7 +435,9 @@ public class MacdView  extends View {
             symbolText = replace(getResources().getString(R.string.symbol_silver));
         }
 
-        if (Const.TimeFrame.d.toString().equals(timeFrame)) {
+        if (activity.getIntradayInterval() != null) {
+            timeFrameText = activity.getIntradayInterval();
+        } else if (Const.TimeFrame.d.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_day));
         } else if (Const.TimeFrame.w.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_week));
@@ -411,7 +480,13 @@ public class MacdView  extends View {
         if (touchedDate != null) {
             // 日期线
             canvas.drawLine(touchPoint.x, 0, touchPoint.x, comnInfo.getMacdHeight() - Const.FONT_SIZE, paint);
-            canvas.drawText(touchedDate, touchPoint.x - 92, comnInfo.getMacdHeight(), paint);
+            String date = DateView.formatDateForDisplay(touchedDate,
+                    activity.getIntradayInterval() != null);
+            float dateX = touchPoint.x - 92;
+            if (activity.getIntradayInterval() != null) {
+                dateX = touchPoint.x - paint.measureText(date) / 2 - 4;
+            }
+            canvas.drawText(date, dateX, comnInfo.getMacdHeight(), paint);
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.finance.model.Model;
+import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -70,6 +71,17 @@ public class Controller {
     public void loadIntraDayData(@NonNull String symbol) {
         if (model != null) {
             model.loadIntraDayData(symbol);
+        }
+    }
+
+    public void loadBinanceIntraday(@NonNull String symbol, @NonNull String interval,
+                                    Long endTime,
+                                    @NonNull NetConnectorBinanceIntraday.Callback callback) {
+        if (model != null) {
+            model.loadBinanceIntraday(symbol, interval, endTime, callback);
+        } else {
+            callback.onComplete(symbol, interval, Collections.emptyList(),
+                    "Market data model is unavailable");
         }
     }
 

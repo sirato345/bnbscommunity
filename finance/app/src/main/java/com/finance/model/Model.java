@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import com.finance.common.LogWriter;
 import com.finance.model.db.DBOperator;
 import com.finance.model.net.NetOperatorYahoo;
+import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -65,6 +66,20 @@ public class Model {
                 netOperatorYahoo.notifyError(symbol, e.getMessage() == null
                         ? "Market data request setup failed" : e.getMessage());
             }
+        }
+    }
+
+    public void loadBinanceIntraday(@NonNull String symbol, @NonNull String interval,
+                                    Long endTime,
+                                    @NonNull NetConnectorBinanceIntraday.Callback callback) {
+        try {
+            new NetConnectorBinanceIntraday(symbol, interval, endTime, callback).execute();
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(view).error(
+                    "銘柄：" + symbol + " Binance intraday request setup failed", e);
+            callback.onComplete(symbol, interval, Collections.emptyList(),
+                    e.getMessage() == null
+                            ? "Binance intraday request setup failed" : e.getMessage());
         }
     }
 

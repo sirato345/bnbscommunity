@@ -52,6 +52,14 @@ public class DateView extends View {
         this.offset = offset;
     }
 
+    static String formatDateForDisplay(String date, boolean intraday) {
+        if (intraday && date != null && date.length() >= 16
+                && date.charAt(4) == '-' && date.charAt(10) == ' ') {
+            return date.substring(5, 7) + date.substring(8, 10) + date.substring(10, 16);
+        }
+        return date;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -85,7 +93,8 @@ public class DateView extends View {
         // 画面右側（４）、ローソク間（11）の間隔を取る
         for (int i = offset; i < maxStickCount; i += interval) {
             StickInfo stickInfo = stickList.get(i);
-            String date = stickInfo.getDate();
+            String date = formatDateForDisplay(stickInfo.getDate(),
+                    activity.getIntradayInterval() != null);
             Rect lineRect = new Rect();
             lineRect.right = stickInfo.getStickRect().centerX();
             if (Const.ZOOM_IN == activity.getStickWidth()) {
@@ -97,6 +106,9 @@ public class DateView extends View {
             lineRect.bottom = comnInfo.getDateHeight() / 3;
             Point datePoint = new Point();
             datePoint.x = lineRect.right - 92;
+            if (activity.getIntradayInterval() != null) {
+                datePoint.x = lineRect.right - (int)(paint.measureText(date) / 2) - 4;
+            }
             // 竖屏
             if (this.orientation == Configuration.ORIENTATION_PORTRAIT) {
                 datePoint.y = lineRect.bottom + 40;
