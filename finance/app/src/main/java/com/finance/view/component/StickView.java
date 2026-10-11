@@ -36,8 +36,8 @@ public class StickView extends View {
     private List<Point> average10;
     // 20日移動平均線
     private List<Point> average20;
-    // 60日移動平均線
-    private List<Point> average60;
+    // 50日移動平均線
+    private List<Point> average50;
     // Parabolic SAR values aligned with the candle list
     private List<Float> sarValues;
     // 画面表示最大のローソクの数
@@ -46,8 +46,8 @@ public class StickView extends View {
     private float current10;
     // 当前20均线价格
     private float current20;
-    // 当前60均线价格
-    private float current60;
+    // 当前50均线价格
+    private float current50;
     // 对小数四舍五入
     private final DecimalFormat digitFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
@@ -83,15 +83,15 @@ public class StickView extends View {
         this.trendLines = trendLines;
         this.average10 = new ArrayList<>();
         this.average20 = new ArrayList<>();
-        this.average60 = new ArrayList<>();
+        this.average50 = new ArrayList<>();
         this.sarValues = new ArrayList<>();
         this.current10 = 0;
         this.current20 = 0;
-        this.current60 = 0;
+        this.current50 = 0;
         this.calculate(this.stickList);
         this.calAverageLine(this.stickList, average10, 10);
         this.calAverageLine(this.stickList, average20, 20);
-        this.calAverageLine(this.stickList, average60, 60);
+        this.calAverageLine(this.stickList, average50, 50);
         this.calculateSar(this.stickList);
         this.calTDtdSequential();
     }
@@ -228,8 +228,8 @@ public class StickView extends View {
                     current10 = averageValue;
                 } else if (average == 20) {
                     current20 = averageValue;
-                } else if (average == 60) {
-                    current60 = averageValue;
+                } else if (average == 50) {
+                    current50 = averageValue;
                 }else {
                 }
             }
@@ -401,8 +401,8 @@ public class StickView extends View {
         if(activity.isAvg20Disp) {
             this.drawAverageLine(canvas, average20, Color.parseColor("#FFA500"));
         }
-        if(activity.isAvg60Disp) {
-            this.drawAverageLine(canvas, average60, Color.parseColor("#00FFFF"));
+        if(activity.isAvg50Disp) {
+            this.drawAverageLine(canvas, average50, Color.parseColor("#00FFFF"));
         }
         if (activity.isSarDisp) {
             this.drawSar(canvas);
@@ -527,11 +527,11 @@ public class StickView extends View {
                     // 20平均線設定
                     canvas.drawText("(20) " + getLimitDigit(current20), 0, Const.FONT_SIZE_MIDDLE * 3, paint);
                 }
-                // 60平均線の色
+                // 50平均線の色
                 paint.setColor(Color.parseColor("#00FFFF"));
-                if (current60 != 0) {
-                    // 60平均線設定
-                    canvas.drawText("(60) " + getLimitDigit(current60), 0, Const.FONT_SIZE_MIDDLE * 4, paint);
+                if (current50 != 0) {
+                    // 50平均線設定
+                    canvas.drawText("(50) " + getLimitDigit(current50), 0, Const.FONT_SIZE_MIDDLE * 4, paint);
                 }
                 if (activity.isSarDisp && !sarValues.isEmpty()
                         && !Float.isNaN(sarValues.get(0))) {

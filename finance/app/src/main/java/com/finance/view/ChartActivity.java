@@ -104,8 +104,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean isAvg10Disp = true;
     // 平均K線２０日表示フラグ
     public boolean isAvg20Disp = true;
-    // 平均K線６０日表示フラグ
-    public boolean isAvg60Disp = true;
+    // 平均K線５０日表示フラグ
+    public boolean isAvg50Disp = true;
     public boolean isSarDisp = true;
 
     @Override
@@ -597,7 +597,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean(Const.KEY_EDIT_MODE, this.isEidtMode);
         outState.putBoolean(Const.KEY_AVG_10_DISP, this.isAvg10Disp);
         outState.putBoolean(Const.KEY_AVG_20_DISP, this.isAvg20Disp);
-        outState.putBoolean(Const.KEY_AVG_60_DISP, this.isAvg60Disp);
+        outState.putBoolean(Const.KEY_AVG_50_DISP, this.isAvg50Disp);
         outState.putBoolean("SarDisp", this.isSarDisp);
     }
 
@@ -613,7 +613,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isEidtMode = savedInstanceState.getBoolean(Const.KEY_EDIT_MODE);
         this.isAvg10Disp = savedInstanceState.getBoolean(Const.KEY_AVG_10_DISP);
         this.isAvg20Disp = savedInstanceState.getBoolean(Const.KEY_AVG_20_DISP);
-        this.isAvg60Disp = savedInstanceState.getBoolean(Const.KEY_AVG_60_DISP);
+        this.isAvg50Disp = savedInstanceState.getBoolean(Const.KEY_AVG_50_DISP);
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp", true);
     }
 
@@ -738,7 +738,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                     isDispOperate = true;
                                     this.showUI();
                                 } else if(y >= (Const.FONT_SIZE_MIDDLE * 3 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT)) {
-                                    this.isAvg60Disp = !this.isAvg60Disp;
+                                    this.isAvg50Disp = !this.isAvg50Disp;
                                     isDispOperate = true;
                                     this.showUI();
                                 } else if(y >= (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT)) {

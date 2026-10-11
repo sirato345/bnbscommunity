@@ -91,7 +91,7 @@ public class Const {
 
     public static final String KEY_AVG_20_DISP = "isAvg20Disp";
 
-    public static final String KEY_AVG_60_DISP = "isAvg60Disp";
+    public static final String KEY_AVG_50_DISP = "isAvg50Disp";
 
     public static final String MESSAGE_1 = "銘柄定義ファイルの取得に失敗しました。";
 
