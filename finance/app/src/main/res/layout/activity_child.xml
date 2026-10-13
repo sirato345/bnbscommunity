@@ -164,23 +164,23 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
-            android:text="@string/macd_single"
+            android:text="@string/macd"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
             android:background="@drawable/button_macd"
-            android:id="@+id/button_macd_single"
-            android:onClick="onClick_Macd_Single" />
+            android:id="@+id/button_macd"
+            android:onClick="onClick_Macd" />
 
         <Button
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
-            android:text="@string/macd_double"
+            android:text="@string/kdj"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
             android:background="@drawable/button_macd"
-            android:id="@+id/button_macd_double"
-            android:onClick="onClick_Macd_Double" />
+            android:id="@+id/button_kdj"
+            android:onClick="onClick_Kdj" />
         <Button
             android:layout_width="0dp"
             android:layout_height="match_parent"

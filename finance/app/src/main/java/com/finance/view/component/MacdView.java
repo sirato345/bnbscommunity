@@ -13,13 +13,16 @@ import android.view.View;
 import com.finance.R;
 import com.finance.common.Const;
 import com.finance.view.ChartActivity;
-import com.finance.view.component.macd.MacdInfo;
 import com.finance.view.component.macd.MacdCalculator;
+import com.finance.view.component.macd.KdjCalculator;
+import com.finance.view.component.macd.MacdInfo;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.StickInfo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by gu zihan on 08/30/2015.
@@ -38,6 +41,9 @@ public class MacdView  extends View {
     private List<StickInfo> stickList;
     // ローソク線の情報
     private List<MacdInfo> macdList;
+    private float[] kdjK;
+    private float[] kdjD;
+    private float[] kdjJ;
     // 最大表示ローソクの数
     private int maxStickCount;
     // EMA快线的计算开始位置
@@ -82,6 +88,12 @@ public class MacdView  extends View {
         this.stickList = stickList;
         this.macdList = new ArrayList<>();
         this.sizeOfStick = stickList.size();
+        this.kdjK = new float[sizeOfStick];
+        this.kdjD = new float[sizeOfStick];
+        this.kdjJ = new float[sizeOfStick];
+        Arrays.fill(kdjK, Float.NaN);
+        Arrays.fill(kdjD, Float.NaN);
+        Arrays.fill(kdjJ, Float.NaN);
         this.symbol = symbol;
         this.timeFrame = timeFrame;
         this.macdType = macdType;
@@ -101,6 +113,34 @@ public class MacdView  extends View {
         // 画面表示最大のローソクの数
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
         this.calculate();
+        this.calculateKdj();
+    }
+
+    private void calculateKdj() {
+        if (sizeOfStick < KdjCalculator.PERIOD) {
+            return;
+        }
+        int firstIndex = sizeOfStick - KdjCalculator.PERIOD;
+        float previousK = KdjCalculator.INITIAL_VALUE;
+        float previousD = KdjCalculator.INITIAL_VALUE;
+        for (int i = firstIndex; i >= 0; i--) {
+            float highest = Float.NEGATIVE_INFINITY;
+            float lowest = Float.POSITIVE_INFINITY;
+            for (int j = i; j < i + KdjCalculator.PERIOD; j++) {
+                StickInfo stick = stickList.get(j);
+                highest = Math.max(highest, stick.getHigh());
+                lowest = Math.min(lowest, stick.getLow());
+            }
+            float rsv = KdjCalculator.calculateRsv(
+                    highest, lowest, stickList.get(i).getClose());
+            float k = KdjCalculator.calculateNextK(rsv, previousK);
+            float d = KdjCalculator.calculateNextD(k, previousD);
+            kdjK[i] = k;
+            kdjD[i] = d;
+            kdjJ[i] = KdjCalculator.calculateJ(k, d);
+            previousK = k;
+            previousD = d;
+        }
     }
 
     /* MACDの自身情報を計算 */
@@ -244,8 +284,9 @@ public class MacdView  extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        // MACDタイプ判定
-        if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
+        if (Const.Macd.KDJ.toString().equals(macdType)) {
+            drawKdj(canvas);
+        } else if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
             this.drawMacdOsci(canvas);
             this.drawMacdLine(canvas, Color.parseColor("#FFFF00"));
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
@@ -254,8 +295,85 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#EE82EE"));
         }
         this.drawText(canvas);
+        if (Const.Macd.KDJ.toString().equals(macdType)) {
+            drawKdjValues(canvas);
+        }
         this.drawTouchedLine(canvas);
         drawIntradayControls(canvas);
+    }
+
+    private void drawKdj(Canvas canvas) {
+        if (sizeOfStick < KdjCalculator.PERIOD || maxStickCount == 0) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float top = 18 * density;
+        float bottom = getHeight() - 18 * density;
+        Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        guidePaint.setColor(Color.rgb(70, 70, 70));
+        guidePaint.setStrokeWidth(density);
+        for (float level : new float[] {20f, 80f}) {
+            float y = getKdjY(level, top, bottom);
+            canvas.drawLine(0, y, getWidth(), y, guidePaint);
+        }
+        drawKdjLine(canvas, kdjK, Color.rgb(255, 193, 7), top, bottom);
+        drawKdjLine(canvas, kdjD, Color.rgb(3, 218, 198), top, bottom);
+        drawKdjLine(canvas, kdjJ, Color.rgb(255, 82, 82), top, bottom);
+    }
+
+    private void drawKdjLine(Canvas canvas, float[] values, int color,
+                             float top, float bottom) {
+        Path path = new Path();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(color);
+        paint.setStrokeWidth(2.5f * getResources().getDisplayMetrics().density);
+        paint.setStyle(Paint.Style.STROKE);
+        boolean started = false;
+        int pointCount = Math.min(maxStickCount, sizeOfStick);
+        for (int i = 0; i < pointCount; i++) {
+            if (Float.isNaN(values[i])) {
+                continue;
+            }
+            float x = stickList.get(i).getLineRect().centerX();
+            float y = getKdjY(values[i], top, bottom);
+            if (started) {
+                path.lineTo(x, y);
+            } else {
+                path.moveTo(x, y);
+                started = true;
+            }
+        }
+        if (started) {
+            canvas.drawPath(path, paint);
+        }
+    }
+
+    private float getKdjY(float value, float top, float bottom) {
+        float clampedValue = Math.max(-20f, Math.min(120f, value));
+        return bottom - (clampedValue + 20f) / 140f * (bottom - top);
+    }
+
+    private void drawKdjValues(Canvas canvas) {
+        if (sizeOfStick == 0 || Float.isNaN(kdjK[0])) {
+            return;
+        }
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        float density = getResources().getDisplayMetrics().density;
+        float right = getWidth() - 8 * density;
+        float baseline = 45;
+        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
+        paint.setColor(Color.rgb(255, 82, 82));
+        canvas.drawText(jValue, right, baseline, paint);
+        right -= paint.measureText(jValue) + 12 * density;
+        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
+        paint.setColor(Color.rgb(3, 218, 198));
+        canvas.drawText(dValue, right, baseline, paint);
+        right -= paint.measureText(dValue) + 12 * density;
+        String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
+        paint.setColor(Color.rgb(255, 193, 7));
+        canvas.drawText(kValue, right, baseline, paint);
     }
 
     private void drawIntradayControls(Canvas canvas) {
@@ -460,10 +578,12 @@ public class MacdView  extends View {
 
     /* 单击事件，由Activity转发事件 */
     public void onSingleTapConfirmed(MotionEvent e) {
-        if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
-            activity.macd = Const.Macd.Single.toString();
-        } else {
+        if (Const.Macd.Single.toString().equals(macdType)) {
             activity.macd = Const.Macd.Double.toString();
+        } else if (Const.Macd.Double.toString().equals(macdType)) {
+            activity.macd = Const.Macd.KDJ.toString();
+        } else {
+            activity.macd = Const.Macd.Single.toString();
         }
         activity.showUI();
     }

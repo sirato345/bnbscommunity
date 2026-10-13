@@ -10,8 +10,8 @@
     <string name="symbol_gold">Gold</string>
     <string name="symbol_silver">Silver</string>
 
-    <string name="macd_single">MACD\nSingal</string>
-    <string name="macd_double">MACD\nDouble</string>
+    <string name="macd">MACD</string>
+    <string name="kdj">KDJ</string>
     <string name="k_line_normal">Candle\nChart </string>
     <string name="k_line_average">Average\nChart</string>
 

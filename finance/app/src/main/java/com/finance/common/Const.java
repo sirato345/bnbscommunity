@@ -58,7 +58,7 @@ public class Const {
     }
     // MACDタイプ
     public enum Macd {
-        Single, Double;
+        Single, Double, KDJ;
     }
     // ローソク線タイプ
     public enum K_Line {

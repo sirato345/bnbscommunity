@@ -105,14 +105,12 @@ public class ChildActivity extends Activity {
             Drawable drawable = getResources().getDrawable(R.drawable.button_symbol_select);
             button.setBackground(drawable);
         }
-        Drawable drawable;
-        if (macd.equals(Const.Macd.Single.toString())) {
-            button = (Button)this.findViewById(R.id.button_macd_single);
+        if (macd.equals(Const.Macd.KDJ.toString())) {
+            button = (Button)this.findViewById(R.id.button_kdj);
+        } else {
+            button = (Button)this.findViewById(R.id.button_macd);
         }
-        if (macd.equals(Const.Macd.Double.toString())) {
-            button = (Button)this.findViewById(R.id.button_macd_double);
-        }
-        drawable= getResources().getDrawable(R.drawable.button_macd_select);
+        Drawable drawable= getResources().getDrawable(R.drawable.button_macd_select);
         button.setBackground(drawable);
         if (kLine.equals(Const.K_Line.Average.toString())) {
             button = (Button)this.findViewById(R.id.button_k_line_average);
@@ -172,11 +170,11 @@ public class ChildActivity extends Activity {
     public void onClick_Silver(View v) {
         setResult(Const.Symbol.xagusd);
     }
-    public void onClick_Macd_Single(View v) {
+    public void onClick_Macd(View v) {
         setResult(Const.Macd.Single);
     }
-    public void onClick_Macd_Double(View v) {
-        setResult(Const.Macd.Double);
+    public void onClick_Kdj(View v) {
+        setResult(Const.Macd.KDJ);
     }
     public void onClick_K_Line_Normal(View v) {
         setResult(Const.K_Line.Normal);
