@@ -279,17 +279,17 @@ public class DBOperator {
     private void calculateWeek(String symbol) {
         String tableDaily = symbol + "_d";
         String tableWeek = symbol + "_w";
-        String query = null;
-        query = "select * from " + tableDaily + " where DATE >= " +
-                "(select strftime('%Y%m%d',date(substr(max(DATE),1,4) || '-' " +
-                "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2)," +
-                "'-4 day')) from " + tableWeek + ") order by DATE";
+        normalizeWeekDates(symbol, tableWeek);
+        String query = "select * from " + tableDaily + " where DATE >= "
+                + "(select strftime('%Y%m%d', date(substr(max(DATE),1,4) || '-' "
+                + "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2),"
+                + "'-6 day')) from " + tableWeek + ") order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> weekMap = new TreeMap<>();
         Object[] data = null;
         while (cursor.moveToNext()) {
-            String date = getLastDayOfWeek(symbol, cursor.getString(0));
+            String date = getWeekDate(cursor.getString(0));
             float open = cursor.getFloat(1);
             float high = cursor.getFloat(2);
             float low = cursor.getFloat(3);
@@ -309,6 +309,49 @@ public class DBOperator {
         cursor.close();
         dataList.addAll(weekMap.values());
         updateDB2(symbol, "w", dataList);
+    }
+
+    private void normalizeWeekDates(String symbol, String tableWeek) {
+        Cursor cursor = dbReadable.rawQuery("select * from " + tableWeek + " order by DATE", null);
+        Map<String, Object[]> weekMap = new TreeMap<>();
+        boolean needsNormalization = false;
+        while (cursor.moveToNext()) {
+            String oldDate = cursor.getString(0);
+            String weekDate = getWeekDate(oldDate);
+            needsNormalization |= !oldDate.equals(weekDate);
+            weekMap.put(weekDate, new Object[] {
+                    weekDate,
+                    cursor.getFloat(1),
+                    cursor.getFloat(2),
+                    cursor.getFloat(3),
+                    cursor.getFloat(4)
+            });
+        }
+        cursor.close();
+        if (!needsNormalization) {
+            return;
+        }
+
+        dbWritable.beginTransactionNonExclusive();
+        try {
+            dbWritable.delete(tableWeek, null, null);
+            for (Object[] record : weekMap.values()) {
+                ContentValues values = new ContentValues();
+                values.put("Date", (String)record[0]);
+                values.put("Open", (Float)record[1]);
+                values.put("High", (Float)record[2]);
+                values.put("Low", (Float)record[3]);
+                values.put("Close", (Float)record[4]);
+                long rowId = dbWritable.insert(tableWeek, null, values);
+                if (rowId == -1) {
+                    throw new IllegalStateException("Failed to normalize weekly data for "
+                            + symbol + " on " + record[0]);
+                }
+            }
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
+        }
     }
 
     // 月线计算
@@ -417,15 +460,14 @@ public class DBOperator {
         updateDB2(symbol, "y", dataList);
     }
 
-    // 指定した日付の週のラストディを算出
-    private String getLastDayOfWeek(String symbol, String date) {
+    // Weekly data uses Sunday as the week label.
+    private String getWeekDate(String date) {
         Calendar calc = Calendar.getInstance();
-        calc.setFirstDayOfWeek(Calendar.MONDAY);
         calc.set(Calendar.YEAR, Integer.parseInt(date.substring(0, 4)));
         calc.set(Calendar.DATE, 1);// 先初期化日期，以防在31日设置月，导致增加一个月
         calc.set(Calendar.MONTH, Integer.parseInt(date.substring(4, 6)) - 1);
         calc.set(Calendar.DATE, Integer.parseInt(date.substring(6, 8)));
-        calc.add(Calendar.DATE, 6 - calc.get(Calendar.DAY_OF_WEEK));
+        calc.add(Calendar.DATE, Calendar.SUNDAY - calc.get(Calendar.DAY_OF_WEEK));
         return sf.format(calc.getTime());
     }
 
@@ -498,31 +540,27 @@ public class DBOperator {
         if (dataList.size() == 0) {
             return;
         }
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
         dbWritable.beginTransactionNonExclusive();
-        String table = symbol + "_" + timeFrame;
-
-        ///////////////////////取得開始日データの更新////////////////////////
-        Object[] recordUpdate = dataList.get(0);
-        String sql = "update " + table + " set OPEN='" + recordUpdate[1]
-                + "'" + " , HIGH='" + recordUpdate[2] + "'" + " , LOW='"
-                + recordUpdate[3] + "'" + " , CLOSE='" + recordUpdate[4]
-                + "'" + " where date='" + recordUpdate[0] + "'";
-        log("SQL実行:" + sql);
-        dbWritable.execSQL(sql);
-
-        ///////////////////////取得開始日以降データの登録/////////////////////
-        for (int i = 1; i < dataList.size(); i++) {
-            Object[] recordForInsert = dataList.get(i);
-            sql = "insert into " + table + " values ('" + recordForInsert[0]
-                    + "','" + recordForInsert[1] + "','" + recordForInsert[2]
-                    + "','" + recordForInsert[3] + "','" + recordForInsert[4]
-                    + "')";
-            dbWritable.execSQL(sql);
-            log("SQL実行:" + sql);
+        try {
+            String table = symbol + "_" + timeFrame;
+            for (Object[] record : dataList) {
+                ContentValues values = new ContentValues();
+                values.put("Date", (String)record[0]);
+                values.put("Open", (Float)record[1]);
+                values.put("High", (Float)record[2]);
+                values.put("Low", (Float)record[3]);
+                values.put("Close", (Float)record[4]);
+                long rowId = dbWritable.insertWithOnConflict(
+                        table, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+                if (rowId == -1) {
+                    throw new IllegalStateException("Failed to save calculated market data to "
+                            + table + " for date " + record[0]);
+                }
+            }
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
         }
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
     }
 
     /* 取得数据库内指定銘柄数据的最大日期 */
