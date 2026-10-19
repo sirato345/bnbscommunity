@@ -45,7 +45,7 @@ public class NetConnectorBinance extends AsyncTask<Void, Void, String> {
     protected String doInBackground(Void... params) {
         HttpURLConnection connection = null;
         try {
-            String pair = "btc".equals(symbol) ? "BTCUSDT" : "ETHUSDT";
+            String pair = BinanceSymbol.getPair(symbol);
             String request = "https://api.binance.com/api/v3/klines?symbol=" + pair
                     + "&interval=1d&startTime=" + (startTime * 1000L)
                     + "&endTime=" + (endTime * 1000L - 1L) + "&limit=1000";

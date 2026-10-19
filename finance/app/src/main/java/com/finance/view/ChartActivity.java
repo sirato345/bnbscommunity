@@ -425,7 +425,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public boolean isCryptoSymbol() {
         return Const.Symbol.btc.toString().equals(symbol)
-                || Const.Symbol.eth.toString().equals(symbol);
+                || Const.Symbol.eth.toString().equals(symbol)
+                || Const.Symbol.trump.toString().equals(symbol);
     }
 
     public String getIntradayInterval() {

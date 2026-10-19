@@ -536,6 +536,8 @@ public class MacdView  extends View {
             symbolText = replace(getResources().getString(R.string.symbol_btc));
         } else if(Const.Symbol.eth.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_eth));
+        } else if(Const.Symbol.trump.toString().equals(symbol)) {
+            symbolText = replace(getResources().getString(R.string.symbol_trump));
         } else if (Const.Symbol.dow.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_dow));
         } else if(Const.Symbol.sp500.toString().equals(symbol)) {

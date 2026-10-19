@@ -1,12 +1,13 @@
 <resources>
     <string name="symbol_btc">BTC</string>
     <string name="symbol_eth">ETH</string>
+    <string name="symbol_trump">TRUMP</string>
     <string name="symbol_dow">Dow Jones</string>
     <string name="symbol_sp500">S&amp;P500</string>
     <string name="symbol_nasdaq">Nasdaq</string>
     <string name="symbol_nikkei">Nikkei</string>
     <string name="symbol_dollor">Dollor Index</string>
-    <string name="symbol_usbond">US 10-year Yield</string>
+    <string name="symbol_usbond">10-year Yield</string>
     <string name="symbol_gold">Gold</string>
     <string name="symbol_silver">Silver</string>
 

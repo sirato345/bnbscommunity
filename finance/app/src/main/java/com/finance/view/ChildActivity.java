@@ -18,6 +18,8 @@ import com.finance.common.Const;
  */
 public class ChildActivity extends Activity {
 
+    private static final double PANEL_HEIGHT_SCALE = 5.0 / 6.0;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,10 +44,10 @@ public class ChildActivity extends Activity {
         // 获取对话框当前的参值
         WindowManager.LayoutParams p = getWindow().getAttributes();
         if (this.getOrientation() == Configuration.ORIENTATION_PORTRAIT){
-            p.height = (int) (display.getHeight() * 0.4);
+            p.height = (int) (display.getHeight() * 0.4 * PANEL_HEIGHT_SCALE);
             p.width = (int) (display.getWidth() * 0.85);
         } else {
-            p.height = (int) (display.getHeight() * 0.75);
+            p.height = (int) (display.getHeight() * 0.75 * PANEL_HEIGHT_SCALE);
             p.width = (int) (display.getWidth() * 0.50);
         }
         // 设置生效
@@ -77,6 +79,9 @@ public class ChildActivity extends Activity {
         if (symbol.equals(Const.Symbol.eth.toString())) {
             button = (Button)this.findViewById(R.id.button_eth);
         }
+        if (symbol.equals(Const.Symbol.trump.toString())) {
+            button = (Button)this.findViewById(R.id.button_trump);
+        }
         if (symbol.equals(Const.Symbol.dow.toString())) {
             button = (Button)this.findViewById(R.id.button_dow);
         }
@@ -94,12 +99,6 @@ public class ChildActivity extends Activity {
         }
         if (symbol.equals(Const.Symbol.usbond.toString())) {
             button = (Button)this.findViewById(R.id.button_usbond);
-        }
-        if (symbol.equals(Const.Symbol.xauusd.toString())) {
-            button = (Button)this.findViewById(R.id.button_gold);
-        }
-        if (symbol.equals(Const.Symbol.xagusd.toString())) {
-            button = (Button)this.findViewById(R.id.button_silver);
         }
         if (button != null) {
             Drawable drawable = getResources().getDrawable(R.drawable.button_symbol_select);
@@ -145,6 +144,9 @@ public class ChildActivity extends Activity {
     public void onClick_Eth(View v) {
         setResult(Const.Symbol.eth);
     }
+    public void onClick_Trump(View v) {
+        setResult(Const.Symbol.trump);
+    }
     public void onClick_Dow(View v) {
         setResult(Const.Symbol.dow);
     }
@@ -163,12 +165,6 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Usbond(View v) {
         setResult(Const.Symbol.usbond);
-    }
-    public void onClick_Gold(View v) {
-        setResult(Const.Symbol.xauusd);
-    }
-    public void onClick_Silver(View v) {
-        setResult(Const.Symbol.xagusd);
     }
     public void onClick_Macd(View v) {
         setResult(Const.Macd.Single);

@@ -47,7 +47,7 @@ public class NetConnectorBinanceIntraday
     protected Result doInBackground(Void... params) {
         HttpURLConnection connection = null;
         try {
-            String pair = "btc".equals(symbol) ? "BTCUSDT" : "ETHUSDT";
+            String pair = BinanceSymbol.getPair(symbol);
             StringBuilder request = new StringBuilder(
                     "https://api.binance.com/api/v3/klines?symbol=")
                     .append(pair)

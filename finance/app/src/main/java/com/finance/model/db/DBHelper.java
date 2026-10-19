@@ -40,12 +40,15 @@ public class DBHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         Log.i(TAG, "Upgrading database from version " + oldVersion + " to " + newVersion);
 
-        // 可以在这里添加升级逻辑
         if (oldVersion < newVersion) {
-            // 例如：添加新表或修改表结构
-            // 这里简单重新创建表
-            dropTables(db);
-            onCreate(db);
+            createTables(db);
+        }
+        if (oldVersion < 4) {
+            for (String tableName : tableList) {
+                if (tableName.startsWith(Const.Symbol.trump.toString() + "_")) {
+                    db.delete(tableName, null, null);
+                }
+            }
         }
     }
 
@@ -80,18 +83,4 @@ public class DBHelper extends SQLiteOpenHelper {
         }
     }
 
-    private void dropTables(@NonNull SQLiteDatabase db) {
-        db.beginTransaction();
-        try {
-            for (String tableName : tableList) {
-                db.execSQL("DROP TABLE IF EXISTS " + tableName);
-            }
-            db.execSQL("DROP TABLE IF EXISTS " + Const.TREND_LINE_TABLE);
-            db.setTransactionSuccessful();
-        } catch (Exception e) {
-            Log.e(TAG, "Error dropping tables", e);
-        } finally {
-            db.endTransaction();
-        }
-    }
 }

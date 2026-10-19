@@ -15,7 +15,7 @@ public class Const {
 
     public static final String ERR_FILE = "finance_err_";
 
-    public static final int DB_VERSION = 1;
+    public static final int DB_VERSION = 4;
 
     public static String[] timeFrames = new String[] { "d", "w", "m", "q", "y" };
 
@@ -66,7 +66,7 @@ public class Const {
     }
     // ローソク線タイプ
     public enum Symbol {
-        btc, eth, dow, sp500, nasdaq, nikkei, usdx, usbond, xauusd, xagusd
+        btc, eth, trump, dow, sp500, nasdaq, nikkei, usdx, usbond, xauusd, xagusd
     }
     // 表示モード（缩小）
     public static final int ZOOM_IN = 10;

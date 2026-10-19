@@ -76,8 +76,9 @@ public class DBOperator {
         dbWritable.beginTransactionNonExclusive();
 
         for (String tableName : FileOperator.getTableList()) {
-            // データがロードしていない場合のみ、ロードする
-            if (getRecCount(tableName) == 0) {
+            boolean loadTrumpHistory = tableName.startsWith(
+                    Const.Symbol.trump.toString() + "_");
+            if (loadTrumpHistory || getRecCount(tableName) == 0) {
                 fileOperator = new FileOperator(tableName);
                 while ((fileRow = fileOperator.getFileRow()) != null) {
                     if (fileRow.length < 5) {
@@ -88,7 +89,12 @@ public class DBOperator {
                     dbRecord.put("High", fileRow[2]);
                     dbRecord.put("Low", fileRow[3]);
                     dbRecord.put("Close", fileRow[4]);
-                    dbWritable.insert(tableName, "", dbRecord);
+                    if (loadTrumpHistory) {
+                        dbWritable.insertWithOnConflict(tableName, null, dbRecord,
+                                SQLiteDatabase.CONFLICT_IGNORE);
+                    } else {
+                        dbWritable.insert(tableName, "", dbRecord);
+                    }
                 }
             }
         }
@@ -198,12 +204,13 @@ public class DBOperator {
         int count = getCount(tableName);
         // 判断是否可滑动
         if (count > minDisplayCount) {// 可滑动
-            // 判断指定的滑动范围是否超过最少表示柱体数量
-            if (offset > count - minDisplayCount) {// 超过
-                // 计算滑动到最少表示柱体时的偏移量
-                offset = count - minDisplayCount;
+            // The query starts DEFAULT_OFFSET candles before the visible offset.
+            int maxOffset = count - minDisplayCount + Const.DEFAULT_OFFSET;
+            if (offset > maxOffset) {
+                offset = maxOffset;
             }
-            query = query + " offset " + (offset - Const.DEFAULT_OFFSET);
+            int queryOffset = Math.max(0, offset - Const.DEFAULT_OFFSET);
+            query = query + " offset " + queryOffset;
             // 实际滑动可能距离设置
             ((ChartActivity)context).setOffset(offset);
         } else if (count == minDisplayCount) {

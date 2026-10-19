@@ -40,6 +40,18 @@ public class NetOperatorYahoo extends Observable {
     }
 
     public boolean loadPastData(String symbol) {
+        if ("trump".equals(symbol)) {
+            if (!hasNetwork()) {
+                notifyError(symbol, Const.MESSAGE_4, true);
+                return false;
+            }
+            String latestDate = dbOperator.getMaxDBDate(symbol);
+            long period1 = latestDate == null
+                    ? 0L : toEpochSeconds(latestDate) - SECONDS_PER_DAY;
+            new NetConnectorBinance(this, symbol, java.util.Collections.emptyList(),
+                    period1, getPeriod2()).execute();
+            return true;
+        }
         String symbolCode = getSymbolCode(symbol, true);
         if (symbolCode == null) {
             return false;
@@ -57,6 +69,19 @@ public class NetOperatorYahoo extends Observable {
     }
 
     public void loadIntraDayData(String symbol) {
+        if ("trump".equals(symbol)) {
+            if (!hasNetwork()) {
+                notifyError(symbol, Const.MESSAGE_4);
+                return;
+            }
+            String latestDate = dbOperator.getMaxDBDate(symbol);
+            long period1 = latestDate == null
+                    ? getMarketDayStart(symbol)
+                    : toEpochSeconds(latestDate) - SECONDS_PER_DAY;
+            new NetConnectorBinance(this, symbol, java.util.Collections.emptyList(),
+                    period1, getPeriod2()).execute();
+            return;
+        }
         String symbolCode = getSymbolCode(symbol, false);
         if (symbolCode == null) {
             return;
@@ -87,6 +112,7 @@ public class NetOperatorYahoo extends Observable {
         switch (symbol) {
             case "btc":
             case "eth":
+            case "trump":
                 return TimeZone.getTimeZone("UTC");
             case "nikkei":
                 return TimeZone.getTimeZone("Asia/Tokyo");
@@ -158,13 +184,15 @@ public class NetOperatorYahoo extends Observable {
     }
 
     private void notifyHistoryGap(String symbol) {
-        String error = "Yahoo and Binance history are missing one or more recent daily records";
+        String error = "trump".equals(symbol)
+                ? "Binance history is missing one or more recent daily records"
+                : "Yahoo and Binance history are missing one or more recent daily records";
         LogWriter.getWriter().printLog("銘柄：" + symbol + "、" + error);
         notifyError(symbol, error, true);
     }
 
     private long[] getMissingCryptoHistoryRange(String symbol, List<String> records) {
-        if (!"btc".equals(symbol) && !"eth".equals(symbol)) {
+        if (!"btc".equals(symbol) && !"eth".equals(symbol) && !"trump".equals(symbol)) {
             return null;
         }
 
@@ -209,7 +237,7 @@ public class NetOperatorYahoo extends Observable {
     }
 
     private boolean hasCompleteCryptoHistory(String symbol, List<String> records) {
-        if (!"btc".equals(symbol) && !"eth".equals(symbol)) {
+        if (!"btc".equals(symbol) && !"eth".equals(symbol) && !"trump".equals(symbol)) {
             return true;
         }
 
@@ -263,7 +291,7 @@ public class NetOperatorYahoo extends Observable {
             notifyObservers(new Object[] {true, symbol, historical});
         } catch (RuntimeException e) {
             notifyError(symbol,
-                    e.getMessage() == null ? "Failed to save Yahoo market data" : e.getMessage(),
+                    e.getMessage() == null ? "Failed to save market data" : e.getMessage(),
                     historical);
         }
     }
