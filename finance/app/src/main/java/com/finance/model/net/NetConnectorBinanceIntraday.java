@@ -94,7 +94,7 @@ public class NetConnectorBinanceIntraday
         JSONArray candles = new JSONArray(response);
         List<String> records = new ArrayList<>();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
         for (int i = 0; i < candles.length(); i++) {
             JSONArray candle = candles.getJSONArray(i);
             if (candle.length() < 5) {
