@@ -16,7 +16,9 @@ import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdCalculator;
 import com.finance.view.component.macd.KdjCalculator;
 import com.finance.view.component.macd.MacdInfo;
+import com.finance.view.component.macd.SignalLight;
 import com.finance.view.component.stick.ComnInfo;
+import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.StickInfo;
 
 import java.util.ArrayList;
@@ -75,6 +77,8 @@ public class MacdView  extends View {
     // タッチ箇所の日付
     private String touchedDate;
     private final Paint intervalButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private SignalLight macdKdjSignal = SignalLight.RED;
+    private SignalLight sarAverageKdjSignal = SignalLight.RED;
 
     public MacdView(Context context) {
         super(context);
@@ -114,6 +118,7 @@ public class MacdView  extends View {
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
         this.calculate();
         this.calculateKdj();
+        this.calculateHourlySignals();
     }
 
     private void calculateKdj() {
@@ -295,11 +300,106 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#EE82EE"));
         }
         this.drawText(canvas);
+        drawHourlySignals(canvas);
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdjValues(canvas);
         }
         this.drawTouchedLine(canvas);
         drawIntradayControls(canvas);
+    }
+
+    private void calculateHourlySignals() {
+        if (!"1h".equals(activity.getIntradayInterval())) {
+            return;
+        }
+
+        boolean macdIncreasing = false;
+        if (sizeOfStick >= EMA_SLOW + 1) {
+            float latestMacd = macdList.get(0).getMacd();
+            float previousMacd = macdList.get(1).getMacd();
+            macdIncreasing = latestMacd > previousMacd;
+        }
+        boolean kAboveD = isKAboveD();
+        macdKdjSignal = SignalLight.fromConditions(macdIncreasing, kAboveD);
+
+        boolean sarBullish = !stickList.isEmpty()
+                && ParabolicSarCalculator.calculate(stickList).get(0) < stickList.get(0).getClose();
+        boolean priceAboveTenHourAverage = isPriceAboveTenHourAverage();
+        boolean macdBullish = isMacdAboveSignal();
+        sarAverageKdjSignal = SignalLight.fromConditions(
+                sarBullish, macdBullish, priceAboveTenHourAverage);
+    }
+
+    private boolean isMacdAboveSignal() {
+        return sizeOfStick >= EMA_SLOW + SIGNAL - 1
+                && macdList.get(0).getMacd() > macdList.get(0).getSignal();
+    }
+
+    private boolean isKAboveD() {
+        return sizeOfStick > 0
+                && !Float.isNaN(kdjK[0])
+                && !Float.isNaN(kdjD[0])
+                && kdjK[0] > kdjD[0];
+    }
+
+    private boolean isPriceAboveTenHourAverage() {
+        if (sizeOfStick < 10) {
+            return false;
+        }
+        float closeSum = 0f;
+        for (int i = 0; i < 10; i++) {
+            closeSum += stickList.get(i).getClose();
+        }
+        return stickList.get(0).getClose() > closeSum / 10f;
+    }
+
+    private void drawHourlySignals(Canvas canvas) {
+        if (!"1h".equals(activity.getIntradayInterval())) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float buttonWidth = 58 * density;
+        float buttonHeight = 34 * density;
+        float gap = 6 * density;
+        float fiveMinuteLeft = getWidth() - 8 * density
+                - 3 * buttonWidth - 2 * gap;
+        float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
+        float secondSignalLeft = firstSignalLeft + buttonWidth + gap;
+        float bottom = getHeight() - 7 * density;
+        float top = bottom - buttonHeight;
+        float markerSize = 26 * density;
+        drawSignalMarker(canvas, firstSignalLeft + 60, top,
+                buttonWidth, buttonHeight, markerSize, macdKdjSignal);
+        drawSignalMarker(canvas, secondSignalLeft, top, buttonWidth, buttonHeight,
+                markerSize, sarAverageKdjSignal);
+    }
+
+    private void drawSignalMarker(Canvas canvas, float left, float top,
+                                  float buttonWidth, float buttonHeight, float shapeSize,
+                                  SignalLight signal) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float centerX = left + buttonWidth / 2;
+        float centerY = top + buttonHeight / 2;
+        switch (signal) {
+            case GREEN:
+                paint.setColor(Color.rgb(0, 230, 118));
+                canvas.drawCircle(centerX, centerY, shapeSize / 2, paint);
+                break;
+            case YELLOW:
+                paint.setColor(Color.rgb(255, 235, 59));
+                canvas.drawRect(centerX - shapeSize / 2, centerY - shapeSize / 2,
+                        centerX + shapeSize / 2, centerY + shapeSize / 2, paint);
+                break;
+            case RED:
+                paint.setColor(Color.rgb(255, 82, 82));
+                Path triangle = new Path();
+                triangle.moveTo(centerX, centerY - shapeSize / 2);
+                triangle.lineTo(centerX + shapeSize / 2, centerY + shapeSize / 2);
+                triangle.lineTo(centerX - shapeSize / 2, centerY + shapeSize / 2);
+                triangle.close();
+                canvas.drawPath(triangle, paint);
+                break;
+        }
     }
 
     private void drawKdj(Canvas canvas) {
@@ -429,9 +529,17 @@ public class MacdView  extends View {
         float gap = 6 * density;
         float right = getWidth() - 8 * density;
         float bottom = getHeight() - 7 * density;
+        float top = bottom - buttonHeight;
+        if ("1h".equals(activity.getIntradayInterval())) {
+            float fiveMinuteLeft = right - 3 * buttonWidth - 2 * gap;
+            float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
+            float lastSignalRight = firstSignalLeft + 2 * buttonWidth + gap;
+            if (x >= firstSignalLeft && x <= lastSignalRight && y >= top && y <= bottom) {
+                return true;
+            }
+        }
         for (String interval : intervals) {
             float left = right - buttonWidth;
-            float top = bottom - buttonHeight;
             if (x >= left && x <= right && y >= top && y <= bottom) {
                 activity.selectBinanceInterval(interval);
                 return true;
@@ -523,39 +631,40 @@ public class MacdView  extends View {
 
     /* 銘柄、タイムフレーム文字を表示 */
     private void drawText(Canvas canvas) {
-        // 描画オブジェクト
         Paint paint = new Paint();
         paint.setColor(Color.WHITE);
         paint.setStrokeWidth(2);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
+        canvas.drawText(getChartTitle(), 0, 45, paint);
+    }
+
+    private String getChartTitle() {
         String symbolText = "";
         String timeFrameText = "";
         String kLineText = "";
-
-        if(Const.Symbol.btc.toString().equals(symbol)) {
+        if (Const.Symbol.btc.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_btc));
-        } else if(Const.Symbol.eth.toString().equals(symbol)) {
+        } else if (Const.Symbol.eth.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_eth));
-        } else if(Const.Symbol.trump.toString().equals(symbol)) {
+        } else if (Const.Symbol.trump.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_trump));
         } else if (Const.Symbol.dow.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_dow));
-        } else if(Const.Symbol.sp500.toString().equals(symbol)) {
+        } else if (Const.Symbol.sp500.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_sp500));
-        } else if(Const.Symbol.nasdaq.toString().equals(symbol)) {
+        } else if (Const.Symbol.nasdaq.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_nasdaq));
-        } else if(Const.Symbol.nikkei.toString().equals(symbol)) {
+        } else if (Const.Symbol.nikkei.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_nikkei));
-        } else if(Const.Symbol.usdx.toString().equals(symbol)) {
+        } else if (Const.Symbol.usdx.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_dollor));
-        } else if(Const.Symbol.usbond.toString().equals(symbol)) {
+        } else if (Const.Symbol.usbond.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_usbond));
-        } else if(Const.Symbol.xauusd.toString().equals(symbol)) {
+        } else if (Const.Symbol.xauusd.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_gold));
-        } else if(Const.Symbol.xagusd.toString().equals(symbol)) {
+        } else if (Const.Symbol.xagusd.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_silver));
         }
-
         if (activity.getIntradayInterval() != null) {
             timeFrameText = activity.getIntradayInterval();
         } else if (Const.TimeFrame.d.toString().equals(timeFrame)) {
@@ -574,8 +683,7 @@ public class MacdView  extends View {
         } else {
             kLineText = "(HA)";
         }
-        // 最新価格設定
-        canvas.drawText(symbolText + "  " + timeFrameText + " " + kLineText, 0, 45, paint);
+        return symbolText + "  " + timeFrameText + " " + kLineText;
     }
 
     /* 单击事件，由Activity转发事件 */
