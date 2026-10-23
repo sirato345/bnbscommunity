@@ -424,9 +424,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     public boolean isCryptoSymbol() {
-        return Const.Symbol.btc.toString().equals(symbol)
-                || Const.Symbol.eth.toString().equals(symbol)
-                || Const.Symbol.trump.toString().equals(symbol);
+        return isCryptoSymbol(symbol);
+    }
+
+    private boolean isCryptoSymbol(String candidateSymbol) {
+        return Const.Symbol.btc.toString().equals(candidateSymbol)
+                || Const.Symbol.eth.toString().equals(candidateSymbol)
+                || Const.Symbol.trump.toString().equals(candidateSymbol);
     }
 
     public String getIntradayInterval() {
@@ -449,6 +453,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private void clearIntradaySelection() {
         intradayInterval = null;
+        resetIntradayRecords();
+    }
+
+    private void resetIntradayRecords() {
         intradayGeneration++;
         intradayRecords.clear();
         intradayLoading = false;
@@ -572,8 +580,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 // タイムフレーム切替によりスクロールをリセット
                 this.setOffset(0);
             } else if (result instanceof  Const.Symbol) {
-                clearIntradaySelection();
-                this.symbol = result.toString();
+                String newSymbol = result.toString();
+                if (intradayInterval != null && isCryptoSymbol()
+                        && isCryptoSymbol(newSymbol)) {
+                    resetIntradayRecords();
+                } else {
+                    intradayInterval = null;
+                    resetIntradayRecords();
+                }
+                this.symbol = newSymbol;
                 // 銘柄切替によりスクロールをリセット
                 this.setOffset(0);
             } else if (result instanceof  Const.Macd) {
@@ -878,6 +893,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         float x_move = e2.getX() - e1.getX();
         float y_move = e2.getY() - e1.getY();
+        if (isCryptoSymbol()
+                && (y_move > 180 || y_move < -180)
+                && Math.abs(y_move / x_move) > 2) {
+            changeCryptoTimeframe(y_move > 180);
+            return true;
+        }
         // タイムフレーム
         int length = Const.timeFrames.length;
         // 上下移動判定
@@ -921,6 +942,35 @@ public class ChartActivity extends FragmentActivity implements Observer,
             requestMarketData();
         }
         return true;
+    }
+
+    private void changeCryptoTimeframe(boolean swipeUp) {
+        String[] timeframes = {"5m", "1h", "4h", "d", "w", "m", "q", "y"};
+        String currentTimeframe = intradayInterval == null ? timeFrame : intradayInterval;
+        int currentIndex = 0;
+        for (int i = 0; i < timeframes.length; i++) {
+            if (timeframes[i].equals(currentTimeframe)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        int nextIndex = swipeUp
+                ? (currentIndex == 0 ? timeframes.length - 1 : currentIndex - 1)
+                : (currentIndex + 1) % timeframes.length;
+        String nextTimeframe = timeframes[nextIndex];
+        if ("5m".equals(nextTimeframe) || "1h".equals(nextTimeframe)
+                || "4h".equals(nextTimeframe)) {
+            intradayInterval = nextTimeframe;
+            resetIntradayRecords();
+        } else {
+            clearIntradaySelection();
+            timeFrame = nextTimeframe;
+        }
+
+        setOffset(0);
+        showUI();
+        requestMarketData();
     }
 
     @Override
