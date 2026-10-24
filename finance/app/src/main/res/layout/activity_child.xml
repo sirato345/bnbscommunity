@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:divider="@drawable/button_symbol"
-    android:weightSum="25"
+    android:weightSum="30.8"
     android:layout_marginTop="10dp"
     android:layout_marginBottom="10dp"
     android:layout_marginRight="8dp"
@@ -132,7 +132,7 @@
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="4.7"
+        android:layout_weight="5"
         android:weightSum="4">
         <Button
             android:layout_width="0dp"
@@ -186,19 +186,18 @@
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="4.7"
+        android:layout_weight="5"
         android:weightSum="5">
         <Button
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
-            android:text="@string/timeframe_day"
+            android:text="@string/timeframe_3day"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
             android:background="@drawable/button_timeframe"
-            android:id="@+id/button_timeframe_day"
-            android:onClick="onClick_Timeframe_D" />
-
+            android:id="@+id/button_timeframe_3day"
+            android:onClick="onClick_Timeframe_3D" />
         <Button
             android:layout_width="0dp"
             android:layout_weight="1"
@@ -239,5 +238,58 @@
             android:background="@drawable/button_timeframe"
             android:id="@+id/button_timeframe_year"
             android:onClick="onClick_Timeframe_Y" />
+    </LinearLayout>
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.2">
+    </LinearLayout>
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="5"
+        android:weightSum="4">
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/timeframe_day"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_timeframe"
+            android:id="@+id/button_timeframe_day"
+            android:onClick="onClick_Timeframe_D" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/timeframe_4h"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_timeframe"
+            android:id="@+id/button_timeframe_4h"
+            android:onClick="onClick_Timeframe_4H" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/timeframe_1h"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_timeframe"
+            android:id="@+id/button_timeframe_1h"
+            android:onClick="onClick_Timeframe_1H" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/timeframe_5m"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_timeframe"
+            android:id="@+id/button_timeframe_5m"
+            android:onClick="onClick_Timeframe_5M" />
     </LinearLayout>
 </LinearLayout>

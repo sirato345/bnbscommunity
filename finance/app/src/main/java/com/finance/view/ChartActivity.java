@@ -575,8 +575,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
             Bundle bundle = intent.getExtras();
             Object result = bundle.get(Const.KEY_RESULT);
             if (result instanceof  Const.TimeFrame) {
-                clearIntradaySelection();
-                this.timeFrame = result.toString();
+                String selectedTimeFrame = result.toString();
+                if (Const.TimeFrame.h4.toString().equals(selectedTimeFrame)
+                        || Const.TimeFrame.h1.toString().equals(selectedTimeFrame)
+                        || Const.TimeFrame.m5.toString().equals(selectedTimeFrame)) {
+                    if (isCryptoSymbol()) {
+                        intradayInterval = selectedTimeFrame;
+                        resetIntradayRecords();
+                    }
+                } else {
+                    clearIntradaySelection();
+                    this.timeFrame = selectedTimeFrame;
+                }
                 // タイムフレーム切替によりスクロールをリセット
                 this.setOffset(0);
             } else if (result instanceof  Const.Symbol) {
@@ -587,6 +597,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 } else {
                     intradayInterval = null;
                     resetIntradayRecords();
+                }
+                if (!isCryptoSymbol(newSymbol)
+                        && Const.TimeFrame.d3.toString().equals(timeFrame)) {
+                    timeFrame = Const.TimeFrame.d.toString();
                 }
                 this.symbol = newSymbol;
                 // 銘柄切替によりスクロールをリセット
@@ -875,6 +889,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         bandle.putString(Const.KEY_MACD, this.macd);
         bandle.putString(Const.KEY_K_LINE, this.kLine);
         bandle.putString(Const.KEY_TIME_FRAME, this.timeFrame);
+        bandle.putString("IntradayInterval", this.intradayInterval);
         intent.putExtras(bandle);
         // 子画面起動
         startActivityForResult(intent, Const.REQUEST_CODE);
@@ -945,7 +960,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void changeCryptoTimeframe(boolean swipeUp) {
-        String[] timeframes = {"5m", "1h", "4h", "d", "w", "m", "q", "y"};
+        String[] timeframes = {"5m", "1h", "4h", "d", "3d", "w", "m", "q", "y"};
         String currentTimeframe = intradayInterval == null ? timeFrame : intradayInterval;
         int currentIndex = 0;
         for (int i = 0; i < timeframes.length; i++) {

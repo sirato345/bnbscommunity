@@ -16,9 +16,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TimeZone;
 
 /**
  * DB操作クラス
@@ -264,10 +266,55 @@ public class DBOperator {
 
     // タイムフレーム計算
     public void calculateWMQY(String symbol) {
+        if (isCryptoSymbol(symbol)) {
+            calculateThreeDay(symbol);
+        }
         this.calculateWeek(symbol);
         this.calculateMonth(symbol);
         this.calculateQuarter(symbol);
         this.calculateYear(symbol);
+    }
+
+    private boolean isCryptoSymbol(String symbol) {
+        return Const.Symbol.btc.toString().equals(symbol)
+                || Const.Symbol.eth.toString().equals(symbol)
+                || Const.Symbol.trump.toString().equals(symbol);
+    }
+
+    private void calculateThreeDay(String symbol) {
+        String query = "select * from " + symbol + "_d order by DATE";
+        Cursor cursor = dbReadable.rawQuery(query, null);
+        Map<String, Object[]> threeDayMap = new TreeMap<>();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        while (cursor.moveToNext()) {
+            String dailyDate = cursor.getString(0);
+            try {
+                long timestamp = dateFormat.parse(dailyDate).getTime();
+                // Align three-day bars to Binance's UTC epoch-based interval boundaries.
+                long bucketTimestamp = Math.floorDiv(timestamp, 3L * 24 * 60 * 60 * 1000)
+                        * (3L * 24 * 60 * 60 * 1000);
+                String bucketDate = dateFormat.format(new Date(bucketTimestamp));
+                float open = cursor.getFloat(1);
+                float high = cursor.getFloat(2);
+                float low = cursor.getFloat(3);
+                float close = cursor.getFloat(4);
+                Object[] record = threeDayMap.get(bucketDate);
+                if (record == null) {
+                    threeDayMap.put(bucketDate,
+                            new Object[] {bucketDate, open, high, low, close});
+                } else {
+                    record[2] = Math.max(high, (Float) record[2]);
+                    record[3] = Math.min(low, (Float) record[3]);
+                    record[4] = close;
+                }
+            } catch (ParseException e) {
+                cursor.close();
+                throw new IllegalArgumentException("Invalid daily candle date: " + dailyDate, e);
+            }
+        }
+        cursor.close();
+        updateDB2(symbol, "3d", new ArrayList<>(threeDayMap.values()));
     }
 
     // 计算取得可能数据件数

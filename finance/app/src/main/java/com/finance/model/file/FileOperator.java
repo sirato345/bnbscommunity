@@ -84,6 +84,11 @@ public class FileOperator {
             for (String timeFrame : Const.timeFrames) {
                 tableList.add(symbol + "_" + timeFrame);
             }
+            if (Const.Symbol.btc.toString().equals(symbol)
+                    || Const.Symbol.eth.toString().equals(symbol)
+                    || Const.Symbol.trump.toString().equals(symbol)) {
+                tableList.add(symbol + "_3d");
+            }
         }
         return tableList;
     }

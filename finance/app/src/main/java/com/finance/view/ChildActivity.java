@@ -18,8 +18,6 @@ import com.finance.common.Const;
  */
 public class ChildActivity extends Activity {
 
-    private static final double PANEL_HEIGHT_SCALE = 5.0 / 6.0;
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,10 +42,10 @@ public class ChildActivity extends Activity {
         // 获取对话框当前的参值
         WindowManager.LayoutParams p = getWindow().getAttributes();
         if (this.getOrientation() == Configuration.ORIENTATION_PORTRAIT){
-            p.height = (int) (display.getHeight() * 0.4 * PANEL_HEIGHT_SCALE);
+            p.height = (int) (display.getHeight() * 0.4);
             p.width = (int) (display.getWidth() * 0.85);
         } else {
-            p.height = (int) (display.getHeight() * 0.75 * PANEL_HEIGHT_SCALE);
+            p.height = (int) (display.getHeight() * 0.75);
             p.width = (int) (display.getWidth() * 0.50);
         }
         // 设置生效
@@ -71,6 +69,8 @@ public class ChildActivity extends Activity {
         String macd = bundle.getString(Const.KEY_MACD);
         String kLine = bundle.getString(Const.KEY_K_LINE);
         String timeFrame = bundle.getString(Const.KEY_TIME_FRAME);
+        String intradayInterval = bundle.getString("IntradayInterval");
+        boolean isCrypto = isCryptoSymbol(symbol);
         Button button = null;
 
         if (symbol.equals(Const.Symbol.btc.toString())) {
@@ -119,23 +119,54 @@ public class ChildActivity extends Activity {
         }
         drawable= getResources().getDrawable(R.drawable.button_k_line_select);
         button.setBackground(drawable);
-        if (timeFrame.equals(Const.TimeFrame.d.toString())) {
+        String selectedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
+        if (selectedTimeFrame.equals(Const.TimeFrame.d3.toString())) {
+            button = (Button)this.findViewById(R.id.button_timeframe_3day);
+        }
+        if (selectedTimeFrame.equals(Const.TimeFrame.d.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_day);
         }
-        if (timeFrame.equals(Const.TimeFrame.w.toString())) {
+        if (selectedTimeFrame.equals(Const.TimeFrame.w.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_week);
         }
-        if (timeFrame.equals(Const.TimeFrame.m.toString())) {
+        if (selectedTimeFrame.equals(Const.TimeFrame.m.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_month);
         }
-        if (timeFrame.equals(Const.TimeFrame.q.toString())) {
+        if (selectedTimeFrame.equals(Const.TimeFrame.q.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_quarter);
         }
-        if (timeFrame.equals(Const.TimeFrame.y.toString())) {
+        if (selectedTimeFrame.equals(Const.TimeFrame.y.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_year);
         }
-        drawable= getResources().getDrawable(R.drawable.button_timeframe_select);
-        button.setBackground(drawable);
+        if (selectedTimeFrame.equals(Const.TimeFrame.h4.toString())) {
+            button = (Button)this.findViewById(R.id.button_timeframe_4h);
+        }
+        if (selectedTimeFrame.equals(Const.TimeFrame.h1.toString())) {
+            button = (Button)this.findViewById(R.id.button_timeframe_1h);
+        }
+        if (selectedTimeFrame.equals(Const.TimeFrame.m5.toString())) {
+            button = (Button)this.findViewById(R.id.button_timeframe_5m);
+        }
+        if (button != null) {
+            drawable= getResources().getDrawable(R.drawable.button_timeframe_select);
+            button.setBackground(drawable);
+        }
+        setCryptoTimeframeEnabled(R.id.button_timeframe_3day, isCrypto);
+        setCryptoTimeframeEnabled(R.id.button_timeframe_4h, isCrypto);
+        setCryptoTimeframeEnabled(R.id.button_timeframe_1h, isCrypto);
+        setCryptoTimeframeEnabled(R.id.button_timeframe_5m, isCrypto);
+    }
+
+    private void setCryptoTimeframeEnabled(int buttonId, boolean enabled) {
+        Button button = findViewById(buttonId);
+        button.setEnabled(enabled);
+        button.setAlpha(enabled ? 1f : 0.45f);
+    }
+
+    private boolean isCryptoSymbol(String symbol) {
+        return Const.Symbol.btc.toString().equals(symbol)
+                || Const.Symbol.eth.toString().equals(symbol)
+                || Const.Symbol.trump.toString().equals(symbol);
     }
 
     public void onClick_Btc(View v) {
@@ -181,6 +212,9 @@ public class ChildActivity extends Activity {
     public void onClick_Timeframe_D(View v) {
         setResult(Const.TimeFrame.d);
     }
+    public void onClick_Timeframe_3D(View v) {
+        setResult(Const.TimeFrame.d3);
+    }
     public void onClick_Timeframe_W(View v) {
         setResult(Const.TimeFrame.w);
     }
@@ -192,5 +226,14 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Timeframe_Y(View v) {
         setResult(Const.TimeFrame.y);
+    }
+    public void onClick_Timeframe_4H(View v) {
+        setResult(Const.TimeFrame.h4);
+    }
+    public void onClick_Timeframe_1H(View v) {
+        setResult(Const.TimeFrame.h1);
+    }
+    public void onClick_Timeframe_5M(View v) {
+        setResult(Const.TimeFrame.m5);
     }
 }

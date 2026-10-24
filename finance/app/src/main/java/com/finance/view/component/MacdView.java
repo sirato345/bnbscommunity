@@ -118,7 +118,7 @@ public class MacdView  extends View {
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
         this.calculate();
         this.calculateKdj();
-        this.calculateHourlySignals();
+        this.calculateSignals();
     }
 
     private void calculateKdj() {
@@ -300,7 +300,7 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#EE82EE"));
         }
         this.drawText(canvas);
-        drawHourlySignals(canvas);
+        drawSignals(canvas);
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdjValues(canvas);
         }
@@ -308,11 +308,7 @@ public class MacdView  extends View {
         drawIntradayControls(canvas);
     }
 
-    private void calculateHourlySignals() {
-        if (!"1h".equals(activity.getIntradayInterval())) {
-            return;
-        }
-
+    private void calculateSignals() {
         boolean macdIncreasing = false;
         if (sizeOfStick >= EMA_SLOW + 1) {
             float latestMacd = macdList.get(0).getMacd();
@@ -324,10 +320,10 @@ public class MacdView  extends View {
 
         boolean sarBullish = !stickList.isEmpty()
                 && ParabolicSarCalculator.calculate(stickList).get(0) < stickList.get(0).getClose();
-        boolean priceAboveTenHourAverage = isPriceAboveTenHourAverage();
+        boolean priceAboveTenPeriodAverage = isPriceAboveTenPeriodAverage();
         boolean macdBullish = isMacdAboveSignal();
         sarAverageKdjSignal = SignalLight.fromConditions(
-                sarBullish, macdBullish, priceAboveTenHourAverage);
+                sarBullish, macdBullish, priceAboveTenPeriodAverage);
     }
 
     private boolean isMacdAboveSignal() {
@@ -342,7 +338,7 @@ public class MacdView  extends View {
                 && kdjK[0] > kdjD[0];
     }
 
-    private boolean isPriceAboveTenHourAverage() {
+    private boolean isPriceAboveTenPeriodAverage() {
         if (sizeOfStick < 10) {
             return false;
         }
@@ -353,10 +349,7 @@ public class MacdView  extends View {
         return stickList.get(0).getClose() > closeSum / 10f;
     }
 
-    private void drawHourlySignals(Canvas canvas) {
-        if (!"1h".equals(activity.getIntradayInterval())) {
-            return;
-        }
+    private void drawSignals(Canvas canvas) {
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
@@ -515,9 +508,6 @@ public class MacdView  extends View {
     }
 
     public boolean handleIntradayControlTap(MotionEvent event) {
-        if (!activity.isCryptoSymbol()) {
-            return false;
-        }
         int[] location = new int[2];
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
@@ -530,13 +520,14 @@ public class MacdView  extends View {
         float right = getWidth() - 8 * density;
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
-        if ("1h".equals(activity.getIntradayInterval())) {
-            float fiveMinuteLeft = right - 3 * buttonWidth - 2 * gap;
-            float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
-            float lastSignalRight = firstSignalLeft + 2 * buttonWidth + gap;
-            if (x >= firstSignalLeft && x <= lastSignalRight && y >= top && y <= bottom) {
-                return true;
-            }
+        float fiveMinuteLeft = right - 3 * buttonWidth - 2 * gap;
+        float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
+        float lastSignalRight = firstSignalLeft + 2 * buttonWidth + gap;
+        if (x >= firstSignalLeft && x <= lastSignalRight && y >= top && y <= bottom) {
+            return true;
+        }
+        if (!activity.isCryptoSymbol()) {
+            return false;
         }
         for (String interval : intervals) {
             float left = right - buttonWidth;
@@ -667,6 +658,8 @@ public class MacdView  extends View {
         }
         if (activity.getIntradayInterval() != null) {
             timeFrameText = activity.getIntradayInterval();
+        } else if (Const.TimeFrame.d3.toString().equals(timeFrame)) {
+            timeFrameText = replace(getResources().getString(R.string.timeframe_3day));
         } else if (Const.TimeFrame.d.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_day));
         } else if (Const.TimeFrame.w.toString().equals(timeFrame)) {

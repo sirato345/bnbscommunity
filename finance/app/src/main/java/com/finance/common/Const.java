@@ -15,7 +15,7 @@ public class Const {
 
     public static final String ERR_FILE = "finance_err_";
 
-    public static final int DB_VERSION = 4;
+    public static final int DB_VERSION = 5;
 
     public static String[] timeFrames = new String[] { "d", "w", "m", "q", "y" };
 
@@ -54,7 +54,19 @@ public class Const {
 
     // タイムフレーム
     public enum TimeFrame {
-        d, w, m, q, y;
+        d("d"), d3("3d"), w("w"), m("m"), q("q"), y("y"),
+        h4("4h"), h1("1h"), m5("5m");
+
+        private final String value;
+
+        TimeFrame(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
     }
     // MACDタイプ
     public enum Macd {
