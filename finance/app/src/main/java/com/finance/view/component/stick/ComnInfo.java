@@ -23,6 +23,8 @@ public class ComnInfo {
     private int macdHeight;
     // 日付エリアの高（絶対画素）
     private int dateHeight;
+    // 日付目盛り線の高（絶対画素）
+    private int dateTickHeight;
     // アクティビティ
     private ChartActivity activity;
 
@@ -61,9 +63,18 @@ public class ComnInfo {
 //            // 横屏
 //            screenHeight = dMetrics.heightPixels - 55;
 //        }
+        boolean isPortrait = activity.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
         stickHeight = screenHeight * Const.WEIGHT_STICK / Const.WEIGHT_ALL;
-        macdHeight =screenHeight * Const.WEIGHT_MACD / Const.WEIGHT_ALL;
-        dateHeight = screenHeight * Const.WEIGHT_DATE / Const.WEIGHT_ALL;
+        int baseMacdHeight = screenHeight * Const.WEIGHT_MACD / Const.WEIGHT_ALL;
+        int baseDateHeight = screenHeight * Const.WEIGHT_DATE / Const.WEIGHT_ALL;
+        int baseDateTickHeight = baseDateHeight / 3;
+        int heightAdjustment = isPortrait ? baseDateTickHeight / 2 : 0;
+        stickHeight = Math.max(1, stickHeight - Const.MACD_AREA_HEIGHT_SHIFT);
+        macdHeight = baseMacdHeight + heightAdjustment
+                + Const.MACD_AREA_HEIGHT_SHIFT;
+        dateHeight = baseDateHeight - heightAdjustment;
+        dateTickHeight = baseDateTickHeight - heightAdjustment;
         stickWidth = activity.getStickWidth();
     }
 
@@ -118,5 +129,9 @@ public class ComnInfo {
 
     public int getDateHeight() {
         return dateHeight;
+    }
+
+    public int getDateTickHeight() {
+        return dateTickHeight;
     }
 }

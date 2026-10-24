@@ -14,7 +14,6 @@ import com.finance.view.ChartActivity;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.StickInfo;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -32,6 +31,8 @@ public class DateView extends View {
     private int offset;
     // 日付表示の間隔
     private int interval;
+    private String touchedDate;
+    private int touchedDateX;
     // アクティビティ
     private ChartActivity activity;
 
@@ -63,40 +64,13 @@ public class DateView extends View {
 
     public boolean isDatePickerTap(Point point) {
         int localY = point.y - comnInfo.getStickHeight() - comnInfo.getMacdHeight();
-        if (localY < comnInfo.getDateHeight() * 2 / 3
-                || localY >= comnInfo.getDateHeight()) {
-            return false;
-        }
-        for (int markerX : getDateMarkerPositions()) {
-            if (Math.abs(point.x - markerX) <= 8) {
-                return false;
-            }
-        }
-        return true;
+        return localY >= comnInfo.getDateHeight() / 4
+                && localY < comnInfo.getDateHeight();
     }
 
-    private List<Integer> getDateMarkerPositions() {
-        int maxStickCount = comnInfo.getMaxStickCount(stickList.size());
-        int dateOffset = offset;
-        if (maxStickCount < comnInfo.getMinDispCount()) {
-            dateOffset = 0;
-        } else {
-            dateOffset = Math.min(dateOffset, Const.DEFAULT_OFFSET);
-            if (Const.ZOOM_IN == activity.getStickWidth()) {
-                dateOffset += 4;
-            }
-        }
-        int interval = Const.ZOOM_OUT == activity.getStickWidth() ? 11 : 22;
-        List<Integer> markerPositions = new ArrayList<>();
-        for (int i = dateOffset; i < maxStickCount; i += interval) {
-            StickInfo stickInfo = stickList.get(i);
-            int markerX = stickInfo.getStickRect().centerX();
-            if (Const.ZOOM_IN == activity.getStickWidth()) {
-                markerX -= (int)(0.5 * Const.ZOOM_IN);
-            }
-            markerPositions.add(markerX);
-        }
-        return markerPositions;
+    public void setTouchedDate(String date, int x) {
+        touchedDate = date;
+        touchedDateX = x;
     }
 
     @Override
@@ -142,7 +116,7 @@ public class DateView extends View {
             }
             lineRect.left = lineRect.right;
             lineRect.top = 0;
-            lineRect.bottom = comnInfo.getDateHeight() / 3;
+            lineRect.bottom = comnInfo.getDateTickHeight();
             Point datePoint = new Point();
             datePoint.x = lineRect.right - 92;
             if (activity.getIntradayInterval() != null) {
@@ -158,5 +132,34 @@ public class DateView extends View {
                     lineRect.bottom, paint);
             canvas.drawText(date, datePoint.x, datePoint.y, paint);
         }
+        drawTouchedDate(canvas);
+    }
+
+    private void drawTouchedDate(Canvas canvas) {
+        if (touchedDate == null) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        String date = formatDateForDisplay(touchedDate,
+                activity.getIntradayInterval() != null);
+        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setTextSize(Const.FONT_SIZE);
+        textPaint.setFakeBoldText(true);
+        Paint.FontMetrics fontMetrics = textPaint.getFontMetrics();
+        float horizontalPadding = 8 * density;
+        float verticalPadding = 4 * density;
+        float labelWidth = textPaint.measureText(date) + 2 * horizontalPadding;
+        float labelHeight = fontMetrics.descent - fontMetrics.ascent
+                + 2 * verticalPadding;
+        float left = Math.max(0, Math.min(getWidth() - labelWidth,
+                touchedDateX - labelWidth / 2));
+        float top = Math.max(0, (getHeight() - labelHeight) / 2);
+        Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        backgroundPaint.setColor(Color.rgb(255, 193, 7));
+        canvas.drawRoundRect(left, top, left + labelWidth, top + labelHeight,
+                4 * density, 4 * density, backgroundPaint);
+        textPaint.setColor(Color.BLACK);
+        canvas.drawText(date, left + horizontalPadding, top + verticalPadding
+                - fontMetrics.ascent, textPaint);
     }
 }

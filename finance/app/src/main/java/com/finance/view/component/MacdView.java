@@ -416,8 +416,8 @@ public class MacdView  extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        float top = 18 * density;
-        float bottom = getHeight() - 18 * density;
+        float top = Const.MACD_CHART_VERTICAL_INSET;
+        float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         guidePaint.setColor(Color.rgb(70, 70, 70));
         guidePaint.setStrokeWidth(density);
@@ -468,21 +468,19 @@ public class MacdView  extends View {
         }
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
-        paint.setTextAlign(Paint.Align.RIGHT);
-        float density = getResources().getDisplayMetrics().density;
-        float right = getWidth() - 8 * density;
-        float baseline = 45;
-        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
-        paint.setColor(Color.rgb(255, 82, 82));
-        canvas.drawText(jValue, right, baseline, paint);
-        right -= paint.measureText(jValue) + 12 * density;
-        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
-        paint.setColor(Color.rgb(3, 218, 198));
-        canvas.drawText(dValue, right, baseline, paint);
-        right -= paint.measureText(dValue) + 12 * density;
+        paint.setTextAlign(Paint.Align.LEFT);
+        float baseline = 45 + paint.getFontSpacing();
         String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
         paint.setColor(Color.rgb(255, 193, 7));
-        canvas.drawText(kValue, right, baseline, paint);
+        canvas.drawText(kValue, 0, baseline, paint);
+        float nextX = paint.measureText(kValue) + 12;
+        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
+        paint.setColor(Color.rgb(3, 218, 198));
+        canvas.drawText(dValue, nextX, baseline, paint);
+        nextX += paint.measureText(dValue) + 12;
+        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
+        paint.setColor(Color.rgb(255, 82, 82));
+        canvas.drawText(jValue, nextX, baseline, paint);
     }
 
     private void drawIntradayControls(Canvas canvas) {
@@ -725,15 +723,7 @@ public class MacdView  extends View {
         paint.setColor(Color.WHITE);
         paint.setTextSize(Const.FONT_SIZE);
         if (touchedDate != null) {
-            // 日期线
-            canvas.drawLine(touchPoint.x, 0, touchPoint.x, comnInfo.getMacdHeight() - Const.FONT_SIZE, paint);
-            String date = DateView.formatDateForDisplay(touchedDate,
-                    activity.getIntradayInterval() != null);
-            float dateX = touchPoint.x - 92;
-            if (activity.getIntradayInterval() != null) {
-                dateX = touchPoint.x - paint.measureText(date) / 2 - 4;
-            }
-            canvas.drawText(date, dateX, comnInfo.getMacdHeight(), paint);
+            canvas.drawLine(touchPoint.x, 0, touchPoint.x, getHeight(), paint);
         }
     }
 

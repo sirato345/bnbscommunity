@@ -52,8 +52,9 @@ public class MacdInfo {
 
     public void calculate(StickInfo stickInfo) {
         this.stickInfo = stickInfo;
-        this.macd_height = comnInfo.getMacdHeight();
-        this.zero_axis = macd_height / 2;
+        this.macd_height = Math.max(1, comnInfo.getMacdHeight()
+                - 2 * Const.MACD_CHART_VERTICAL_INSET);
+        this.zero_axis = Const.MACD_CHART_VERTICAL_INSET + macd_height / 2;
         this.fullValue = absMaxValue * 2;
         this.setColor();
         this.calcMacdOsciRect();
@@ -126,8 +127,7 @@ public class MacdInfo {
         } else {
             valueRate = (absMaxValue + Math.abs(value)) / fullValue;
         }
-        // StatusBarの高を除いて(0,0)になる
-        yPoint = (int) (valueRate * macd_height);
+        yPoint = Const.MACD_CHART_VERTICAL_INSET + (int) (valueRate * macd_height);
         return yPoint;
     }
 

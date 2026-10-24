@@ -15,7 +15,7 @@ public class Const {
 
     public static final String ERR_FILE = "finance_err_";
 
-    public static final int DB_VERSION = 5;
+    public static final int DB_VERSION = 6;
 
     public static String[] timeFrames = new String[] { "d", "w", "m", "q", "y" };
 
@@ -30,6 +30,10 @@ public class Const {
 
     // Date Viewの高さの比率
     public static final int WEIGHT_DATE = 1;
+
+    public static final int MACD_AREA_HEIGHT_SHIFT = 50;
+
+    public static final int MACD_CHART_VERTICAL_INSET = 50;
 
     // 画面全体の高さの比率
     public static final int WEIGHT_ALL = 24;

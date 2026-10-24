@@ -10,6 +10,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.util.DisplayMetrics;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
@@ -551,18 +552,29 @@ public class ChartActivity extends FragmentActivity implements Observer,
         LinearLayout linearLayout = new LinearLayout(this);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
         addContentView(linearLayout, new ViewGroup.LayoutParams(-1, -1));
+        boolean isPortrait = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+        float dateWeightAdjustment = isPortrait ? Const.WEIGHT_DATE / 6f : 0f;
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        int screenHeight = displayMetrics.heightPixels - (isPortrait ? 30 : 100);
+        float areaWeightShift = Const.MACD_AREA_HEIGHT_SHIFT
+                * (float) Const.WEIGHT_ALL / screenHeight;
         // ローソク線のView設定
         this.stickView = new StickView(this);
         linearLayout.addView(stickView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0, Const.WEIGHT_STICK));
+                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                        Const.WEIGHT_STICK - areaWeightShift));
         // MACD線のView設定
         this.macdView = new MacdView(this);
         linearLayout.addView(macdView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0, Const.WEIGHT_MACD));
+                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                        Const.WEIGHT_MACD + dateWeightAdjustment + areaWeightShift));
         // 日付のView設定
         this.dateView = new DateView(this);
         linearLayout.addView(dateView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0, Const.WEIGHT_DATE));
+                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                        Const.WEIGHT_DATE - dateWeightAdjustment));
     }
 
     @Override
@@ -701,11 +713,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 touchPoint.x = point.x;
                 stickView.setTouchedDate(null);
                 macdView.setTouchedDate(null);
+                dateView.setTouchedDate(null, touchPoint.x);
                 stickView.setCurrentValue(null);
             } else {
                 touchPoint.x = stickInfo.getStickRect().centerX();
                 stickView.setTouchedDate(stickInfo.getDate());
                 macdView.setTouchedDate(stickInfo.getDate());
+                dateView.setTouchedDate(stickInfo.getDate(), touchPoint.x);
                 stickView.setCurrentValue(stickInfo.getYValue(touchPoint.y));
             }
             stickView.setTouchPoint(touchPoint);
@@ -715,6 +729,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             macdView.setTouchPoint(null);
             stickView.setTouchedDate(null);
             macdView.setTouchedDate(null);
+            dateView.setTouchedDate(null, 0);
             stickView.setCurrentValue(null);
         }
         // 触摸位置日期价格表示
