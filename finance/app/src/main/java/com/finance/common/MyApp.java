@@ -13,6 +13,7 @@ public class MyApp extends Application {
 
     private final ConcurrentHashMap<String, ConnectStatus> statusMap = new ConcurrentHashMap<>();
     private static final String HISTORY_SYNC_PREFERENCES = "history_sync";
+    private static final String DAILY_DATA_REFRESH_SUFFIX = "_daily_data_refresh";
 
     @Override
     public void onCreate() {
@@ -77,8 +78,34 @@ public class MyApp extends Application {
                 .apply();
     }
 
+    public boolean isDailyDataRefreshDue(@NonNull String symbol, String latestDbDate) {
+        String marketDate = getMarketDate(symbol);
+        if (hasDailyDataForToday(symbol, latestDbDate)) {
+            markDailyDataRefreshAttempted(symbol);
+            return false;
+        }
+        String attemptedDate = getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
+                .getString(getDailyDataRefreshKey(symbol), null);
+        return !marketDate.equals(attemptedDate);
+    }
+
+    public boolean hasDailyDataForToday(@NonNull String symbol, String latestDbDate) {
+        return getMarketDate(symbol).equals(latestDbDate);
+    }
+
+    public void markDailyDataRefreshAttempted(@NonNull String symbol) {
+        getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
+                .edit()
+                .putString(getDailyDataRefreshKey(symbol), getMarketDate(symbol))
+                .apply();
+    }
+
     private String getHistorySyncSuccessKey(@NonNull String symbol) {
         return symbol + "_success";
+    }
+
+    private String getDailyDataRefreshKey(@NonNull String symbol) {
+        return symbol + DAILY_DATA_REFRESH_SUFFIX;
     }
 
     private String getMarketDate(String symbol) {

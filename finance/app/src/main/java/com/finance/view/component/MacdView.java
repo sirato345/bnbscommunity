@@ -21,6 +21,8 @@ import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.StickInfo;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +33,7 @@ import java.util.Locale;
  */
 public class MacdView  extends View {
     private static final String[] INTRADAY_INTERVALS = {"4h", "1h", "15m", "5m"};
+    private static final float CHART_TITLE_BASELINE = 45;
 
     // アクティビティ
     private ChartActivity activity;
@@ -78,6 +81,10 @@ public class MacdView  extends View {
     // タッチ箇所の日付
     private String touchedDate;
     private final Paint intervalButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final DecimalFormat cryptoPriceFormat = new DecimalFormat(
+            "0.00", DecimalFormatSymbols.getInstance(Locale.US));
+    private final DecimalFormat trumpPriceFormat = new DecimalFormat(
+            "0.000", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight macdKdjSignal = SignalLight.RED;
     private SignalLight sarAverageKdjSignal = SignalLight.RED;
 
@@ -354,12 +361,11 @@ public class MacdView  extends View {
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
-        float markerSize = 26 * density;
+        float markerSize = getIndicatorMarkerSize();
         float markerGap = 12 * density;
-        float right = getWidth() - 8 * density;
-        float secondSignalCenter = right - buttonWidth / 2;
+        float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
-        float top = getSignalControlsTop(buttonHeight, markerSize) + 2 * density;
+        float top = getSignalControlsTop(buttonHeight, markerSize);
         drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight, markerSize, macdKdjSignal);
         drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
@@ -368,13 +374,48 @@ public class MacdView  extends View {
     }
 
     private float getSignalControlsTop(float buttonHeight, float markerSize) {
-        Paint titlePaint = new Paint();
+        float titleTop = CHART_TITLE_BASELINE + getTitleBounds().top;
+        return titleTop - (buttonHeight - markerSize) / 2;
+    }
+
+    private float getIndicatorMarkerSize() {
+        Rect priceBounds = getPriceTextBounds();
+        return priceBounds == null ? getTitleBounds().height() : priceBounds.height() + 20;
+    }
+
+    private Rect getTitleBounds() {
+        Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setTextSize(Const.FONT_SIZE_LARGE);
         Rect titleBounds = new Rect();
         String title = getChartTitle();
         titlePaint.getTextBounds(title, 0, title.length(), titleBounds);
-        float titleTop = 45 + titleBounds.top;
-        return titleTop - (buttonHeight - markerSize) / 2;
+        return titleBounds;
+    }
+
+    private Rect getPriceTextBounds() {
+        String price = getCurrentPriceText();
+        if (price == null) {
+            return null;
+        }
+        Paint pricePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pricePaint.setTextSize(Const.FONT_SIZE_ARROW);
+        pricePaint.setFakeBoldText(true);
+        Rect priceBounds = new Rect();
+        pricePaint.getTextBounds(price, 0, price.length(), priceBounds);
+        return priceBounds;
+    }
+
+    private float getSignalRightCenter(float density, float markerSize, float markerGap) {
+        String price = getCurrentPriceText();
+        if (price == null) {
+            return getWidth() - 8 * density - 29 * density;
+        }
+        Paint pricePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pricePaint.setTextSize(Const.FONT_SIZE_ARROW);
+        pricePaint.setFakeBoldText(true);
+        float priceWidth = pricePaint.measureText(price);
+        float priceLeft = getWidth() - 8 * density - priceWidth;
+        return priceLeft - markerGap - markerSize / 2;
     }
 
     private float getIntradayControlsRight(float density, float buttonWidth) {
@@ -532,13 +573,12 @@ public class MacdView  extends View {
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
         float gap = 6 * density;
-        float markerSize = 26 * density;
+        float markerSize = getIndicatorMarkerSize();
         float markerGap = 12 * density;
-        float signalControlsRight = getWidth() - 8 * density;
-        float secondSignalCenter = signalControlsRight - buttonWidth / 2;
+        float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
         float firstSignalLeft = firstSignalCenter - markerSize / 2;
-        float signalTop = getSignalControlsTop(buttonHeight, markerSize) + 2 * density;
+        float signalTop = getSignalControlsTop(buttonHeight, markerSize);
         float signalBottom = signalTop + buttonHeight;
         if (x >= firstSignalLeft && x <= secondSignalCenter + markerSize / 2
                 && y >= signalTop && y <= signalBottom) {
@@ -643,11 +683,37 @@ public class MacdView  extends View {
 
     /* 銘柄、タイムフレーム文字を表示 */
     private void drawText(Canvas canvas) {
-        Paint paint = new Paint();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
         paint.setStrokeWidth(2);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
-        canvas.drawText(getChartTitle(), 0, 45, paint);
+        canvas.drawText(getChartTitle(), 0, CHART_TITLE_BASELINE, paint);
+        drawCurrentPrice(canvas);
+    }
+
+    private void drawCurrentPrice(Canvas canvas) {
+        String price = getCurrentPriceText();
+        if (price == null) {
+            return;
+        }
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(Const.FONT_SIZE_ARROW);
+        paint.setFakeBoldText(true);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        paint.setColor(stickList.get(0).getColor());
+        float density = getResources().getDisplayMetrics().density;
+        Rect priceBounds = getPriceTextBounds();
+        float priceBaseline = CHART_TITLE_BASELINE + getTitleBounds().top - priceBounds.top;
+        canvas.drawText(price, getWidth() - 8 * density, priceBaseline, paint);
+    }
+
+    private String getCurrentPriceText() {
+        if (stickList == null || stickList.isEmpty() || !activity.isCryptoSymbol()) {
+            return null;
+        }
+        float close = stickList.get(0).getClose();
+        return Const.Symbol.trump.toString().equals(symbol)
+                ? trumpPriceFormat.format(close) : cryptoPriceFormat.format(close);
     }
 
     private String getChartTitle() {

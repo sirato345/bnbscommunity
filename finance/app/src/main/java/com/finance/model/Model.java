@@ -7,17 +7,23 @@ import com.finance.common.LogWriter;
 import com.finance.model.db.DBOperator;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
+import com.finance.model.net.NetConnectorBinanceRealtime;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Observer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 模型层 - 升级版
  * 使用回调接口替代Observer模式
  */
 public class Model {
+
+    private static final ExecutorService BINANCE_REALTIME_EXECUTOR =
+            Executors.newSingleThreadExecutor();
 
     // DB操作オブジェクト
     private DBOperator dbOperator;
@@ -80,6 +86,19 @@ public class Model {
             callback.onComplete(symbol, interval, Collections.emptyList(),
                     e.getMessage() == null
                             ? "Binance intraday request setup failed" : e.getMessage());
+        }
+    }
+
+    public void loadBinanceRealtime(@NonNull String symbol, @NonNull String interval,
+                                   @NonNull NetConnectorBinanceRealtime.Callback callback) {
+        try {
+            new NetConnectorBinanceRealtime(symbol, interval, callback)
+                    .executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(view).error(
+                    "銘柄：" + symbol + " Binance realtime request setup failed", e);
+            callback.onComplete(symbol, null, e.getMessage() == null
+                    ? "Binance realtime request setup failed" : e.getMessage());
         }
     }
 

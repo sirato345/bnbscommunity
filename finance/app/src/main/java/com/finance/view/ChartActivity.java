@@ -24,6 +24,7 @@ import com.finance.common.MyApp;
 import com.finance.controller.Controller;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
+import com.finance.model.net.NetConnectorBinanceRealtime;
 import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
 import com.finance.view.component.StickView;
@@ -32,17 +33,22 @@ import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.Set;
+import java.util.TimeZone;
 
 /**
  * 表示画面：ローソク線、MACD
  */
 public class ChartActivity extends FragmentActivity implements Observer,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
+
+    private static final long BINANCE_REFRESH_INTERVAL_MS = 3000L;
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -68,6 +74,23 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean intradayHasMore = true;
     private long intradayGeneration;
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
+    private boolean activityResumed;
+    private boolean binanceRealtimeLoading;
+    private String realtimeCandle;
+    private LinearLayout editButtonContainer;
+    private ImageView editButton;
+    private final Runnable binanceRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!activityResumed) {
+                return;
+            }
+            if (isBinanceRealtimeEligible() && !binanceRealtimeLoading) {
+                requestBinanceRealtimeCandle();
+            }
+            handler.postDelayed(this, BINANCE_REFRESH_INTERVAL_MS);
+        }
+    };
     // 滑动柱体数量
     private int offset;
     // 每次触摸前备份当前滑动柱体数量，该次触摸中每次移动后回设该数量值
@@ -140,12 +163,25 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* onRestoreInstanceStateの直後に呼び出される */
     protected void onResume() {
         super.onResume();
+        activityResumed = true;
+        handler.removeCallbacks(binanceRefreshRunnable);
+        if (isBinanceRealtimeEligible()) {
+            requestBinanceRealtimeCandle();
+            handler.postDelayed(binanceRefreshRunnable, BINANCE_REFRESH_INTERVAL_MS);
+        }
         if (intradayInterval == null) {
             controller.calculateWMQY(symbol);
         }
         // DBからデータを取得し、UIに表示
         this.showUI();
         requestMarketData();
+    }
+
+    @Override
+    protected void onPause() {
+        activityResumed = false;
+        handler.removeCallbacks(binanceRefreshRunnable);
+        super.onPause();
     }
 
     private void requestMarketData() {
@@ -156,8 +192,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return;
         }
         boolean historySyncDue = app.isHistorySyncDue(symbol);
-        boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame);
-        if (historySyncDue) {
+        boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame)
+                || isCryptoSymbol();
+        String latestDbDate = getLatestDailyDataDate(symbol);
+        boolean hasCurrentDayData = app.hasDailyDataForToday(symbol, latestDbDate);
+        if (historySyncDue && !hasCurrentDayData) {
             if (updateIntraday) {
                 loadIntradayAfterHistory.add(symbol);
             } else {
@@ -174,8 +213,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 app.setResult(symbol, false);
             }
         } else if (updateIntraday && app.isNeedConnect(symbol)) {
-            app.setConnecting(symbol);
-            controller.loadIntraDayData(symbol);
+            loadDailyDataIfNeeded(symbol, latestDbDate);
         }
     }
 
@@ -214,8 +252,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 this.showUI();
                 // 历史数据更新完了后，再更新当天数据
                 if (shouldLoadIntraday
-                        && Const.TimeFrame.d.toString().equals(timeFrame)) {
-                    controller.loadIntraDayData(symbol);
+                        && (Const.TimeFrame.d.toString().equals(timeFrame)
+                        || isCryptoSymbol(updSymbol))) {
+                    loadDailyDataIfNeeded(updSymbol);
                 } else {
                     app.setResult(updSymbol, true);
                 }
@@ -229,6 +268,27 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 this.showUI();
             }
         }
+    }
+
+    private void loadDailyDataIfNeeded(String requestedSymbol) {
+        loadDailyDataIfNeeded(requestedSymbol, getLatestDailyDataDate(requestedSymbol));
+    }
+
+    private void loadDailyDataIfNeeded(String requestedSymbol, String latestDbDate) {
+        if (!app.isDailyDataRefreshDue(requestedSymbol, latestDbDate)) {
+            app.setResult(requestedSymbol, true);
+            return;
+        }
+        app.markDailyDataRefreshAttempted(requestedSymbol);
+        app.setConnecting(requestedSymbol);
+        controller.loadIntraDayData(requestedSymbol);
+    }
+
+    private String getLatestDailyDataDate(String requestedSymbol) {
+        List<Object[]> latestRecords = controller.getData(requestedSymbol,
+                Const.TimeFrame.d.toString(), 1);
+        return latestRecords.isEmpty()
+                ? null : (String)latestRecords.get(0)[0];
     }
 
     /* 当日データ更新 */
@@ -314,6 +374,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // 最小表示件数
         int minDisplayCount = comnInfo.getMaxStickCount();
         List<Object[]> dataList = controller.getData(symbol, timeFrame, 400, offset, minDisplayCount);
+        applyRealtimeCandle(dataList, timeFrame);
         List<StickInfo> stickList = new ArrayList<>();
         for (Object[] stickData : dataList) {
             StickInfo stickInfo = new StickInfo(comnInfo);
@@ -428,10 +489,273 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return isCryptoSymbol(symbol);
     }
 
+    private boolean isBinanceRealtimeEligible() {
+        return isCryptoSymbol();
+    }
+
     private boolean isCryptoSymbol(String candidateSymbol) {
         return Const.Symbol.btc.toString().equals(candidateSymbol)
                 || Const.Symbol.eth.toString().equals(candidateSymbol)
                 || Const.Symbol.trump.toString().equals(candidateSymbol);
+    }
+
+    private void requestBinanceRealtimeCandle() {
+        binanceRealtimeLoading = true;
+        String requestedSymbol = symbol;
+        String requestedInterval = intradayInterval == null ? "1d" : intradayInterval;
+        long requestGeneration = intradayGeneration;
+        controller.loadBinanceRealtime(requestedSymbol, requestedInterval,
+                (responseSymbol, record, error) -> {
+            binanceRealtimeLoading = false;
+            if (!activityResumed || !requestedSymbol.equals(symbol)
+                    || !responseSymbol.equals(symbol)
+                    || !requestedInterval.equals(
+                    intradayInterval == null ? "1d" : intradayInterval)
+                    || (intradayInterval != null && requestGeneration != intradayGeneration)) {
+                return;
+            }
+            if (error != null) {
+                LogWriter.getInstance(this).error(
+                        "Binance realtime request failed for " + requestedInterval + ": " + error);
+                return;
+            }
+            if (record == null) {
+                LogWriter.getInstance(this).error(
+                        "Binance realtime request returned an empty candle");
+                return;
+            }
+            if (intradayInterval != null) {
+                if (upsertIntradayRealtimeRecord(record)) {
+                    LogWriter.getInstance(this).log(
+                            "Binance realtime candle updated: " + requestedSymbol
+                                    + " " + requestedInterval);
+                    showUI();
+                }
+            } else if (!record.equals(realtimeCandle)) {
+                realtimeCandle = record;
+                LogWriter.getInstance(this).log(
+                        "Binance realtime candle updated: " + requestedSymbol
+                                + " " + requestedInterval);
+                if (offset == 0) {
+                    showUI();
+                }
+            }
+        });
+    }
+
+    private boolean upsertIntradayRealtimeRecord(String record) {
+        String[] fields = record.split(",", -1);
+        if (fields.length != 6) {
+            LogWriter.getInstance(this).error("Invalid Binance intraday realtime candle");
+            return false;
+        }
+        try {
+            long openTime = Long.parseLong(fields[0]);
+            int insertIndex = 0;
+            for (int i = 0; i < intradayRecords.size(); i++) {
+                String existing = intradayRecords.get(i);
+                int separator = existing.indexOf(',');
+                long existingOpenTime = Long.parseLong(existing.substring(0, separator));
+                if (existingOpenTime == openTime) {
+                    if (existing.equals(record)) {
+                        return false;
+                    }
+                    intradayRecords.set(i, record);
+                    return true;
+                }
+                if (existingOpenTime > openTime) {
+                    insertIndex = i + 1;
+                } else {
+                    break;
+                }
+            }
+            intradayRecords.add(insertIndex, record);
+            if (insertIndex == 0 && offset > 0) {
+                setOffset(offset + 1);
+            }
+            return true;
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(this).error(
+                    "Unable to merge Binance intraday realtime candle", e);
+            return false;
+        }
+    }
+
+    private void applyRealtimeCandle(List<Object[]> records, String selectedTimeFrame) {
+        if (realtimeCandle == null || !isCryptoSymbol() || offset != 0
+                || !isBinanceTimeFrame(selectedTimeFrame)) {
+            return;
+        }
+        String[] fields = realtimeCandle.split(",", -1);
+        if (fields.length != 5) {
+            LogWriter.getInstance(this).error("Invalid cached Binance realtime candle");
+            return;
+        }
+        try {
+            String dailyDate = fields[0];
+            float liveOpen = Float.parseFloat(fields[1]);
+            float liveHigh = Float.parseFloat(fields[2]);
+            float liveLow = Float.parseFloat(fields[3]);
+            float liveClose = Float.parseFloat(fields[4]);
+            if (dailyDate.length() != 8 || !Float.isFinite(liveOpen)
+                    || !Float.isFinite(liveHigh) || !Float.isFinite(liveLow)
+                    || !Float.isFinite(liveClose)) {
+                throw new IllegalArgumentException("Invalid Binance realtime candle values");
+            }
+
+            String liveBucket = getRealtimeBucketKey(dailyDate, selectedTimeFrame);
+            float[] periodValues = getRealtimePeriodValues(
+                    dailyDate, selectedTimeFrame, liveOpen, liveHigh, liveLow, liveClose);
+            if (!records.isEmpty()) {
+                Object[] latest = records.get(0);
+                String latestDate = (String)latest[0];
+                if (liveBucket.equals(getRealtimeBucketKey(latestDate, selectedTimeFrame))) {
+                    latest[1] = periodValues[0];
+                    latest[2] = periodValues[1];
+                    latest[3] = periodValues[2];
+                    latest[4] = periodValues[3];
+                    return;
+                }
+            }
+
+            records.add(0, new Object[] {
+                    getRealtimePeriodLabel(dailyDate, selectedTimeFrame),
+                    periodValues[0], periodValues[1], periodValues[2], periodValues[3]
+            });
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(this).error("Unable to apply Binance realtime candle", e);
+        }
+    }
+
+    private float[] getRealtimePeriodValues(String liveDate, String selectedTimeFrame,
+                                            float liveOpen, float liveHigh, float liveLow,
+                                            float liveClose) {
+        float open = liveOpen;
+        float high = liveHigh;
+        float low = liveLow;
+        if (!Const.TimeFrame.d.toString().equals(selectedTimeFrame)) {
+            List<Object[]> dailyRecords = controller.getData(symbol, "d", 400);
+            boolean hasEarlierCandle = false;
+            for (int i = dailyRecords.size() - 1; i >= 0; i--) {
+                Object[] daily = dailyRecords.get(i);
+                String date = (String)daily[0];
+                if (date.compareTo(liveDate) >= 0
+                        || !getRealtimeBucketKey(date, selectedTimeFrame)
+                        .equals(getRealtimeBucketKey(liveDate, selectedTimeFrame))) {
+                    continue;
+                }
+                float dailyOpen = ((Number)daily[1]).floatValue();
+                float dailyHigh = ((Number)daily[2]).floatValue();
+                float dailyLow = ((Number)daily[3]).floatValue();
+                if (!hasEarlierCandle) {
+                    open = dailyOpen;
+                    high = dailyHigh;
+                    low = dailyLow;
+                    hasEarlierCandle = true;
+                } else {
+                    high = Math.max(high, dailyHigh);
+                    low = Math.min(low, dailyLow);
+                }
+            }
+            high = Math.max(high, liveHigh);
+            low = Math.min(low, liveLow);
+        }
+        return new float[] {open, high, low, liveClose};
+    }
+
+    private boolean isBinanceTimeFrame(String candidate) {
+        return Const.TimeFrame.d.toString().equals(candidate)
+                || Const.TimeFrame.d3.toString().equals(candidate)
+                || Const.TimeFrame.w.toString().equals(candidate)
+                || Const.TimeFrame.m.toString().equals(candidate)
+                || Const.TimeFrame.q.toString().equals(candidate)
+                || Const.TimeFrame.y.toString().equals(candidate);
+    }
+
+    private String getRealtimeBucketKey(String date, String selectedTimeFrame) {
+        switch (selectedTimeFrame) {
+            case "3d":
+                Calendar utcCalendar = getCalendar(date, true);
+                long day = Math.floorDiv(utcCalendar.getTimeInMillis(),
+                        24L * 60 * 60 * 1000);
+                return "3d:" + Math.floorDiv(day, 3L);
+            case "w":
+                return "w:" + getRealtimePeriodLabel(date, selectedTimeFrame);
+            case "m":
+                return "m:" + date.substring(0, 6);
+            case "q":
+                return "q:" + date.substring(0, 4)
+                        + ((Integer.parseInt(date.substring(4, 6)) - 1) / 3);
+            case "y":
+                return "y:" + date.substring(0, 4);
+            default:
+                return "d:" + date;
+        }
+    }
+
+    private String getRealtimePeriodLabel(String date, String selectedTimeFrame) {
+        Calendar calendar = getCalendar(date, "3d".equals(selectedTimeFrame));
+        switch (selectedTimeFrame) {
+            case "3d":
+                long day = Math.floorDiv(calendar.getTimeInMillis(),
+                        24L * 60 * 60 * 1000);
+                calendar.setTimeInMillis(Math.floorDiv(day, 3L) * 3L
+                        * 24 * 60 * 60 * 1000);
+                break;
+            case "w":
+                calendar.add(Calendar.DATE, Calendar.SUNDAY - calendar.get(Calendar.DAY_OF_WEEK));
+                break;
+            case "m":
+                calendar.set(Calendar.DAY_OF_MONTH,
+                        calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+                moveWeekendBack(calendar);
+                break;
+            case "q":
+                int month = calendar.get(Calendar.MONTH);
+                calendar.set(Calendar.DAY_OF_MONTH, 1);
+                calendar.set(Calendar.MONTH, month - (month % 3) + 2);
+                calendar.set(Calendar.DAY_OF_MONTH,
+                        calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+                moveWeekendBack(calendar);
+                break;
+            case "y":
+                calendar.set(Calendar.MONTH, Calendar.DECEMBER);
+                calendar.set(Calendar.DAY_OF_MONTH,
+                        calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+                moveWeekendBack(calendar);
+                break;
+            default:
+                break;
+        }
+        return String.format(Locale.US, "%04d%02d%02d",
+                calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH));
+    }
+
+    private void moveWeekendBack(Calendar calendar) {
+        for (int i = 1; i <= 2; i++) {
+            int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+            if (dayOfWeek == Calendar.SUNDAY || dayOfWeek == Calendar.SATURDAY) {
+                calendar.set(Calendar.DAY_OF_MONTH,
+                        calendar.getActualMaximum(Calendar.DAY_OF_MONTH) - i);
+            } else {
+                break;
+            }
+        }
+    }
+
+    private Calendar getCalendar(String date, boolean utc) {
+        if (date.length() != 8) {
+            throw new IllegalArgumentException("Invalid candle date: " + date);
+        }
+        Calendar calendar = utc
+                ? Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.US)
+                : Calendar.getInstance();
+        calendar.clear();
+        calendar.set(Integer.parseInt(date.substring(0, 4)),
+                Integer.parseInt(date.substring(4, 6)) - 1,
+                Integer.parseInt(date.substring(6, 8)));
+        return calendar;
     }
 
     public String getIntradayInterval() {
@@ -474,6 +798,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         int minDisplayCount = comnInfo.getMaxStickCount();
         // ＤＢ数据
         List<Object[]> recordList = controller.getData(symbol, timeFrame, 400, this.offset, minDisplayCount);
+        applyRealtimeCandle(recordList, timeFrame);
         // 四本値に対して平均値を求めた平均データリスト
         List<Object[]> averageList = this.getSimpleAverage(recordList);
         // 平均K線データ計算
@@ -605,6 +930,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 this.setOffset(0);
             } else if (result instanceof  Const.Symbol) {
                 String newSymbol = result.toString();
+                if (!symbol.equals(newSymbol)) {
+                    realtimeCandle = null;
+                }
                 if (intradayInterval != null && isCryptoSymbol()
                         && isCryptoSymbol(newSymbol)) {
                     resetIntradayRecords();
@@ -1082,35 +1410,30 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     /*編集ボタン*/
     private void setImageView() {
-        LinearLayout linearLayout = new LinearLayout(this);
-        linearLayout.setOrientation(LinearLayout.VERTICAL);
-        linearLayout.setX(60);
-        linearLayout.setY(comnInfo.getScreenHeight() - comnInfo.getDateHeight() - 115);
-        addContentView(linearLayout, new ViewGroup.LayoutParams(-2, -2));
-        final ImageView imageView = new ImageView(this);
-        if (isEidtMode) {
-            imageView.setImageResource(R.drawable.pressed);
-            imageView.setTag(R.drawable.pressed);
-        } else {
-            imageView.setImageResource(R.drawable.normal);
-            imageView.setTag(R.drawable.normal);
+        if (editButtonContainer == null) {
+            editButtonContainer = new LinearLayout(this);
+            editButtonContainer.setOrientation(LinearLayout.VERTICAL);
+            editButton = new ImageView(this);
+            editButton.setScaleType(ImageView.ScaleType.CENTER);
+            editButton.setOnClickListener(v -> {
+                isEidtMode = !isEidtMode;
+                updateEditButtonImage();
+            });
+            editButtonContainer.addView(editButton);
+            addContentView(editButtonContainer, new ViewGroup.LayoutParams(-2, -2));
         }
-        imageView.setScaleType(ImageView.ScaleType.CENTER);
-        imageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if((Integer)imageView.getTag() == R.drawable.normal) {
-                    imageView.setImageResource(R.drawable.pressed);
-                    imageView.setTag(R.drawable.pressed);
-                    isEidtMode = true;
-                } else {
-                    imageView.setImageResource(R.drawable.normal);
-                    imageView.setTag(R.drawable.normal);
-                    isEidtMode = false;
-                }
-            }
-        });
-        linearLayout.addView(imageView);
+        editButtonContainer.setX(60);
+        editButtonContainer.setY(
+                comnInfo.getScreenHeight() - comnInfo.getDateHeight() - 115);
+        updateEditButtonImage();
+    }
+
+    private void updateEditButtonImage() {
+        if (isEidtMode) {
+            editButton.setImageResource(R.drawable.pressed);
+        } else {
+            editButton.setImageResource(R.drawable.normal);
+        }
     }
 
     public int getStickWidth() {

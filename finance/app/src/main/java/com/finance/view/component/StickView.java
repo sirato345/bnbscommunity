@@ -53,7 +53,7 @@ public class StickView extends View {
     private final DecimalFormat digitFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat btcDigitFormat = new DecimalFormat(
-            "#0.0", DecimalFormatSymbols.getInstance(Locale.US));
+            "#0.00", DecimalFormatSymbols.getInstance(Locale.US));
     // タッチ箇所
     private Point touchPoint;
     // 編集モードの押下ポイント
@@ -425,31 +425,6 @@ public class StickView extends View {
             StickInfo stickInfo = stickList.get(i);
             Rect stickReck = stickInfo.getStickRect();
             Rect lineRect = stickInfo.getLineRect();
-            // 最新価格の水平線を描く
-            if (stickList.indexOf(stickInfo) == 0) {
-                // 最新価格の線を取得
-                int line = stickInfo.getOpen() > stickInfo.getClose() ? stickReck.bottom : stickReck.top;
-                // 黄色
-                paint.setColor(Color.parseColor("#FFF68F"));
-                // 不设置粗体
-                paint.setFakeBoldText(false);
-                // 最新価格の水平線
-                canvas.drawLine(getStartXOfLine(stickInfo), line, stickReck.left, line, paint);
-                // 文字粗体
-                paint.setFakeBoldText(true);
-                // 文字坐标
-                int y = 0;
-                // 判定文字是否超出屏幕显示
-                if (line - Const.FONT_SIZE_HALF < 0) {
-                    y = line + Const.FONT_SIZE_MIDDLE - 10;
-                } else if (line + Const.FONT_SIZE_HALF > comnInfo.getStickHeight()) {
-                    y = line;
-                } else {
-                    y = line + Const.FONT_SIZE_HALF - 5;
-                }
-                // 最新価格設定
-                canvas.drawText(getLimitDigit(stickInfo.getClose()), getStartXOfText(stickInfo), y, paint);
-            }
             // 最新の移動平均価格
             if (i == 0) {
                 // 文字粗体
@@ -702,25 +677,6 @@ public class StickView extends View {
         } else {
             return digit.length() * 23;
         }
-    }
-
-    /* 根据最新柱体，取得最新价格的表示位置 */
-    private int getStartXOfText(StickInfo stickInfo) {
-        int startX = (int)getStartXOfLine(stickInfo) - getDigitLength(stickInfo.getClose());
-        if (startX < 0) {
-            startX = 0;
-        }
-        return startX;
-    }
-
-    /* 根据最新柱体，取得最新价格线的表示位置 */
-    private float getStartXOfLine(StickInfo stickInfo) {
-        int startX = stickInfo.getStickRect().centerX() - 150;
-        int digitLength = getDigitLength(stickInfo.getClose());
-        if (startX - digitLength < 0) {
-            startX = digitLength;
-        }
-        return startX;
     }
 
     /* 价格显示精度 */

@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 
 import com.finance.model.Model;
 import com.finance.model.net.NetConnectorBinanceIntraday;
+import com.finance.model.net.NetConnectorBinanceRealtime;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -82,6 +83,15 @@ public class Controller {
         } else {
             callback.onComplete(symbol, interval, Collections.emptyList(),
                     "Market data model is unavailable");
+        }
+    }
+
+    public void loadBinanceRealtime(@NonNull String symbol, @NonNull String interval,
+                                    @NonNull NetConnectorBinanceRealtime.Callback callback) {
+        if (model != null) {
+            model.loadBinanceRealtime(symbol, interval, callback);
+        } else {
+            callback.onComplete(symbol, null, "Market data model is unavailable");
         }
     }
 

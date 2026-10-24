@@ -52,4 +52,29 @@ public class MarketDataParserTest {
 
         assertThrows(Exception.class, () -> connector.parseCandles("[[1609459200000]]"));
     }
+
+    @Test
+    public void parsesBinanceDailyRealtimeCandleWithUtcDate() throws Exception {
+        String record = NetConnectorBinanceRealtime.parseCurrentCandle("1d",
+                "[[1609459200000,\"29000.00\",\"29500.00\",\"28800.00\","
+                        + "\"29300.00\",\"1.0\",1609545599999]]");
+
+        assertEquals("20210101,29000.00,29500.00,28800.00,29300.00", record);
+    }
+
+    @Test
+    public void rejectsEmptyBinanceRealtimeResponse() {
+        assertThrows(Exception.class,
+                () -> NetConnectorBinanceRealtime.parseCurrentCandle("1d", "[]"));
+    }
+
+    @Test
+    public void parsesBinanceIntradayRealtimeCandle() throws Exception {
+        String record = NetConnectorBinanceRealtime.parseCurrentCandle("5m",
+                "[[1609459200000,\"29000.00\",\"29500.00\",\"28800.00\","
+                        + "\"29300.00\",\"1.0\",1609459499999]]");
+
+        assertEquals("1609459200000,2021-01-01 09:00,29000.00,29500.00,"
+                + "28800.00,29300.00", record);
+    }
 }
