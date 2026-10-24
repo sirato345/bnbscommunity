@@ -28,5 +28,6 @@
     <string name="timeframe_5m">5M</string>
 
     <string name="action_settings">Setting</string>
+    <string name="edit_chart">Edit chart</string>
     <string name="icon_label">BNBs Finance</string>
 </resources>

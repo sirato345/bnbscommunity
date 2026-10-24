@@ -1,6 +1,7 @@
 package com.finance.view;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.view.GestureDetector;
@@ -318,8 +319,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public void showUI() {
         // 共通情報
         comnInfo = new ComnInfo(this);
-        // 画像設定
-        setImageView();
         // DBからの最新データを保持するリスト
         List<StickInfo> stickList;
         // K線図、平均K線図を判定
@@ -340,6 +339,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         stickView.setData(comnInfo, stickList, trendLines);
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
+        setImageView();
         int dateOffset = intradayInterval == null
                 ? offset : Math.min(offset, Const.DEFAULT_OFFSET);
         dateView.setData(comnInfo, stickList, dateOffset);
@@ -1414,7 +1414,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             editButtonContainer = new LinearLayout(this);
             editButtonContainer.setOrientation(LinearLayout.VERTICAL);
             editButton = new ImageView(this);
-            editButton.setScaleType(ImageView.ScaleType.CENTER);
+            editButton.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            editButton.setContentDescription(getString(R.string.edit_chart));
             editButton.setOnClickListener(v -> {
                 isEidtMode = !isEidtMode;
                 updateEditButtonImage();
@@ -1422,18 +1423,21 @@ public class ChartActivity extends FragmentActivity implements Observer,
             editButtonContainer.addView(editButton);
             addContentView(editButtonContainer, new ViewGroup.LayoutParams(-2, -2));
         }
+        float density = getResources().getDisplayMetrics().density;
+        int buttonWidth = Math.round(58 * density);
+        int buttonHeight = Math.round(34 * density);
+        editButton.setLayoutParams(new LinearLayout.LayoutParams(buttonWidth, buttonHeight));
         editButtonContainer.setX(60);
-        editButtonContainer.setY(
-                comnInfo.getScreenHeight() - comnInfo.getDateHeight() - 115);
+        editButtonContainer.setY(comnInfo.getScreenHeight() - comnInfo.getDateHeight()
+                - buttonHeight - 7 * density);
         updateEditButtonImage();
     }
 
     private void updateEditButtonImage() {
-        if (isEidtMode) {
-            editButton.setImageResource(R.drawable.pressed);
-        } else {
-            editButton.setImageResource(R.drawable.normal);
-        }
+        editButton.setImageResource(R.drawable.ic_chart_edit);
+        editButton.setColorFilter(isEidtMode
+                ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));
+        editButton.setSelected(isEidtMode);
     }
 
     public int getStickWidth() {

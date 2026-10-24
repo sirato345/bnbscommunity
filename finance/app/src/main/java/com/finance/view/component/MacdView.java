@@ -85,6 +85,8 @@ public class MacdView  extends View {
             "0.00", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat trumpPriceFormat = new DecimalFormat(
             "0.000", DecimalFormatSymbols.getInstance(Locale.US));
+    private final DecimalFormat marketPriceFormat = new DecimalFormat(
+            "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight macdKdjSignal = SignalLight.RED;
     private SignalLight sarAverageKdjSignal = SignalLight.RED;
 
@@ -418,7 +420,8 @@ public class MacdView  extends View {
         return priceLeft - markerGap - markerSize / 2;
     }
 
-    private float getIntradayControlsRight(float density, float buttonWidth) {
+    private float getIntradayControlsRight(float density) {
+        float buttonWidth = 58 * density;
         float markerSize = 26 * density;
         return getWidth() - 8 * density - buttonWidth / 2 + markerSize / 2
                 + 5 * density;
@@ -533,23 +536,22 @@ public class MacdView  extends View {
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
         float gap = 6 * density;
-        float right = getIntradayControlsRight(density, buttonWidth);
+        float right = getIntradayControlsRight(density);
         float bottom = getHeight() - 7 * density;
         float textSize = 14 * density;
         intervalButtonPaint.setTextSize(textSize);
         intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
-        intervalButtonPaint.setStrokeWidth(1.2f * density);
         for (int i = 0; i < intervals.length; i++) {
             float left = right - buttonWidth;
             float top = bottom - buttonHeight;
             boolean selected = intervals[i].equals(activity.getIntradayInterval());
             intervalButtonPaint.setStyle(Paint.Style.FILL);
-            intervalButtonPaint.setColor(selected ? Color.rgb(30, 136, 229)
-                    : Color.rgb(38, 50, 65));
+            intervalButtonPaint.setColor(Color.TRANSPARENT);
             canvas.drawRoundRect(left, top, right, bottom, 10 * density,
                     10 * density, intervalButtonPaint);
             intervalButtonPaint.setStyle(Paint.Style.STROKE);
-            intervalButtonPaint.setColor(selected ? Color.rgb(144, 202, 249)
+            intervalButtonPaint.setStrokeWidth((selected ? 2.5f : 1.2f) * density);
+            intervalButtonPaint.setColor(selected ? Color.rgb(66, 165, 245)
                     : Color.rgb(96, 125, 139));
             canvas.drawRoundRect(left, top, right, bottom, 10 * density,
                     10 * density, intervalButtonPaint);
@@ -572,14 +574,15 @@ public class MacdView  extends View {
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
+        float signalButtonHeight = 34 * density;
         float gap = 6 * density;
         float markerSize = getIndicatorMarkerSize();
         float markerGap = 12 * density;
         float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
         float firstSignalLeft = firstSignalCenter - markerSize / 2;
-        float signalTop = getSignalControlsTop(buttonHeight, markerSize);
-        float signalBottom = signalTop + buttonHeight;
+        float signalTop = getSignalControlsTop(signalButtonHeight, markerSize);
+        float signalBottom = signalTop + signalButtonHeight;
         if (x >= firstSignalLeft && x <= secondSignalCenter + markerSize / 2
                 && y >= signalTop && y <= signalBottom) {
             return true;
@@ -587,7 +590,7 @@ public class MacdView  extends View {
         if (!activity.isCryptoSymbol()) {
             return false;
         }
-        float right = getIntradayControlsRight(density, buttonWidth);
+        float right = getIntradayControlsRight(density);
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
         for (String interval : intervals) {
@@ -708,12 +711,18 @@ public class MacdView  extends View {
     }
 
     private String getCurrentPriceText() {
-        if (stickList == null || stickList.isEmpty() || !activity.isCryptoSymbol()) {
+        if (stickList == null || stickList.isEmpty()) {
             return null;
         }
         float close = stickList.get(0).getClose();
-        return Const.Symbol.trump.toString().equals(symbol)
-                ? trumpPriceFormat.format(close) : cryptoPriceFormat.format(close);
+        if (Const.Symbol.trump.toString().equals(symbol)) {
+            return trumpPriceFormat.format(close);
+        }
+        if (Const.Symbol.btc.toString().equals(symbol)
+                || Const.Symbol.eth.toString().equals(symbol)) {
+            return cryptoPriceFormat.format(close);
+        }
+        return marketPriceFormat.format(close);
     }
 
     private String getChartTitle() {
