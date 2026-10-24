@@ -439,7 +439,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public void selectBinanceInterval(String interval) {
         if (!isCryptoSymbol()
-                || !("5m".equals(interval) || "1h".equals(interval) || "4h".equals(interval))) {
+                || !("5m".equals(interval) || "15m".equals(interval)
+                || "1h".equals(interval) || "4h".equals(interval))) {
             return;
         }
         intradayInterval = interval;
@@ -578,6 +579,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 String selectedTimeFrame = result.toString();
                 if (Const.TimeFrame.h4.toString().equals(selectedTimeFrame)
                         || Const.TimeFrame.h1.toString().equals(selectedTimeFrame)
+                        || Const.TimeFrame.m15.toString().equals(selectedTimeFrame)
                         || Const.TimeFrame.m5.toString().equals(selectedTimeFrame)) {
                     if (isCryptoSymbol()) {
                         intradayInterval = selectedTimeFrame;
@@ -960,7 +962,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void changeCryptoTimeframe(boolean swipeUp) {
-        String[] timeframes = {"5m", "1h", "4h", "d", "3d", "w", "m", "q", "y"};
+        String[] timeframes = {"5m", "15m", "1h", "4h", "d", "3d", "w", "m", "q", "y"};
         String currentTimeframe = intradayInterval == null ? timeFrame : intradayInterval;
         int currentIndex = 0;
         for (int i = 0; i < timeframes.length; i++) {
@@ -974,7 +976,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 ? (currentIndex == 0 ? timeframes.length - 1 : currentIndex - 1)
                 : (currentIndex + 1) % timeframes.length;
         String nextTimeframe = timeframes[nextIndex];
-        if ("5m".equals(nextTimeframe) || "1h".equals(nextTimeframe)
+        if ("5m".equals(nextTimeframe) || "15m".equals(nextTimeframe)
+                || "1h".equals(nextTimeframe)
                 || "4h".equals(nextTimeframe)) {
             intradayInterval = nextTimeframe;
             resetIntradayRecords();

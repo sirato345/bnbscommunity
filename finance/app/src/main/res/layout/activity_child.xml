@@ -250,7 +250,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="5"
-        android:weightSum="4">
+        android:weightSum="5">
         <Button
             android:layout_width="0dp"
             android:layout_weight="1"
@@ -281,6 +281,16 @@
             android:background="@drawable/button_timeframe"
             android:id="@+id/button_timeframe_1h"
             android:onClick="onClick_Timeframe_1H" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/timeframe_15m"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_timeframe"
+            android:id="@+id/button_timeframe_15m"
+            android:onClick="onClick_Timeframe_15M" />
         <Button
             android:layout_width="0dp"
             android:layout_weight="1"

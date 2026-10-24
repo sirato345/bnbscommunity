@@ -144,6 +144,9 @@ public class ChildActivity extends Activity {
         if (selectedTimeFrame.equals(Const.TimeFrame.h1.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_1h);
         }
+        if (selectedTimeFrame.equals(Const.TimeFrame.m15.toString())) {
+            button = (Button)this.findViewById(R.id.button_timeframe_15m);
+        }
         if (selectedTimeFrame.equals(Const.TimeFrame.m5.toString())) {
             button = (Button)this.findViewById(R.id.button_timeframe_5m);
         }
@@ -154,6 +157,7 @@ public class ChildActivity extends Activity {
         setCryptoTimeframeEnabled(R.id.button_timeframe_3day, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_4h, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_1h, isCrypto);
+        setCryptoTimeframeEnabled(R.id.button_timeframe_15m, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_5m, isCrypto);
     }
 
@@ -232,6 +236,9 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Timeframe_1H(View v) {
         setResult(Const.TimeFrame.h1);
+    }
+    public void onClick_Timeframe_15M(View v) {
+        setResult(Const.TimeFrame.m15);
     }
     public void onClick_Timeframe_5M(View v) {
         setResult(Const.TimeFrame.m5);

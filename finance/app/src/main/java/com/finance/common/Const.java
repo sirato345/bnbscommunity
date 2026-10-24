@@ -55,7 +55,7 @@ public class Const {
     // タイムフレーム
     public enum TimeFrame {
         d("d"), d3("3d"), w("w"), m("m"), q("q"), y("y"),
-        h4("4h"), h1("1h"), m5("5m");
+        h4("4h"), h1("1h"), m15("15m"), m5("5m");
 
         private final String value;
 

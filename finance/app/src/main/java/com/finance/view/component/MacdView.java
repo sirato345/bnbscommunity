@@ -30,6 +30,7 @@ import java.util.Locale;
  * Created by gu zihan on 08/30/2015.
  */
 public class MacdView  extends View {
+    private static final String[] INTRADAY_INTERVALS = {"4h", "1h", "15m", "5m"};
 
     // アクティビティ
     private ChartActivity activity;
@@ -353,18 +354,33 @@ public class MacdView  extends View {
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
-        float gap = 6 * density;
-        float fiveMinuteLeft = getWidth() - 8 * density
-                - 3 * buttonWidth - 2 * gap;
-        float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
-        float secondSignalLeft = firstSignalLeft + buttonWidth + gap;
-        float bottom = getHeight() - 7 * density;
-        float top = bottom - buttonHeight;
         float markerSize = 26 * density;
-        drawSignalMarker(canvas, firstSignalLeft + 60, top,
+        float markerGap = 12 * density;
+        float right = getWidth() - 8 * density;
+        float secondSignalCenter = right - buttonWidth / 2;
+        float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
+        float top = getSignalControlsTop(buttonHeight, markerSize) + 2 * density;
+        drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight, markerSize, macdKdjSignal);
-        drawSignalMarker(canvas, secondSignalLeft, top, buttonWidth, buttonHeight,
+        drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
+                buttonWidth, buttonHeight,
                 markerSize, sarAverageKdjSignal);
+    }
+
+    private float getSignalControlsTop(float buttonHeight, float markerSize) {
+        Paint titlePaint = new Paint();
+        titlePaint.setTextSize(Const.FONT_SIZE_LARGE);
+        Rect titleBounds = new Rect();
+        String title = getChartTitle();
+        titlePaint.getTextBounds(title, 0, title.length(), titleBounds);
+        float titleTop = 45 + titleBounds.top;
+        return titleTop - (buttonHeight - markerSize) / 2;
+    }
+
+    private float getIntradayControlsRight(float density, float buttonWidth) {
+        float markerSize = 26 * density;
+        return getWidth() - 8 * density - buttonWidth / 2 + markerSize / 2
+                + 5 * density;
     }
 
     private void drawSignalMarker(Canvas canvas, float left, float top,
@@ -473,12 +489,12 @@ public class MacdView  extends View {
         if (!activity.isCryptoSymbol()) {
             return;
         }
-        String[] intervals = {"4h", "1h", "5m"};
+        String[] intervals = INTRADAY_INTERVALS;
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
         float gap = 6 * density;
-        float right = getWidth() - 8 * density;
+        float right = getIntradayControlsRight(density, buttonWidth);
         float bottom = getHeight() - 7 * density;
         float textSize = 14 * density;
         intervalButtonPaint.setTextSize(textSize);
@@ -502,7 +518,8 @@ public class MacdView  extends View {
             intervalButtonPaint.setColor(Color.WHITE);
             Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
             float textY = top + (buttonHeight - fontMetrics.ascent - fontMetrics.descent) / 2;
-            canvas.drawText(intervals[i], (left + right) / 2, textY, intervalButtonPaint);
+            canvas.drawText(intervals[i].toUpperCase(Locale.US), (left + right) / 2,
+                    textY, intervalButtonPaint);
             right = left - gap;
         }
     }
@@ -512,23 +529,29 @@ public class MacdView  extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        String[] intervals = {"4h", "1h", "5m"};
+        String[] intervals = INTRADAY_INTERVALS;
         float density = getResources().getDisplayMetrics().density;
         float buttonWidth = 58 * density;
         float buttonHeight = 34 * density;
         float gap = 6 * density;
-        float right = getWidth() - 8 * density;
-        float bottom = getHeight() - 7 * density;
-        float top = bottom - buttonHeight;
-        float fiveMinuteLeft = right - 3 * buttonWidth - 2 * gap;
-        float firstSignalLeft = fiveMinuteLeft - 2 * buttonWidth - 2 * gap;
-        float lastSignalRight = firstSignalLeft + 2 * buttonWidth + gap;
-        if (x >= firstSignalLeft && x <= lastSignalRight && y >= top && y <= bottom) {
+        float markerSize = 26 * density;
+        float markerGap = 12 * density;
+        float signalControlsRight = getWidth() - 8 * density;
+        float secondSignalCenter = signalControlsRight - buttonWidth / 2;
+        float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
+        float firstSignalLeft = firstSignalCenter - markerSize / 2;
+        float signalTop = getSignalControlsTop(buttonHeight, markerSize) + 2 * density;
+        float signalBottom = signalTop + buttonHeight;
+        if (x >= firstSignalLeft && x <= secondSignalCenter + markerSize / 2
+                && y >= signalTop && y <= signalBottom) {
             return true;
         }
         if (!activity.isCryptoSymbol()) {
             return false;
         }
+        float right = getIntradayControlsRight(density, buttonWidth);
+        float bottom = getHeight() - 7 * density;
+        float top = bottom - buttonHeight;
         for (String interval : intervals) {
             float left = right - buttonWidth;
             if (x >= left && x <= right && y >= top && y <= bottom) {
@@ -657,7 +680,7 @@ public class MacdView  extends View {
             symbolText = replace(getResources().getString(R.string.symbol_silver));
         }
         if (activity.getIntradayInterval() != null) {
-            timeFrameText = activity.getIntradayInterval();
+            timeFrameText = activity.getIntradayInterval().toUpperCase(Locale.US);
         } else if (Const.TimeFrame.d3.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_3day));
         } else if (Const.TimeFrame.d.toString().equals(timeFrame)) {
