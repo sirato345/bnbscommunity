@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.MotionEvent;
 import android.view.View;
@@ -337,6 +338,7 @@ public class MacdView  extends View {
         }
         this.drawTouchedLine(canvas);
         drawIntradayControls(canvas);
+        drawMacdModeButton(canvas);
     }
 
     private void calculateSignals() {
@@ -608,6 +610,13 @@ public class MacdView  extends View {
                 && y >= signalTop && y <= signalBottom) {
             return true;
         }
+        if (!Const.Macd.KDJ.toString().equals(macdType)
+                && getMacdModeButtonRect().contains(x, y)) {
+            activity.macd = Const.Macd.Double.toString().equals(macdType)
+                    ? Const.Macd.Single.toString() : Const.Macd.Double.toString();
+            activity.showUI();
+            return true;
+        }
         if (!activity.isCryptoSymbol()) {
             return false;
         }
@@ -858,14 +867,39 @@ public class MacdView  extends View {
 
     /* 单击事件，由Activity转发事件 */
     public void onSingleTapConfirmed(MotionEvent e) {
-        if (Const.Macd.Single.toString().equals(macdType)) {
-            activity.macd = Const.Macd.Double.toString();
-        } else if (Const.Macd.Double.toString().equals(macdType)) {
-            activity.macd = Const.Macd.KDJ.toString();
-        } else {
+        if (Const.Macd.KDJ.toString().equals(macdType)) {
             activity.macd = Const.Macd.Single.toString();
+        } else {
+            activity.macd = Const.Macd.KDJ.toString();
         }
         activity.showUI();
+    }
+
+    private RectF getMacdModeButtonRect() {
+        float density = getResources().getDisplayMetrics().density;
+        float left = 4 * density;
+        float top = CHART_TITLE_BASELINE + 10 * density;
+        return new RectF(left, top, left + 40 * density, top + 30 * density);
+    }
+
+    private void drawMacdModeButton(Canvas canvas) {
+        if (Const.Macd.KDJ.toString().equals(macdType)) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        RectF rect = getMacdModeButtonRect();
+        intervalButtonPaint.setTextSize(14 * density);
+        intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
+        intervalButtonPaint.setStyle(Paint.Style.STROKE);
+        intervalButtonPaint.setStrokeWidth(1.2f * density);
+        intervalButtonPaint.setColor(Color.rgb(96, 125, 139));
+        canvas.drawRoundRect(rect, 10 * density, 10 * density, intervalButtonPaint);
+        intervalButtonPaint.setStyle(Paint.Style.FILL);
+        intervalButtonPaint.setColor(Color.WHITE);
+        Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
+        float textY = rect.centerY() - (fontMetrics.ascent + fontMetrics.descent) / 2;
+        String label = Const.Macd.Double.toString().equals(macdType) ? "D" : "S";
+        canvas.drawText(label, rect.centerX(), textY, intervalButtonPaint);
     }
 
     /* タッチ箇所の価格と日付を描く */
