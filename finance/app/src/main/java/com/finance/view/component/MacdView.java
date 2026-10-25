@@ -7,12 +7,14 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.finance.R;
 import com.finance.common.Const;
 import com.finance.view.ChartActivity;
+import com.finance.view.component.macd.MacdDivergenceCalculator;
 import com.finance.view.component.macd.MacdCalculator;
 import com.finance.view.component.macd.KdjCalculator;
 import com.finance.view.component.macd.MacdInfo;
@@ -47,6 +49,7 @@ public class MacdView  extends View {
     private List<StickInfo> stickList;
     // ローソク線の情報
     private List<MacdInfo> macdList;
+    private MacdDivergenceCalculator.Divergence[] macdDivergences;
     private float[] kdjK;
     private float[] kdjD;
     private float[] kdjJ;
@@ -127,8 +130,25 @@ public class MacdView  extends View {
         // 画面表示最大のローソクの数
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
         this.calculate();
+        this.calculateMacdDivergences();
         this.calculateKdj();
         this.calculateSignals();
+    }
+
+    private void calculateMacdDivergences() {
+        float[] highs = new float[sizeOfStick];
+        float[] lows = new float[sizeOfStick];
+        float[] macd = new float[sizeOfStick];
+        float[] signal = new float[sizeOfStick];
+        for (int i = 0; i < sizeOfStick; i++) {
+            highs[i] = stickList.get(i).getHigh();
+            lows[i] = stickList.get(i).getLow();
+            macd[i] = macdList.get(i).getMacd();
+            signal[i] = macdList.get(i).getSignal();
+        }
+        int lastValidIndex = Math.max(-1, Math.min(start_Macd_Osci, sizeOfStick - 1));
+        macdDivergences = MacdDivergenceCalculator.findDivergences(
+                highs, lows, macd, signal, macd, maxStickCount, lastValidIndex);
     }
 
     private void calculateKdj() {
@@ -307,6 +327,7 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         } else {// シングル線
             this.drawMacd(canvas, Color.parseColor("#FF9900"));
+            this.drawMacdDivergences(canvas);
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         }
         this.drawText(canvas);
@@ -616,6 +637,66 @@ public class MacdView  extends View {
             paint.setStyle(Paint.Style.FILL);
             canvas.drawRect(macdOsciRect, paint);
         }
+    }
+
+    private void drawMacdDivergences(Canvas canvas) {
+        if (macdDivergences == null) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float textSize = 12 * density;
+        float gap = 12 * density;
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(textSize);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setFakeBoldText(true);
+        paint.setTextAlign(Paint.Align.CENTER);
+        Rect textBounds = new Rect();
+
+        int count = Math.min(maxStickCount, macdDivergences.length);
+        for (int i = 0; i < count; i++) {
+            MacdDivergenceCalculator.Divergence divergence = macdDivergences[i];
+            MacdDivergenceCalculator.Type type = divergence.getType();
+            if (type == MacdDivergenceCalculator.Type.NONE) {
+                continue;
+            }
+
+            String label;
+            float baseline;
+            boolean isTop = type == MacdDivergenceCalculator.Type.TOP
+                    || type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS;
+            Point histogramPoint = getHistogramPivotPoint(i, isTop);
+            if (isTop) {
+                label = type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS
+                        ? "死叉顶背离" : "顶背离";
+            } else {
+                label = type == MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS
+                        ? "金叉底背离" : "底背离";
+            }
+            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.rgb(0, 230, 118));
+            paint.getTextBounds(label, 0, label.length(), textBounds);
+            baseline = isTop
+                    ? histogramPoint.y - gap - textBounds.bottom
+                    : histogramPoint.y + gap - textBounds.top;
+
+            Point comparisonPoint = getHistogramPivotPoint(
+                    divergence.getComparisonIndex(), isTop);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(3 * density);
+            canvas.drawLine(comparisonPoint.x, comparisonPoint.y,
+                    histogramPoint.x, histogramPoint.y, paint);
+            float textCenterY = baseline + (textBounds.top + textBounds.bottom) / 2f;
+            canvas.drawLine(histogramPoint.x, histogramPoint.y,
+                    histogramPoint.x, textCenterY, paint);
+
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawText(label, histogramPoint.x, baseline, paint);
+        }
+    }
+
+    private Point getHistogramPivotPoint(int index, boolean isTop) {
+        Rect barRect = macdList.get(index).getMacdRect();
+        return new Point(barRect.centerX(), isTop ? barRect.top : barRect.bottom);
     }
 
     /* MACD单线柱体 */
