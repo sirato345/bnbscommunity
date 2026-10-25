@@ -528,7 +528,7 @@ public class StickView extends View {
     private void saveTrendLine() {
         TrendLine trendLine = new TrendLine();
         trendLine.setSymbol(activity.getSymbol());
-        trendLine.setTimeFrame(activity.getTimeFrame());
+        trendLine.setTimeFrame(activity.getTrendLineTimeFrame());
         trendLine.setDate1(this.getDate(downPoint));
         trendLine.setPrice1(this.getPrice(downPoint));
         trendLine.setDate2(this.getDate(currentPoint));

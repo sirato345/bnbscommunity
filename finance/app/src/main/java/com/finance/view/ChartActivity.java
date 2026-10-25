@@ -334,8 +334,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else {// 平均K線図
             stickList = getSticksOfAvgKLine(this.timeFrame);
         }
-        List<TrendLine> trendLines = intradayInterval == null
-                ? this.loadTrendLines() : new ArrayList<>();
+        List<TrendLine> trendLines = this.loadTrendLines();
         stickView.setData(comnInfo, stickList, trendLines);
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
@@ -350,7 +349,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private List<TrendLine> loadTrendLines() {
-        List<Object[]> datas = controller.loadTrendLines(symbol, timeFrame);
+        List<Object[]> datas = controller.loadTrendLines(symbol, getTrendLineTimeFrame());
         List<TrendLine> trendLines = new ArrayList<>();
         for (Object[] data : datas) {
             TrendLine trendLine = new TrendLine();
@@ -536,7 +535,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 LogWriter.getInstance(this).log(
                         "Binance realtime candle updated: " + requestedSymbol
                                 + " " + requestedInterval);
-                if (offset == 0) {
+                if (offset <= Const.DEFAULT_OFFSET) {
                     showUI();
                 }
             }
@@ -582,7 +581,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void applyRealtimeCandle(List<Object[]> records, String selectedTimeFrame) {
-        if (realtimeCandle == null || !isCryptoSymbol() || offset != 0
+        if (realtimeCandle == null || !isCryptoSymbol() || offset > Const.DEFAULT_OFFSET
                 || !isBinanceTimeFrame(selectedTimeFrame)) {
             return;
         }
@@ -992,6 +991,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 当面選択された銘柄 */
     public String getSymbol() {
         return symbol;
+    }
+
+    /* 趋势线按当前实际显示的周期（含5m~4h）分别保存 */
+    public String getTrendLineTimeFrame() {
+        return intradayInterval == null ? timeFrame : intradayInterval;
     }
 
     /* 当面選択されタイムフレーム */
