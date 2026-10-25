@@ -22,7 +22,7 @@ public class DBHelper extends SQLiteOpenHelper {
             "CREATE TABLE IF NOT EXISTS %s (Date TEXT PRIMARY KEY, Open REAL, High REAL, Low REAL, Close REAL)";
     private static final String CREATE_TREND_LINE_TABLE_SQL =
             "CREATE TABLE IF NOT EXISTS %s (Id INTEGER PRIMARY KEY AUTOINCREMENT, Symbol TEXT, Timeframe TEXT, " +
-                    "Date1 TEXT, Price1 REAL, Date2 TEXT, Price2 REAL)";
+                    "Date1 TEXT, Price1 REAL, Date2 TEXT, Price2 REAL, Type INTEGER DEFAULT 0, Color INTEGER DEFAULT -1)";
 
     private final List<String> tableList;
 
@@ -43,6 +43,10 @@ public class DBHelper extends SQLiteOpenHelper {
         if (oldVersion < newVersion) {
             createTables(db);
         }
+        if (oldVersion < 7) {
+            addTrendLineColumn(db, "Type INTEGER DEFAULT 0", "Type");
+            addTrendLineColumn(db, "Color INTEGER DEFAULT -1", "Color");
+        }
         if (oldVersion < 4) {
             for (String tableName : tableList) {
                 if (tableName.startsWith(Const.Symbol.trump.toString() + "_")) {
@@ -50,6 +54,18 @@ public class DBHelper extends SQLiteOpenHelper {
                 }
             }
         }
+    }
+
+    private void addTrendLineColumn(SQLiteDatabase db, String definition, String name) {
+        try (android.database.Cursor cursor = db.rawQuery(
+                "PRAGMA table_info(" + Const.TREND_LINE_TABLE + ")", null)) {
+            while (cursor.moveToNext()) {
+                if (name.equalsIgnoreCase(cursor.getString(1))) {
+                    return;
+                }
+            }
+        }
+        db.execSQL("ALTER TABLE " + Const.TREND_LINE_TABLE + " ADD COLUMN " + definition);
     }
 
     @Override

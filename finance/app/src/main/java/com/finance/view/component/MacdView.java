@@ -307,7 +307,7 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         } else {// シングル線
             this.drawMacd(canvas, Color.parseColor("#FF9900"));
-            this.drawSignalLine(canvas, Color.parseColor("#EE82EE"));
+            this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         }
         this.drawText(canvas);
         drawSignals(canvas);

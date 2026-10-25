@@ -14,6 +14,8 @@ import android.view.Window;
 import android.util.DisplayMetrics;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.view.Gravity;
 import android.widget.LinearLayout.LayoutParams;
 import android.os.Handler;
 
@@ -125,6 +127,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean isLongPress;
     // 編集モード
     private boolean isEidtMode;
+    // 画线工具：线型、颜色、吸附
+    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平"};
+    private static final int[] TREND_COLORS = {
+            Color.WHITE, Color.YELLOW, Color.CYAN, Color.rgb(255, 165, 0),
+            Color.MAGENTA, Color.GREEN};
+    private int trendLineType;
+    private int trendColorIndex;
+    private boolean trendSnapEnabled = true;
+    private LinearLayout trendToolContainer;
+    private TextView trendTypeButton;
+    private TextView trendColorButton;
+    private TextView trendSnapButton;
     // 平均K線１０日表示フラグ
     public boolean isAvg10Disp = true;
     // 平均K線２０日表示フラグ
@@ -360,6 +374,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             trendLine.setPrice1((float)data[4]);
             trendLine.setDate2((String)data[5]);
             trendLine.setPrice2((float)data[6]);
+            trendLine.setType((Integer) data[7]);
+            trendLine.setColor((Integer) data[8]);
             trendLines.add(trendLine);
         }
         return trendLines;
@@ -1434,6 +1450,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         editButtonContainer.setX(60);
         editButtonContainer.setY(comnInfo.getScreenHeight() - comnInfo.getDateHeight()
                 - buttonHeight - 7 * density);
+        setupTrendTools(buttonWidth, buttonHeight, density);
         updateEditButtonImage();
     }
 
@@ -1442,6 +1459,78 @@ public class ChartActivity extends FragmentActivity implements Observer,
         editButton.setColorFilter(isEidtMode
                 ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));
         editButton.setSelected(isEidtMode);
+        if (trendToolContainer != null) {
+            trendToolContainer.setVisibility(isEidtMode ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void setupTrendTools(int buttonWidth, int buttonHeight, float density) {
+        if (trendToolContainer == null) {
+            trendToolContainer = new LinearLayout(this);
+            trendToolContainer.setOrientation(LinearLayout.VERTICAL);
+            trendTypeButton = createToolButton();
+            trendColorButton = createToolButton();
+            trendSnapButton = createToolButton();
+            trendTypeButton.setOnClickListener(v -> {
+                trendLineType = (trendLineType + 1) % TREND_TYPE_LABELS.length;
+                updateTrendToolButtons();
+            });
+            trendColorButton.setOnClickListener(v -> {
+                trendColorIndex = (trendColorIndex + 1) % TREND_COLORS.length;
+                updateTrendToolButtons();
+            });
+            trendSnapButton.setOnClickListener(v -> {
+                trendSnapEnabled = !trendSnapEnabled;
+                updateTrendToolButtons();
+            });
+            trendToolContainer.addView(trendTypeButton);
+            trendToolContainer.addView(trendColorButton);
+            trendToolContainer.addView(trendSnapButton);
+            addContentView(trendToolContainer, new ViewGroup.LayoutParams(-2, -2));
+        }
+        int toolGap = Math.round(4 * density);
+        for (TextView button : new TextView[] {
+                trendTypeButton, trendColorButton, trendSnapButton}) {
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(buttonWidth, buttonHeight);
+            params.topMargin = toolGap;
+            button.setLayoutParams(params);
+        }
+        // 在编辑按钮正上方向上展开
+        int toolHeight = 3 * (buttonHeight + toolGap);
+        trendToolContainer.setX(editButtonContainer.getX());
+        trendToolContainer.setY(editButtonContainer.getY() - toolHeight);
+        updateTrendToolButtons();
+    }
+
+    private TextView createToolButton() {
+        TextView button = new TextView(this);
+        button.setGravity(Gravity.CENTER);
+        button.setTextSize(12);
+        button.setTextColor(Color.WHITE);
+        button.setBackgroundColor(Color.argb(160, 40, 40, 40));
+        return button;
+    }
+
+    private void updateTrendToolButtons() {
+        trendTypeButton.setText(TREND_TYPE_LABELS[trendLineType]);
+        trendColorButton.setText("颜色");
+        trendColorButton.setTextColor(TREND_COLORS[trendColorIndex]);
+        trendSnapButton.setText(trendSnapEnabled ? "吸附开" : "吸附关");
+        trendSnapButton.setTextColor(trendSnapEnabled
+                ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));
+    }
+
+    public int getTrendLineType() {
+        return trendLineType;
+    }
+
+    public int getTrendLineColor() {
+        return TREND_COLORS[trendColorIndex];
+    }
+
+    public boolean isTrendSnapEnabled() {
+        return trendSnapEnabled;
     }
 
     public int getStickWidth() {

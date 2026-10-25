@@ -646,49 +646,57 @@ public class DBOperator {
     }
 
     public List<Object[]> loadTrendLines(String symbol, String timeFrame) {
-        String query = "select * from " + Const.TREND_LINE_TABLE + " where Symbol = '" +
-                symbol + "' and Timeframe = '" + timeFrame + "' order by id";
-        Cursor cursor = dbReadable.rawQuery(query, null);
+        String query = "select Id, Symbol, Timeframe, Date1, Price1, Date2, Price2, Type, Color from "
+                + Const.TREND_LINE_TABLE + " where Symbol = ? and Timeframe = ? order by Id";
         List<Object[]> dataList = new ArrayList<>();
-        Object[] data = null;
-        while (cursor.moveToNext()) {
-            data = new Object[7];
-            data[0] = cursor.getInt(0);
-            data[1] = cursor.getString(1);
-            data[2] = cursor.getString(2);
-            data[3] = cursor.getString(3);
-            data[4] = cursor.getFloat(4);
-            data[5] = cursor.getString(5);
-            data[6] = cursor.getFloat(6);
-            dataList.add(data);
+        try (Cursor cursor = dbReadable.rawQuery(query, new String[] {symbol, timeFrame})) {
+            while (cursor.moveToNext()) {
+                Object[] data = new Object[9];
+                data[0] = cursor.getInt(0);
+                data[1] = cursor.getString(1);
+                data[2] = cursor.getString(2);
+                data[3] = cursor.getString(3);
+                data[4] = cursor.getFloat(4);
+                data[5] = cursor.getString(5);
+                data[6] = cursor.getFloat(6);
+                data[7] = cursor.getInt(7);
+                data[8] = cursor.getInt(8);
+                dataList.add(data);
+            }
         }
-        cursor.close();
         return dataList;
     }
 
     public void saveTrendLine(TrendLine trendLine) {
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
+        android.content.ContentValues values = new android.content.ContentValues();
+        values.put("Symbol", trendLine.getSymbol());
+        values.put("Timeframe", trendLine.getTimeFrame());
+        values.put("Date1", trendLine.getDate1());
+        values.put("Price1", trendLine.getPrice1());
+        values.put("Date2", trendLine.getDate2());
+        values.put("Price2", trendLine.getPrice2());
+        values.put("Type", trendLine.getType());
+        values.put("Color", trendLine.getColor());
         dbWritable.beginTransactionNonExclusive();
-        String sql = "insert into " + Const.TREND_LINE_TABLE + " values (NULL,'" +
-                trendLine.getSymbol()
-                + "','" + trendLine.getTimeFrame() + "','" + trendLine.getDate1()
-                + "','" + trendLine.getPrice1() + "','" + trendLine.getDate2()
-                + "','" + trendLine.getPrice2() + "')";
-        dbWritable.execSQL(sql);
-        log("SQL実行:" + sql);
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
+        try {
+            dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values);
+            log("趋势线保存:" + trendLine.getSymbol() + " " + trendLine.getTimeFrame());
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
+        }
     }
 
     public void deleteTrendLine(int id) {
-        // ロック中、他ユーザはデータの読み取りはでき、書き込みはできない
         dbWritable.beginTransactionNonExclusive();
-        String sql = "delete from " + Const.TREND_LINE_TABLE + " where id ='" +
-                id + "'";
-        dbWritable.execSQL(sql);
-        log("SQL実行:" + sql);
-        dbWritable.setTransactionSuccessful();
-        dbWritable.endTransaction();
+        try {
+            dbWritable.delete(Const.TREND_LINE_TABLE, "Id = ?",
+                    new String[] {String.valueOf(id)});
+            log("趋势线删除:" + id);
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
+        }
     }
 
 }

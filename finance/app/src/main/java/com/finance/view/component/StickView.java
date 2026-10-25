@@ -19,6 +19,8 @@ import com.finance.view.component.trendline.TrendLine;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,6 +29,10 @@ import java.util.Locale;
 import java.util.Map;
 
 public class StickView extends View {
+
+    private static final int SNAP_DISTANCE = 30;
+    private static final int NO_X = Integer.MIN_VALUE;
+    private static final long NO_TIME = Long.MIN_VALUE;
 
     private ChartActivity activity;
     // 共通情報
@@ -217,64 +223,59 @@ public class StickView extends View {
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 this.editLine = this.getEditLine(point);
-                this.downPoint = point;
+                this.currentPoint = null;
+                this.downPoint = editLine == null ? this.snap(point) : point;
                 break;
             case MotionEvent.ACTION_MOVE:
                 if (this.editLine != null) {
-                    if (editLine.getEidtPoint() == 1) {
-                        this.downPoint = this.getVirtualPoint(editLine.getDate2(), editLine.getPrice2());
-                    } else {
-                        this.downPoint = this.getVirtualPoint(editLine.getDate1(), editLine.getPrice1());
-                    }
-                    int index = this.getTrendLineIndex(editLine);
-                    if (index != -1) {
-                        trendLines.remove(index);
-                        activity.deleteTrendLine(editLine.getId());
+                    Point fixed = editLine.getEidtPoint() == 1
+                            ? this.getVirtualPoint(editLine.getDate2(), editLine.getPrice2())
+                            : this.getVirtualPoint(editLine.getDate1(), editLine.getPrice1());
+                    if (fixed != null) {
+                        this.downPoint = fixed;
                     }
                 }
-                this.currentPoint = point;
+                this.currentPoint = this.snap(point);
                 break;
             case MotionEvent.ACTION_UP:
-                if(downPoint != null && currentPoint != null) {
+                if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
-                    // 低于一定长度,或者超出日期表示范围,不画线
-                    if (length > 120 && this.getDate(downPoint) != null &&
-                            this.getDate(currentPoint) != null) {
+                    // 低于一定长度,不画线（编辑时保留原线）
+                    if (length > 120) {
+                        if (editLine != null) {
+                            activity.deleteTrendLine(editLine.getId());
+                        }
                         this.saveTrendLine();
                     }
-                    downPoint = null;
-                    currentPoint = null;
                 }
+                downPoint = null;
+                currentPoint = null;
+                editLine = null;
                 break;
         }
     }
 
     /* 双击：删除线 */
     public void onDoubleTap(Point point) {
-        if (trendLines.size() == 0) {
-            return;
-        }
-        Map<Double, TrendLine> map = new HashMap<>();
+        TrendLine nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
         for (TrendLine trendLine : trendLines) {
-            Point startPoint = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
-            Point endPoint = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
-            if (startPoint != null && endPoint != null) {
-                double length = this.pointToLine(startPoint.x, startPoint.y, endPoint.x, endPoint.y, point.x, point.y);
-                map.put(length, trendLine);
+            float[] ends = this.getLineEnds(trendLine);
+            if (ends == null) {
+                continue;
+            }
+            double distance = this.pointToLine((int) ends[0], (int) ends[1],
+                    (int) ends[2], (int) ends[3], point.x, point.y);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = trendLine;
             }
         }
-        if (map.size() == 0) {
-            return;
-        }
-        List<Double> keys = new ArrayList<>(map.keySet());
-        Collections.sort(keys);
-        Double distance = keys.get(0);
-        if (distance <= Const.EDIT_DISTANCE) {
-            TrendLine deleteLine = map.get(distance);
-            int index = this.getTrendLineIndex(deleteLine);
+        if (nearest != null && nearestDistance <= Const.EDIT_DISTANCE) {
+            int index = this.getTrendLineIndex(nearest);
             if (index != -1) {
                 trendLines.remove(index);
-                activity.deleteTrendLine(deleteLine.getId());
+                activity.deleteTrendLine(nearest.getId());
             }
         }
     }
@@ -295,40 +296,89 @@ public class StickView extends View {
                                 Math.pow(startPoint.y - endPoint.y, 2));
     }
 
-    // 计算触摸位置是否有可编辑的趋势线
+    // 计算触摸位置是否有可编辑的趋势线（取距离最近的端点）
     private TrendLine getEditLine(Point point) {
-        if (trendLines.size() == 0) {
-            return null;
-        }
-        Map<Integer, TrendLine> map1 = new HashMap<>();
-        Map<Integer, TrendLine> map2 = new HashMap<>();
+        TrendLine best = null;
+        int bestPoint = 0;
+        int bestDistance = Integer.MAX_VALUE;
         for (TrendLine trendLine : trendLines) {
             Point startPoint = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
             Point endPoint = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
-            if (startPoint != null && endPoint != null) {
-                map1.put(this.getDistance(point, startPoint), trendLine);
-                map2.put(this.getDistance(point, endPoint), trendLine);
+            if (startPoint != null) {
+                int distance = this.getDistance(point, startPoint);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = trendLine;
+                    bestPoint = 1;
+                }
+            }
+            if (endPoint != null) {
+                int distance = this.getDistance(point, endPoint);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = trendLine;
+                    bestPoint = 2;
+                }
             }
         }
-        if (map1.size() == 0) {
+        if (best == null || bestDistance > Const.EDIT_DISTANCE) {
             return null;
         }
-        List<Integer> keys1 = new ArrayList<>(map1.keySet());
-        List<Integer> keys2 = new ArrayList<>(map2.keySet());
-        Collections.sort(keys1);
-        Collections.sort(keys2);
-        int distance1 = keys1.get(0);
-        int distance2 = keys2.get(0);
-        if (distance1 <= Const.EDIT_DISTANCE && distance1 <= distance2) {
-            TrendLine trendLine = map1.get(distance1);
-            trendLine.setEidtPoint(1);
-            return trendLine;
-        } else if(distance2 <= Const.EDIT_DISTANCE && distance2 <= distance1) {
-            TrendLine trendLine = map2.get(distance2);
-            trendLine.setEidtPoint(2);
-            return trendLine;
+        best.setEidtPoint(bestPoint);
+        return best;
+    }
+
+    /* 吸附到触摸位置K线的开高低收价 */
+    private Point snap(Point point) {
+        if (!activity.isTrendSnapEnabled() || stickList == null || stickList.isEmpty()) {
+            return point;
         }
-        return null;
+        StickInfo stick = this.getRelatedStick(point.x);
+        if (stick == null) {
+            return point;
+        }
+        float[] prices = {stick.getOpen(), stick.getHigh(), stick.getLow(), stick.getClose()};
+        int bestY = point.y;
+        int bestGap = SNAP_DISTANCE + 1;
+        for (float price : prices) {
+            int y = stick.getYPoint(price);
+            int gap = Math.abs(y - point.y);
+            if (gap < bestGap) {
+                bestGap = gap;
+                bestY = y;
+            }
+        }
+        if (bestGap > SNAP_DISTANCE) {
+            return point;
+        }
+        return new Point(stick.getLineRect().centerX(), bestY);
+    }
+
+    /* 线的实际绘制端点：射线向第二点方向延伸，水平线横跨整个画面 */
+    private float[] getLineEnds(TrendLine trendLine) {
+        Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
+        Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+        if (p1 == null || p2 == null) {
+            return null;
+        }
+        return this.getLineEnds(p1.x, p1.y, p2.x, p2.y, trendLine.getType());
+    }
+
+    private float[] getLineEnds(float x1, float y1, float x2, float y2, int type) {
+        if (type == TrendLine.TYPE_HORIZONTAL) {
+            return new float[] {0, y1, comnInfo.getScreenWidth(), y1};
+        }
+        if (type == TrendLine.TYPE_RAY) {
+            float dx = x2 - x1;
+            float dy = y2 - y1;
+            float length = (float) Math.sqrt(dx * dx + dy * dy);
+            if (length < 1) {
+                return new float[] {x1, y1, x2, y2};
+            }
+            float k = 3f * (comnInfo.getScreenWidth() + comnInfo.getStickHeight()) / length;
+            return new float[] {x1, y1, x1 + dx * k, y1 + dy * k};
+        }
+        return new float[] {x1, y1, x2, y2};
     }
 
     @Override
@@ -524,15 +574,46 @@ public class StickView extends View {
         }
     }
 
-    // 保存趋势线
+    // 保存趋势线（编辑时保留未被拖动端点的原日期和价格，以及线型和颜色）
     private void saveTrendLine() {
         TrendLine trendLine = new TrendLine();
         trendLine.setSymbol(activity.getSymbol());
         trendLine.setTimeFrame(activity.getTrendLineTimeFrame());
-        trendLine.setDate1(this.getDate(downPoint));
-        trendLine.setPrice1(this.getPrice(downPoint));
-        trendLine.setDate2(this.getDate(currentPoint));
-        trendLine.setPrice2(this.getPrice(currentPoint));
+        String date1;
+        float price1;
+        String date2;
+        float price2;
+        if (editLine == null) {
+            trendLine.setType(activity.getTrendLineType());
+            trendLine.setColor(activity.getTrendLineColor());
+            date1 = this.getDate(downPoint);
+            price1 = this.getPrice(downPoint);
+            date2 = this.getDate(currentPoint);
+            price2 = this.getPrice(currentPoint);
+        } else {
+            trendLine.setType(editLine.getType());
+            trendLine.setColor(editLine.getColor());
+            if (editLine.getEidtPoint() == 1) {
+                date1 = this.getDate(currentPoint);
+                price1 = this.getPrice(currentPoint);
+                date2 = editLine.getDate2();
+                price2 = editLine.getPrice2();
+            } else {
+                date1 = editLine.getDate1();
+                price1 = editLine.getPrice1();
+                date2 = this.getDate(currentPoint);
+                price2 = this.getPrice(currentPoint);
+            }
+        }
+        if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL) {
+            float price = editLine == null ? price1 : this.getPrice(currentPoint);
+            price1 = price;
+            price2 = price;
+        }
+        trendLine.setDate1(date1);
+        trendLine.setPrice1(price1);
+        trendLine.setDate2(date2);
+        trendLine.setPrice2(price2);
         activity.saveTrendLine(trendLine);
     }
 
@@ -557,26 +638,33 @@ public class StickView extends View {
 
     /* 編集モードの線を描く */
     private void drawTrandLine(Canvas canvas) {
-        Paint paint = new Paint();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(3);
-        paint.setColor(Color.WHITE);
-        // 描画已经保存的线
+        // 描画已经保存的线（超出画面的部分由画布裁剪，线的角度保持不变）
         for (TrendLine trendLine : trendLines) {
-            // 枠を超えたら、描かない。線のずれを防ぐため
-            Point fromPoint = this.getVirtualPoint(trendLine.getDate1(),trendLine.getPrice1());
-            // 枠を超えたら、描かない。線のずれを防ぐため
-            Point toPoint = this.getVirtualPoint(trendLine.getDate2(),trendLine.getPrice2());
-            if (fromPoint == null || toPoint == null) {
+            if (editLine != null && currentPoint != null
+                    && editLine.getId() == trendLine.getId()) {
                 continue;
             }
-            canvas.drawLine(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y, paint);
+            float[] ends = this.getLineEnds(trendLine);
+            if (ends == null) {
+                continue;
+            }
+            paint.setColor(trendLine.getColor());
+            canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
         }
         // 描画当前正在画的线
         if (downPoint == null || currentPoint == null) {
             return;
         }
-        canvas.drawLine(downPoint.x, downPoint.y, currentPoint.x, currentPoint.y, paint);
+        int type = editLine != null ? editLine.getType() : activity.getTrendLineType();
+        paint.setColor(editLine != null ? editLine.getColor() : activity.getTrendLineColor());
+        float y1 = type == TrendLine.TYPE_HORIZONTAL
+                ? (editLine != null ? currentPoint.y : downPoint.y) : downPoint.y;
+        float y2 = type == TrendLine.TYPE_HORIZONTAL ? y1 : currentPoint.y;
+        float[] ends = this.getLineEnds(downPoint.x, y1, currentPoint.x, y2, type);
+        canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
     }
 
     /* TD序列の数字を描く */
@@ -613,16 +701,49 @@ public class StickView extends View {
         }
     }
 
+    /* 日期对应的X坐标：画面内取K线中心；画面外按K线间距或时间比例外推 */
     private int getX(String date) {
-        // 画面表示最大のローソクの数
-        int maxStickCount = comnInfo.getMaxStickCount(stickList.size());
-        for (int i = 0; i < maxStickCount; i++) {
+        if (date == null || stickList == null || stickList.isEmpty()) {
+            return NO_X;
+        }
+        int visible = Math.min(comnInfo.getMaxStickCount(stickList.size()), stickList.size());
+        for (int i = 0; i < visible; i++) {
             StickInfo stick = stickList.get(i);
             if (date.equals(stick.getDate())) {
                 return stick.getLineRect().centerX();
             }
         }
-        return -1;
+        if (visible < 2) {
+            return NO_X;
+        }
+        StickInfo newest = stickList.get(0);
+        StickInfo oldest = stickList.get(visible - 1);
+        int x0 = newest.getLineRect().centerX();
+        int xN = oldest.getLineRect().centerX();
+        // 已加载但在画面左侧的K线按序号计算
+        for (int i = visible; i < stickList.size(); i++) {
+            if (date.equals(stickList.get(i).getDate())) {
+                return Math.round(x0 - i * (float) (x0 - xN) / (visible - 1));
+            }
+        }
+        long t = parseTime(date);
+        long t0 = parseTime(newest.getDate());
+        long tN = parseTime(oldest.getDate());
+        if (t == NO_TIME || t0 == NO_TIME || tN == NO_TIME || t0 == tN) {
+            return NO_X;
+        }
+        return (int) Math.round(xN + (double) (t - tN) * (x0 - xN) / (t0 - tN));
+    }
+
+    private long parseTime(String date) {
+        try {
+            SimpleDateFormat format = new SimpleDateFormat(
+                    date.length() == 8 ? "yyyyMMdd" : "yyyy-MM-dd HH:mm", Locale.US);
+            format.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return format.parse(date).getTime();
+        } catch (Exception e) {
+            return NO_TIME;
+        }
     }
 
     /* 超过价格边界线,按照边界线计算 */
@@ -638,25 +759,10 @@ public class StickView extends View {
     /* 表示时,MACD区域内画线也可以表示 */
     private Point getVirtualPoint(String date, float price) {
         int x = this.getX(date);
-        int y = this.getVirtualY(price);
-        if (x == -1) {
+        if (x == NO_X) {
             return null;
-        } else {
-            return new Point(x, y);
         }
-    }
-
-    /* 超过全屏幕表示范围,则不画线 */
-    private int getVirtualY(float price) {
-        StickInfo stick = stickList.get(0);
-        int y = stick.getYPoint(price);
-        if(y < 0) {
-            y = 0;
-        }
-        if (y > comnInfo.getStickHeight()) {
-            y = comnInfo.getStickHeight();
-        }
-        return y;
+        return new Point(x, stickList.get(0).getYPoint(price));
     }
 
     /* 单击事件，由Activity转发事件 */
@@ -682,7 +788,7 @@ public class StickView extends View {
     /* 价格显示精度 */
     public String getLimitDigit(float value) {
         DecimalFormat format = "btc".equals(activity.getSymbol())
-                ? btcDigitFormat : digitFormat;
+                || "eth".equals(activity.getSymbol()) ? btcDigitFormat : digitFormat;
         return format.format(value).replaceAll("-", "－");
     }
 

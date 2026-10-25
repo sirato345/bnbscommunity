@@ -21,6 +21,30 @@ public class TrendLine {
 
     private int eidtPoint;
 
+    public static final int TYPE_SEGMENT = 0;
+    public static final int TYPE_RAY = 1;
+    public static final int TYPE_HORIZONTAL = 2;
+
+    private int type = TYPE_SEGMENT;
+
+    private int color = 0xFFFFFFFF;
+
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
+    }
+
+    public int getColor() {
+        return color;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
+    }
+
     public int getEidtPoint() {
         return eidtPoint;
     }
