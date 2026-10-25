@@ -49,7 +49,7 @@ import java.util.TimeZone;
 public class ChartActivity extends FragmentActivity implements Observer,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
-    private static final long BINANCE_REFRESH_INTERVAL_MS = 3000L;
+    private static final long BINANCE_REFRESH_INTERVAL_MS = 2000L;
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;

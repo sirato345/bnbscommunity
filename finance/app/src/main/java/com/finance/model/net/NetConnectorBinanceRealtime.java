@@ -47,8 +47,8 @@ public class NetConnectorBinanceRealtime
             connection.setRequestProperty("User-Agent",
                     "Mozilla/5.0 (compatible; FinanceApp/1.0)");
             connection.setRequestProperty("Accept", "application/json");
-            connection.setConnectTimeout(10000);
-            connection.setReadTimeout(15000);
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 throw new java.io.IOException("Binance HTTP " + responseCode + ": "
@@ -62,7 +62,14 @@ public class NetConnectorBinanceRealtime
                     response.append(line);
                 }
             }
-            String record = parseCurrentCandle(interval, response.toString());
+            String klines = response.toString();
+            try {
+                klines = applyLatestPrice(klines, fetchLatestPrice());
+            } catch (Exception e) {
+                LogWriter.getWriter().printLog("Binance ticker price unavailable: "
+                        + e.getMessage());
+            }
+            String record = parseCurrentCandle(interval, klines);
             LogWriter.getWriter().printLog("Binance realtime response received: "
                     + symbol + " " + interval + " " + record);
             return new Result(record, null);
@@ -76,6 +83,55 @@ public class NetConnectorBinanceRealtime
                 connection.disconnect();
             }
         }
+    }
+
+    // Uses the real-time last-price endpoint, which is fresher than the kline close.
+    private String fetchLatestPrice() throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection)new URL(
+                    "https://api.binance.com/api/v3/ticker/price?symbol="
+                            + BinanceSymbol.getPair(symbol)).openConnection();
+            connection.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (compatible; FinanceApp/1.0)");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new java.io.IOException("Binance ticker HTTP "
+                        + connection.getResponseCode());
+            }
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+            }
+            return new org.json.JSONObject(response.toString()).getString("price");
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    static String applyLatestPrice(String klines, String price) throws Exception {
+        JSONArray candles = new JSONArray(klines);
+        if (candles.length() == 0) {
+            return klines;
+        }
+        JSONArray candle = candles.getJSONArray(0);
+        double latest = Double.parseDouble(price);
+        if (!(latest > 0) || candle.length() < 5) {
+            return klines;
+        }
+        candle.put(2, new java.math.BigDecimal(
+                Math.max(Double.parseDouble(candle.getString(2)), latest)).toPlainString());
+        candle.put(3, new java.math.BigDecimal(
+                Math.min(Double.parseDouble(candle.getString(3)), latest)).toPlainString());
+        candle.put(4, price);
+        return candles.toString();
     }
 
     static String parseCurrentCandle(String interval, String response) throws Exception {
