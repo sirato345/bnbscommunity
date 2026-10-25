@@ -6,403 +6,280 @@ import static org.junit.Assert.assertEquals;
 
 public class MacdDivergenceCalculatorTest {
 
+    private static final int SIZE = 30;
+    private static final int OLD = 20;
+    private static final int NEW = 8;
+
     @Test
-    public void detectsTopDivergenceUsingPeakCandleCloses() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        closes[11] = 20f;
-        closes[5] = 25f;
+    public void detectsTopDivergence() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 8f;
+        macd[NEW] = 4f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
+        MacdDivergenceCalculator.Divergence[] divergences = find(highs, highs, macd, macd);
 
-        assertType(MacdDivergenceCalculator.Type.TOP, divergences[5]);
-        assertEquals(11, divergences[5].getComparisonIndex());
+        assertType(MacdDivergenceCalculator.Type.TOP, divergences[NEW]);
+        assertEquals(OLD, divergences[NEW].getComparisonIndex());
     }
 
     @Test
-    public void ignoresTopDivergenceWhenPeaksAreFiveBarsApart() {
-        float[] closes = new float[16];
-        float[] macd = new float[16];
-        float[] signal = new float[16];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{10, 5}, new float[]{8f, 4f},
-                new int[]{13, 7, 2}, new float[]{-5f, -8f, -6f});
-        closes[10] = 20f;
-        closes[5] = 25f;
+    public void detectsTopDivergenceWhenPeaksAreTenBarsApart() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[18] = 8f;
+        macd[NEW] = 4f;
+        highs[18] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 16, 15);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.TOP, find(highs, highs, macd, macd)[NEW]);
     }
 
     @Test
-    public void requiresThreeHistogramBarsOnEachSideOfPeaks() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        float[] histogram = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        histogram[11] = 8f;
-        histogram[5] = 4f;
-        histogram[8] = 9f;
-        closes[11] = 20f;
-        closes[5] = 25f;
+    public void ignoresTopDivergenceWhenPeaksAreNineBarsApart() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[17] = 8f;
+        macd[NEW] = 4f;
+        highs[17] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        closes, macd, signal, histogram, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.NONE, find(highs, highs, macd, macd)[NEW]);
     }
 
     @Test
-    public void comparesHighsForTopAndLowsForBottom() {
-        float[] highs = new float[18];
-        float[] lows = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        highs[11] = 20f;
-        highs[5] = 25f;
-        lows[11] = 30f;
-        lows[5] = 10f;
+    public void ignoresTopDivergenceWhenPeaksAreBelowZero() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = -2f;
+        macd[NEW] = -4f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        highs, lows, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.TOP, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.NONE, find(highs, highs, macd, macd)[NEW]);
     }
 
     @Test
-    public void ignoresTopDivergenceWhenHighsDoNotRise() {
-        float[] highs = new float[18];
-        float[] lows = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        highs[11] = 25f;
-        highs[5] = 20f;
-        lows[11] = 10f;
-        lows[5] = 30f;
+    public void ignoresTopWhenMacdAndPriceBothRise() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 4f;
+        macd[NEW] = 8f;
+        highs[OLD] = 15f;
+        highs[NEW] = 20f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        highs, lows, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.NONE, find(highs, highs, macd, macd)[NEW]);
     }
 
     @Test
     public void ignoresTopDivergenceWhenFirstHistogramPeakIsShorter() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        float[] histogram = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        histogram[11] = 4f;
-        histogram[5] = 8f;
-        closes[11] = 25f;
-        closes[5] = 20f;
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] histogram = new float[SIZE];
+        histogram[OLD] = 4f;
+        histogram[NEW] = 8f;
+        highs[OLD] = 25f;
+        highs[NEW] = 20f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        closes, macd, signal, histogram, 18, 17);
+        assertType(MacdDivergenceCalculator.Type.NONE,
+                find(highs, highs, macd, histogram)[NEW]);
+    }
 
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+    @Test
+    public void requiresThreeHistogramBarsOnEachSideOfPeaks() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] histogram = new float[SIZE];
+        histogram[OLD] = 8f;
+        histogram[NEW] = 4f;
+        histogram[NEW + 2] = 9f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
+
+        assertType(MacdDivergenceCalculator.Type.NONE,
+                find(highs, highs, macd, histogram)[NEW]);
     }
 
     @Test
     public void classifiesTopByHistogramWhenMacdIsBelowZero() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        float[] histogram = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(histogram, new int[]{11, 5}, new float[]{8f, 4f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        macd[5] = -1f;
-        closes[11] = 20f;
-        closes[5] = 25f;
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] histogram = new float[SIZE];
+        histogram[OLD] = 8f;
+        histogram[NEW] = 4f;
+        macd[NEW] = -1f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        closes, macd, signal, histogram, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.TOP, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.TOP,
+                find(highs, highs, macd, histogram)[NEW]);
     }
 
     @Test
-    public void classifiesBottomByHistogramWhenMacdIsAboveZero() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        float[] histogram = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(histogram, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-8f, -4f});
-        macd[5] = 1f;
-        closes[12] = -20f;
-        closes[5] = -25f;
+    public void marksDeathCrossTopDivergence() {
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 8f;
+        macd[NEW] = 4f;
+        macd[NEW - 1] = -1f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        closes, macd, signal, histogram, 18, 17);
+        assertType(MacdDivergenceCalculator.Type.TOP_DEATH_CROSS,
+                find(highs, highs, macd, macd)[NEW]);
+    }
 
-        assertType(MacdDivergenceCalculator.Type.BOTTOM, divergences[5]);
+    @Test
+    public void comparesHighsForTopAndLowsForBottom() {
+        float[] highs = new float[SIZE];
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 8f;
+        macd[NEW] = 4f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
+        lows[OLD] = 30f;
+        lows[NEW] = 10f;
+
+        assertType(MacdDivergenceCalculator.Type.TOP, find(highs, lows, macd, macd)[NEW]);
+    }
+
+    @Test
+    public void ignoresTopDivergenceWhenHighsDoNotRise() {
+        float[] highs = new float[SIZE];
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 8f;
+        macd[NEW] = 4f;
+        highs[OLD] = 25f;
+        highs[NEW] = 20f;
+        lows[OLD] = 10f;
+        lows[NEW] = 30f;
+
+        assertType(MacdDivergenceCalculator.Type.NONE, find(highs, lows, macd, macd)[NEW]);
+    }
+
+    @Test
+    public void detectsBottomDivergence() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = -8f;
+        macd[NEW] = -4f;
+        lows[OLD] = -20f;
+        lows[NEW] = -25f;
+
+        MacdDivergenceCalculator.Divergence[] divergences = find(lows, lows, macd, macd);
+
+        assertType(MacdDivergenceCalculator.Type.BOTTOM, divergences[NEW]);
+        assertEquals(OLD, divergences[NEW].getComparisonIndex());
+    }
+
+    @Test
+    public void ignoresBottomDivergenceWhenTroughsAreNineBarsApart() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[17] = -8f;
+        macd[NEW] = -4f;
+        lows[17] = -20f;
+        lows[NEW] = -25f;
+
+        assertType(MacdDivergenceCalculator.Type.NONE, find(lows, lows, macd, macd)[NEW]);
+    }
+
+    @Test
+    public void detectsBottomDivergenceWhenTroughsAreTenBarsApart() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[18] = -8f;
+        macd[NEW] = -4f;
+        lows[18] = -20f;
+        lows[NEW] = -25f;
+
+        assertType(MacdDivergenceCalculator.Type.BOTTOM, find(lows, lows, macd, macd)[NEW]);
+    }
+
+    @Test
+    public void ignoresBottomDivergenceWhenTroughsAreAboveZero() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = 2f;
+        macd[NEW] = 4f;
+        lows[OLD] = 20f;
+        lows[NEW] = 25f;
+
+        assertType(MacdDivergenceCalculator.Type.NONE, find(lows, lows, macd, macd)[NEW]);
     }
 
     @Test
     public void ignoresBottomDivergenceWhenFirstHistogramTroughIsShorter() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        float[] histogram = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-8f, -4f});
-        histogram[12] = -4f;
-        histogram[5] = -8f;
-        closes[12] = -25f;
-        closes[5] = -20f;
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] histogram = new float[SIZE];
+        histogram[OLD] = -4f;
+        histogram[NEW] = -8f;
+        lows[OLD] = -25f;
+        lows[NEW] = -20f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(
-                        closes, macd, signal, histogram, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.NONE,
+                find(lows, lows, macd, histogram)[NEW]);
     }
 
     @Test
-    public void ignoresTopDivergenceWhenSecondPeakIsBelowZero() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, -100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{-2f, -4f},
-                new int[]{15, 8, 2}, new float[]{-8f, -9f, -7f});
-        closes[11] = 20f;
-        closes[5] = 25f;
+    public void classifiesBottomByHistogramWhenMacdIsAboveZero() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] histogram = new float[SIZE];
+        histogram[OLD] = -8f;
+        histogram[NEW] = -4f;
+        macd[NEW] = 1f;
+        lows[OLD] = -20f;
+        lows[NEW] = -25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
+        assertType(MacdDivergenceCalculator.Type.BOTTOM,
+                find(lows, lows, macd, histogram)[NEW]);
     }
 
     @Test
-    public void detectsBottomDivergenceWhenTroughsAreMoreThanFiveBarsApart() {
-        float[] closes = new float[16];
-        float[] macd = new float[16];
-        float[] signal = new float[16];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-8f, -4f});
-        closes[12] = -20f;
-        closes[5] = -25f;
+    public void marksGoldenCrossBottomDivergence() {
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        macd[OLD] = -8f;
+        macd[NEW] = -4f;
+        macd[NEW - 1] = 2f;
+        lows[OLD] = -20f;
+        lows[NEW] = -25f;
 
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 16, 15);
-
-        assertType(MacdDivergenceCalculator.Type.BOTTOM, divergences[5]);
-        assertEquals(12, divergences[5].getComparisonIndex());
-    }
-
-    @Test
-    public void ignoresBottomDivergenceWhenSecondTroughIsAboveZero() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{8f, 9f, 7f},
-                new int[]{12, 5}, new float[]{2f, 4f});
-        closes[12] = 20f;
-        closes[5] = 25f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
-    }
-
-    @Test
-    public void detectsBottomDivergenceWhenMacdAndPriceBothMakeHigherLows() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-4f, -8f});
-        closes[12] = -25f;
-        closes[5] = -20f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
-    }
-
-    @Test
-    public void marksGoldenCrossBottomDivergenceAtMacdTrough() {
-        float[] closes = new float[16];
-        float[] macd = new float[16];
-        float[] signal = new float[16];
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-8f, -4f});
-        closes[12] = -20f;
-        closes[5] = -25f;
-        macd[4] = -2f;
-        signal[5] = -3f;
-        signal[4] = -3f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 16, 15);
-
-        assertType(MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS, divergences[5]);
-        assertEquals(12, divergences[5].getComparisonIndex());
-    }
-
-    @Test
-    public void doesNotMarkPriceHighWithoutLowerMacdPeak() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        closes[11] = 20f;
-        closes[5] = 25f;
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{4f, 8f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
-    }
-
-    @Test
-    public void detectsDivergenceWithoutVisibleRangeProminenceThreshold() {
-        float[] closes = new float[20];
-        float[] macd = new float[20];
-        float[] signal = new float[20];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{17, 11, 4}, new float[]{100f, 2f, 1f},
-                new int[]{14, 8, 1}, new float[]{-1f, -0.5f, -1f});
-        closes[11] = 20f;
-        closes[4] = 25f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 20, 19);
-
-        assertType(MacdDivergenceCalculator.Type.TOP, divergences[4]);
-    }
-
-    @Test
-    public void ignoresTopWhenMacdAndCloseBothRise() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{11, 5}, new float[]{4f, 8f},
-                new int[]{15, 8, 2}, new float[]{-5f, -8f, -6f});
-        closes[11] = 15f;
-        closes[5] = 20f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[5]);
-    }
-
-    @Test
-    public void doesNotRequireCloseToBeLocalTrough() {
-        float[] closes = new float[18];
-        float[] macd = new float[18];
-        float[] signal = new float[18];
-        fill(signal, 100f);
-        setMacdPivots(macd, new int[]{15, 9, 2}, new float[]{5f, 8f, 6f},
-                new int[]{12, 5}, new float[]{-8f, -4f});
-        closes[12] = -20f;
-        closes[5] = -25f;
-        closes[3] = -26f;
-        closes[1] = -27f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 18, 17);
-
-        assertType(MacdDivergenceCalculator.Type.BOTTOM, divergences[5]);
-    }
-
-    @Test
-    public void usesVisiblePeaksAndMarksDeathCrossAfterSecondPeak() {
-        float[] closes = new float[20];
-        float[] macd = new float[20];
-        float[] signal = new float[20];
-        closes[15] = 20f;
-        closes[8] = 25f;
-        closes[3] = 30f;
-        setMacdPivots(macd, new int[]{15, 8, 3}, new float[]{8f, 4f, 9f},
-                new int[]{12, 5, 1}, new float[]{-5f, -4f, -3f});
-        macd[7] = 3f;
-        signal[7] = 2f;
-        macd[6] = 1f;
-        signal[6] = 2f;
-
-        MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 20, 19);
-
-        assertType(MacdDivergenceCalculator.Type.TOP_DEATH_CROSS, divergences[8]);
-        assertEquals(15, divergences[8].getComparisonIndex());
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[3]);
+        assertType(MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS,
+                find(lows, lows, macd, macd)[NEW]);
     }
 
     @Test
     public void doesNotCompareAgainstPeaksOutsideVisibleRange() {
-        float[] closes = new float[20];
-        float[] macd = new float[20];
-        float[] signal = new float[20];
-        closes[15] = 20f;
-        closes[8] = 25f;
-        macd[15] = 8f;
-        macd[8] = 4f;
+        float[] highs = new float[SIZE];
+        float[] macd = new float[SIZE];
+        float[] signal = new float[SIZE];
+        macd[OLD] = 8f;
+        macd[NEW] = 4f;
+        highs[OLD] = 20f;
+        highs[NEW] = 25f;
 
         MacdDivergenceCalculator.Divergence[] divergences =
-                MacdDivergenceCalculator.findDivergences(closes, macd, signal, macd, 12, 19);
+                MacdDivergenceCalculator.findDivergences(
+                        highs, highs, macd, signal, macd, 15, SIZE - 1);
 
-        assertType(MacdDivergenceCalculator.Type.NONE, divergences[8]);
+        assertType(MacdDivergenceCalculator.Type.NONE, divergences[NEW]);
+    }
+
+    private static MacdDivergenceCalculator.Divergence[] find(
+            float[] highs, float[] lows, float[] macd, float[] histogram) {
+        return MacdDivergenceCalculator.findDivergences(
+                highs, lows, macd, new float[SIZE], histogram, SIZE, SIZE - 1);
     }
 
     private static void assertType(MacdDivergenceCalculator.Type expected,
                                    MacdDivergenceCalculator.Divergence actual) {
         assertEquals(expected, actual.getType());
-    }
-
-    private static void setMacdPivots(float[] macd, int[] peakIndices, float[] peakValues,
-                                      int[] troughIndices, float[] troughValues) {
-        for (int i = 0; i < peakIndices.length; i++) {
-            macd[peakIndices[i]] = peakValues[i];
-        }
-        for (int i = 0; i < troughIndices.length; i++) {
-            macd[troughIndices[i]] = troughValues[i];
-        }
-    }
-
-    private static void fill(float[] values, float value) {
-        for (int i = 0; i < values.length; i++) {
-            values[i] = value;
-        }
     }
 }

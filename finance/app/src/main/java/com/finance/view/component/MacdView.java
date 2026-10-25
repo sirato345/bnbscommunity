@@ -536,6 +536,7 @@ public class MacdView  extends View {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.LEFT);
+        paint.setFakeBoldText(true);
         float baseline = 45 + paint.getFontSpacing();
         String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
         paint.setColor(Color.rgb(255, 193, 7));

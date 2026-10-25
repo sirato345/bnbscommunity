@@ -29,7 +29,7 @@ public final class MacdDivergenceCalculator {
     }
 
     private static final int PIVOT_RADIUS = 3;
-    private static final int MIN_PIVOT_DISTANCE = 6;
+    private static final int MIN_PIVOT_DISTANCE = 10;
 
     private MacdDivergenceCalculator() {
     }
