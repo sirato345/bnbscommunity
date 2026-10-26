@@ -929,6 +929,32 @@ public class MacdView  extends View {
         if (touchedDate != null) {
             canvas.drawLine(touchPoint.x, 0, touchPoint.x, getHeight(), paint);
         }
+        drawKdjTouchedValue(canvas, paint);
+    }
+
+    /* KDJ模式下，长按位于MACD区域时，画横线并在左侧显示该位置的数值 */
+    private void drawKdjTouchedValue(Canvas canvas, Paint paint) {
+        if (!Const.Macd.KDJ.toString().equals(macdType) || comnInfo == null) {
+            return;
+        }
+        float y = touchPoint.y - comnInfo.getStickHeight();
+        if (y < 0 || y > getHeight()) {
+            return;
+        }
+        float top = Const.MACD_CHART_VERTICAL_INSET;
+        float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
+        float value = (bottom - y) / (bottom - top) * 140f - 20f;
+        String text = String.format(Locale.US, "%.1f", value);
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setFakeBoldText(true);
+        float textWidth = paint.measureText(text);
+        canvas.drawLine(textWidth, y, getWidth(), y, paint);
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        float baseline = y - (fm.ascent + fm.descent) / 2;
+        float minBaseline = -fm.ascent;
+        float maxBaseline = getHeight() - fm.descent;
+        baseline = Math.max(minBaseline, Math.min(maxBaseline, baseline));
+        canvas.drawText(text, 0, baseline, paint);
     }
 
     /* 去掉换行符 */
