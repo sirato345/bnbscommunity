@@ -102,7 +102,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 所以在抬起时必须将最后一次移动后的偏移量真正设置到偏移量变量中进行保存
     private int offsetLast;
     // 表示中のMACDタイプ
-    public String macd = Const.Macd.Single.toString();
+    public String macd = Const.Macd.KDJ.toString();
     // 表示中のローソク線のタイプ
     public String kLine = Const.K_Line.Normal.toString();
     //最后一次按下时的位置
@@ -210,8 +210,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame)
                 || isCryptoSymbol();
         String latestDbDate = getLatestDailyDataDate(symbol);
-        boolean hasCurrentDayData = app.hasDailyDataForToday(symbol, latestDbDate);
-        if (historySyncDue && !hasCurrentDayData) {
+        if (historySyncDue) {
             if (updateIntraday) {
                 loadIntradayAfterHistory.add(symbol);
             } else {

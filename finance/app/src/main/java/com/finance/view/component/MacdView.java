@@ -404,8 +404,21 @@ public class MacdView  extends View {
     }
 
     private float getIndicatorMarkerSize() {
-        Rect priceBounds = getPriceTextBounds();
+        Rect priceBounds = getPriceTextBounds(Const.FONT_SIZE_ARROW);
         return priceBounds == null ? getTitleBounds().height() : priceBounds.height() + 20;
+    }
+
+    /* 价格文字高度与左侧指标标记一致 */
+    private float getPriceTextSize() {
+        Rect baseBounds = getPriceTextBounds(Const.FONT_SIZE_ARROW);
+        if (baseBounds == null || baseBounds.height() == 0) {
+            return Const.FONT_SIZE_ARROW;
+        }
+        return Const.FONT_SIZE_ARROW * getIndicatorMarkerSize() / baseBounds.height();
+    }
+
+    private Rect getPriceTextBounds() {
+        return getPriceTextBounds(getPriceTextSize());
     }
 
     private Rect getTitleBounds() {
@@ -417,13 +430,13 @@ public class MacdView  extends View {
         return titleBounds;
     }
 
-    private Rect getPriceTextBounds() {
+    private Rect getPriceTextBounds(float textSize) {
         String price = getCurrentPriceText();
         if (price == null) {
             return null;
         }
         Paint pricePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pricePaint.setTextSize(Const.FONT_SIZE_ARROW);
+        pricePaint.setTextSize(textSize);
         pricePaint.setFakeBoldText(true);
         Rect priceBounds = new Rect();
         pricePaint.getTextBounds(price, 0, price.length(), priceBounds);
@@ -436,7 +449,7 @@ public class MacdView  extends View {
             return getWidth() - 8 * density - 29 * density;
         }
         Paint pricePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pricePaint.setTextSize(Const.FONT_SIZE_ARROW);
+        pricePaint.setTextSize(getPriceTextSize());
         pricePaint.setFakeBoldText(true);
         float priceWidth = pricePaint.measureText(price);
         float priceLeft = getWidth() - 8 * density - priceWidth;
@@ -791,7 +804,7 @@ public class MacdView  extends View {
             return;
         }
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setTextSize(Const.FONT_SIZE_ARROW);
+        paint.setTextSize(getPriceTextSize());
         paint.setFakeBoldText(true);
         paint.setTextAlign(Paint.Align.RIGHT);
         paint.setColor(stickList.get(0).getColor());

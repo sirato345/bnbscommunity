@@ -29,6 +29,8 @@ import java.util.TimeZone;
 public class NetOperatorYahoo extends Observable {
 
     private static final long SECONDS_PER_DAY = 24L * 60L * 60L;
+    /* 历史更新时，从DB最新日期往前重取的天数（含前一天，修正其最终值） */
+    private static final long HISTORY_REFETCH_DAYS = 2L;
 
     private final DBOperator dbOperator;
     private final Activity view;
@@ -47,7 +49,7 @@ public class NetOperatorYahoo extends Observable {
             }
             String latestDate = dbOperator.getMaxDBDate(symbol);
             long period1 = latestDate == null
-                    ? 0L : toEpochSeconds(latestDate) - SECONDS_PER_DAY;
+                    ? 0L : toEpochSeconds(latestDate) - HISTORY_REFETCH_DAYS * SECONDS_PER_DAY;
             new NetConnectorBinance(this, symbol, java.util.Collections.emptyList(),
                     period1, getPeriod2()).execute();
             return true;
@@ -62,7 +64,7 @@ public class NetOperatorYahoo extends Observable {
         }
 
         String latestDate = dbOperator.getMaxDBDate(symbol);
-        long period1 = latestDate == null ? 0L : toEpochSeconds(latestDate) - SECONDS_PER_DAY;
+        long period1 = latestDate == null ? 0L : toEpochSeconds(latestDate) - HISTORY_REFETCH_DAYS * SECONDS_PER_DAY;
         new NetConnectorYahoo(this).execute(
                 symbol, createChartUrl(symbolCode, period1, getPeriod2()), true);
         return true;

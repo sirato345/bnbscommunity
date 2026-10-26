@@ -14,6 +14,7 @@ public class MyApp extends Application {
     private final ConcurrentHashMap<String, ConnectStatus> statusMap = new ConcurrentHashMap<>();
     private static final String HISTORY_SYNC_PREFERENCES = "history_sync";
     private static final String DAILY_DATA_REFRESH_SUFFIX = "_daily_data_refresh";
+    private static final long HOUR_MS = 60L * 60L * 1000L;
 
     @Override
     public void onCreate() {
@@ -58,46 +59,41 @@ public class MyApp extends Application {
     public void markHistorySyncAttempted(@NonNull String symbol) {
         getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
                 .edit()
-                .putString(symbol, getMarketDate(symbol))
+                .putString(symbol, getRefreshPeriod())
                 .remove(getHistorySyncSuccessKey(symbol))
                 .apply();
     }
 
     public boolean isHistorySyncSuccessfulToday(@NonNull String symbol) {
-        String marketDate = getMarketDate(symbol);
-        String successfulDate = getSharedPreferences(
+        String successfulPeriod = getSharedPreferences(
                 HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
                 .getString(getHistorySyncSuccessKey(symbol), null);
-        return marketDate.equals(successfulDate);
+        return getRefreshPeriod().equals(successfulPeriod);
     }
 
     public void markHistorySyncSucceeded(@NonNull String symbol) {
         getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
                 .edit()
-                .putString(getHistorySyncSuccessKey(symbol), getMarketDate(symbol))
+                .putString(getHistorySyncSuccessKey(symbol), getRefreshPeriod())
                 .apply();
     }
 
     public boolean isDailyDataRefreshDue(@NonNull String symbol, String latestDbDate) {
-        String marketDate = getMarketDate(symbol);
-        if (hasDailyDataForToday(symbol, latestDbDate)) {
-            markDailyDataRefreshAttempted(symbol);
-            return false;
-        }
-        String attemptedDate = getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
+        String attemptedPeriod = getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
                 .getString(getDailyDataRefreshKey(symbol), null);
-        return !marketDate.equals(attemptedDate);
-    }
-
-    public boolean hasDailyDataForToday(@NonNull String symbol, String latestDbDate) {
-        return getMarketDate(symbol).equals(latestDbDate);
+        return !getRefreshPeriod().equals(attemptedPeriod);
     }
 
     public void markDailyDataRefreshAttempted(@NonNull String symbol) {
         getSharedPreferences(HISTORY_SYNC_PREFERENCES, MODE_PRIVATE)
                 .edit()
-                .putString(getDailyDataRefreshKey(symbol), getMarketDate(symbol))
+                .putString(getDailyDataRefreshKey(symbol), getRefreshPeriod())
                 .apply();
+    }
+
+    /* 历史、当日数据每小时确认一次，返回当前所属的小时 */
+    private String getRefreshPeriod() {
+        return String.valueOf(System.currentTimeMillis() / HOUR_MS);
     }
 
     private String getHistorySyncSuccessKey(@NonNull String symbol) {
