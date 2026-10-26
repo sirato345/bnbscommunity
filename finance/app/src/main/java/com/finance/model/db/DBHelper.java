@@ -22,7 +22,7 @@ public class DBHelper extends SQLiteOpenHelper {
             "CREATE TABLE IF NOT EXISTS %s (Date TEXT PRIMARY KEY, Open REAL, High REAL, Low REAL, Close REAL)";
     private static final String CREATE_TREND_LINE_TABLE_SQL =
             "CREATE TABLE IF NOT EXISTS %s (Id INTEGER PRIMARY KEY AUTOINCREMENT, Symbol TEXT, Timeframe TEXT, " +
-                    "Date1 TEXT, Price1 REAL, Date2 TEXT, Price2 REAL, Type INTEGER DEFAULT 0, Color INTEGER DEFAULT -1)";
+                    "Date1 TEXT, Price1 REAL, Date2 TEXT, Price2 REAL, Type INTEGER DEFAULT 0, Color INTEGER DEFAULT -1, Offset REAL DEFAULT 0)";
 
     private final List<String> tableList;
 
@@ -46,6 +46,9 @@ public class DBHelper extends SQLiteOpenHelper {
         if (oldVersion < 7) {
             addTrendLineColumn(db, "Type INTEGER DEFAULT 0", "Type");
             addTrendLineColumn(db, "Color INTEGER DEFAULT -1", "Color");
+        }
+        if (oldVersion < 8) {
+            addTrendLineColumn(db, "Offset REAL DEFAULT 0", "Offset");
         }
         if (oldVersion < 4) {
             for (String tableName : tableList) {

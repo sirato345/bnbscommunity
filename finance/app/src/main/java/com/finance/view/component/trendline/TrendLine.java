@@ -24,8 +24,21 @@ public class TrendLine {
     public static final int TYPE_SEGMENT = 0;
     public static final int TYPE_RAY = 1;
     public static final int TYPE_HORIZONTAL = 2;
+    public static final int TYPE_CHANNEL = 3;
+    public static final int TYPE_FIBONACCI = 4;
 
     private int type = TYPE_SEGMENT;
+
+    /* 通道线：平行线相对基准线的价格偏移 */
+    private float offset;
+
+    public float getOffset() {
+        return offset;
+    }
+
+    public void setOffset(float offset) {
+        this.offset = offset;
+    }
 
     private int color = 0xFFFFFFFF;
 

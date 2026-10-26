@@ -128,17 +128,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 編集モード
     private boolean isEidtMode;
     // 画线工具：线型、颜色、吸附
-    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平"};
+    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平", "通道", "斐波"};
     private static final int[] TREND_COLORS = {
             Color.WHITE, Color.YELLOW, Color.CYAN, Color.rgb(255, 165, 0),
             Color.MAGENTA, Color.GREEN};
     private int trendLineType;
     private int trendColorIndex;
-    private boolean trendSnapEnabled = true;
     private LinearLayout trendToolContainer;
-    private TextView trendTypeButton;
+    private final List<TextView> trendTypeButtons = new ArrayList<>();
     private TextView trendColorButton;
-    private TextView trendSnapButton;
     // 平均K線１０日表示フラグ
     public boolean isAvg10Disp = true;
     // 平均K線２０日表示フラグ
@@ -200,6 +198,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void requestMarketData() {
+        if (isCryptoSymbol()) {
+            com.finance.model.net.FearGreedIndex.refreshIfDue(
+                    () -> runOnUiThread(() -> macdView.invalidate()));
+        }
         if (intradayInterval != null) {
             if (intradayRecords.isEmpty() && !intradayLoading) {
                 loadBinanceIntradayPage(null);
@@ -375,6 +377,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             trendLine.setPrice2((float)data[6]);
             trendLine.setType((Integer) data[7]);
             trendLine.setColor((Integer) data[8]);
+            trendLine.setOffset((float) data[9]);
             trendLines.add(trendLine);
         }
         return trendLines;
@@ -1467,36 +1470,36 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (trendToolContainer == null) {
             trendToolContainer = new LinearLayout(this);
             trendToolContainer.setOrientation(LinearLayout.VERTICAL);
-            trendTypeButton = createToolButton();
+            for (int i = 0; i < TREND_TYPE_LABELS.length; i++) {
+                final int type = i;
+                TextView button = createToolButton();
+                button.setOnClickListener(v -> {
+                    trendLineType = type;
+                    updateTrendToolButtons();
+                });
+                trendTypeButtons.add(button);
+                // 后加入的在上方：从上到下为 斐波、通道、水平、射线、线段
+                trendToolContainer.addView(button, 0);
+            }
             trendColorButton = createToolButton();
-            trendSnapButton = createToolButton();
-            trendTypeButton.setOnClickListener(v -> {
-                trendLineType = (trendLineType + 1) % TREND_TYPE_LABELS.length;
-                updateTrendToolButtons();
-            });
             trendColorButton.setOnClickListener(v -> {
                 trendColorIndex = (trendColorIndex + 1) % TREND_COLORS.length;
                 updateTrendToolButtons();
             });
-            trendSnapButton.setOnClickListener(v -> {
-                trendSnapEnabled = !trendSnapEnabled;
-                updateTrendToolButtons();
-            });
-            trendToolContainer.addView(trendTypeButton);
             trendToolContainer.addView(trendColorButton);
-            trendToolContainer.addView(trendSnapButton);
             addContentView(trendToolContainer, new ViewGroup.LayoutParams(-2, -2));
         }
-        int toolGap = Math.round(4 * density);
-        for (TextView button : new TextView[] {
-                trendTypeButton, trendColorButton, trendSnapButton}) {
+        int toolGap = 0;
+        int toolButtonHeight = Math.round(buttonHeight * 0.85f);
+        List<TextView> buttons = new ArrayList<>(trendTypeButtons);
+        buttons.add(trendColorButton);
+        for (TextView button : buttons) {
             LinearLayout.LayoutParams params =
-                    new LinearLayout.LayoutParams(buttonWidth, buttonHeight);
-            params.topMargin = toolGap;
+                    new LinearLayout.LayoutParams(buttonWidth, toolButtonHeight);
             button.setLayoutParams(params);
         }
         // 在编辑按钮正上方向上展开
-        int toolHeight = 3 * (buttonHeight + toolGap);
+        int toolHeight = buttons.size() * (toolButtonHeight + toolGap);
         trendToolContainer.setX(editButtonContainer.getX());
         trendToolContainer.setY(editButtonContainer.getY() - toolHeight);
         updateTrendToolButtons();
@@ -1505,19 +1508,22 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private TextView createToolButton() {
         TextView button = new TextView(this);
         button.setGravity(Gravity.CENTER);
-        button.setTextSize(12);
+        button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
+                14 * getResources().getDisplayMetrics().density);
         button.setTextColor(Color.WHITE);
-        button.setBackgroundColor(Color.argb(160, 40, 40, 40));
+        button.setBackgroundColor(Color.TRANSPARENT);
         return button;
     }
 
     private void updateTrendToolButtons() {
-        trendTypeButton.setText(TREND_TYPE_LABELS[trendLineType]);
+        for (int i = 0; i < trendTypeButtons.size(); i++) {
+            TextView button = trendTypeButtons.get(i);
+            button.setText(TREND_TYPE_LABELS[i]);
+            button.setTextColor(i == trendLineType
+                    ? Color.rgb(66, 165, 245) : Color.WHITE);
+        }
         trendColorButton.setText("颜色");
         trendColorButton.setTextColor(TREND_COLORS[trendColorIndex]);
-        trendSnapButton.setText(trendSnapEnabled ? "吸附开" : "吸附关");
-        trendSnapButton.setTextColor(trendSnapEnabled
-                ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));
     }
 
     public int getTrendLineType() {
@@ -1529,7 +1535,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     public boolean isTrendSnapEnabled() {
-        return trendSnapEnabled;
+        return true;
     }
 
     public int getStickWidth() {

@@ -72,7 +72,11 @@ public class StickView extends View {
     private Float currentValue;
     // 编辑中趋势线
     private TrendLine editLine;
-    // 趋势线
+    // 正在调整宽度的通道线及当前偏移（像素）
+    private TrendLine channelLine;
+    private float channelOffsetPx;
+    private static final float[] FIB_LEVELS = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
+    private static final int CHANNEL_DEFAULT_OFFSET_PX = 80;
     private List<TrendLine> trendLines = new ArrayList<>();
 
     public StickView(Context context) {
@@ -223,10 +227,18 @@ public class StickView extends View {
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 this.editLine = this.getEditLine(point);
+                this.channelLine = editLine == null ? this.getChannelLine(point) : null;
+                this.channelOffsetPx = channelLine == null ? 0 : this.getChannelOffsetPx(channelLine);
                 this.currentPoint = null;
-                this.downPoint = editLine == null ? this.snap(point) : point;
+                this.downPoint = editLine == null && channelLine == null
+                        ? this.snap(point) : point;
                 break;
             case MotionEvent.ACTION_MOVE:
+                if (this.channelLine != null) {
+                    this.channelOffsetPx = this.getChannelDragOffsetPx(channelLine, point);
+                    this.currentPoint = point;
+                    break;
+                }
                 if (this.editLine != null) {
                     Point fixed = editLine.getEidtPoint() == 1
                             ? this.getVirtualPoint(editLine.getDate2(), editLine.getPrice2())
@@ -238,6 +250,16 @@ public class StickView extends View {
                 this.currentPoint = this.snap(point);
                 break;
             case MotionEvent.ACTION_UP:
+                if (channelLine != null) {
+                    if (currentPoint != null) {
+                        this.saveChannelOffset();
+                    }
+                    channelLine = null;
+                    downPoint = null;
+                    currentPoint = null;
+                    editLine = null;
+                    break;
+                }
                 if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
                     // 低于一定长度,不画线（编辑时保留原线）
@@ -260,12 +282,7 @@ public class StickView extends View {
         TrendLine nearest = null;
         double nearestDistance = Double.MAX_VALUE;
         for (TrendLine trendLine : trendLines) {
-            float[] ends = this.getLineEnds(trendLine);
-            if (ends == null) {
-                continue;
-            }
-            double distance = this.pointToLine((int) ends[0], (int) ends[1],
-                    (int) ends[2], (int) ends[3], point.x, point.y);
+            double distance = this.getLineDistance(trendLine, point);
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearest = trendLine;
@@ -288,6 +305,96 @@ public class StickView extends View {
             }
         }
         return -1;
+    }
+
+    /* 触摸点到线的距离：通道线含平行线，斐波那契线取各水平线 */
+    private double getLineDistance(TrendLine trendLine, Point point) {
+        Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
+        Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+        if (p1 == null || p2 == null) {
+            return Double.MAX_VALUE;
+        }
+        if (trendLine.getType() == TrendLine.TYPE_FIBONACCI) {
+            double best = Double.MAX_VALUE;
+            for (float level : FIB_LEVELS) {
+                best = Math.min(best, Math.abs(point.y - this.getFibY(p1, p2, level)));
+            }
+            return best;
+        }
+        double distance = this.pointToLine(p1.x, p1.y, p2.x, p2.y, point.x, point.y);
+        if (trendLine.getType() == TrendLine.TYPE_CHANNEL) {
+            int offsetPx = Math.round(this.getChannelOffsetPx(trendLine));
+            distance = Math.min(distance, this.pointToLine(p1.x, p1.y + offsetPx,
+                    p2.x, p2.y + offsetPx, point.x, point.y));
+        } else {
+            float[] ends = this.getLineEnds(p1.x, p1.y, p2.x, p2.y, trendLine.getType());
+            distance = this.pointToLine((int) ends[0], (int) ends[1],
+                    (int) ends[2], (int) ends[3], point.x, point.y);
+        }
+        return distance;
+    }
+
+    private float getFibY(Point p1, Point p2, float level) {
+        return p2.y + (p1.y - p2.y) * level;
+    }
+
+    /* 通道线平行线相对基准线的像素偏移 */
+    private float getChannelOffsetPx(TrendLine trendLine) {
+        if (stickList == null || stickList.isEmpty()) {
+            return 0;
+        }
+        StickInfo latest = stickList.get(0);
+        return latest.getYPoint(trendLine.getPrice1() + trendLine.getOffset())
+                - latest.getYPoint(trendLine.getPrice1());
+    }
+
+    /* 触摸点附近的通道线（基准线或平行线），用于拖动调整宽度 */
+    private TrendLine getChannelLine(Point point) {
+        TrendLine best = null;
+        double bestDistance = Const.EDIT_DISTANCE;
+        for (TrendLine trendLine : trendLines) {
+            if (trendLine.getType() != TrendLine.TYPE_CHANNEL) {
+                continue;
+            }
+            double distance = this.getLineDistance(trendLine, point);
+            if (distance <= bestDistance) {
+                bestDistance = distance;
+                best = trendLine;
+            }
+        }
+        return best;
+    }
+
+    /* 手指所在位置相对基准线的垂直偏移 */
+    private float getChannelDragOffsetPx(TrendLine trendLine, Point point) {
+        Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
+        Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+        if (p1 == null || p2 == null) {
+            return 0;
+        }
+        float baseY = p2.x == p1.x ? p1.y
+                : p1.y + (float) (p2.y - p1.y) * (point.x - p1.x) / (p2.x - p1.x);
+        return point.y - baseY;
+    }
+
+    private void saveChannelOffset() {
+        Point p1 = this.getVirtualPoint(channelLine.getDate1(), channelLine.getPrice1());
+        if (p1 == null || Math.abs(channelOffsetPx) < 10) {
+            return;
+        }
+        TrendLine trendLine = new TrendLine();
+        trendLine.setSymbol(channelLine.getSymbol());
+        trendLine.setTimeFrame(channelLine.getTimeFrame());
+        trendLine.setType(channelLine.getType());
+        trendLine.setColor(channelLine.getColor());
+        trendLine.setDate1(channelLine.getDate1());
+        trendLine.setPrice1(channelLine.getPrice1());
+        trendLine.setDate2(channelLine.getDate2());
+        trendLine.setPrice2(channelLine.getPrice2());
+        trendLine.setOffset(this.getPrice(new Point(0, Math.round(p1.y + channelOffsetPx)))
+                - channelLine.getPrice1());
+        activity.deleteTrendLine(channelLine.getId());
+        activity.saveTrendLine(trendLine);
     }
 
     // 计算点之间的距离
@@ -614,6 +721,10 @@ public class StickView extends View {
         trendLine.setPrice1(price1);
         trendLine.setDate2(date2);
         trendLine.setPrice2(price2);
+        if (trendLine.getType() == TrendLine.TYPE_CHANNEL) {
+            trendLine.setOffset(editLine != null ? editLine.getOffset()
+                    : this.getPrice(new Point(0, downPoint.y - CHANNEL_DEFAULT_OFFSET_PX)) - price1);
+        }
         activity.saveTrendLine(trendLine);
     }
 
@@ -643,19 +754,24 @@ public class StickView extends View {
         paint.setStrokeWidth(3);
         // 描画已经保存的线（超出画面的部分由画布裁剪，线的角度保持不变）
         for (TrendLine trendLine : trendLines) {
-            if (editLine != null && currentPoint != null
-                    && editLine.getId() == trendLine.getId()) {
+            boolean dragging = currentPoint != null && (editLine != null
+                    ? editLine.getId() == trendLine.getId()
+                    : channelLine != null && channelLine.getId() == trendLine.getId());
+            if (dragging && editLine != null) {
                 continue;
             }
-            float[] ends = this.getLineEnds(trendLine);
-            if (ends == null) {
+            Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
+            Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+            if (p1 == null || p2 == null) {
                 continue;
             }
+            float offsetPx = dragging ? channelOffsetPx : this.getChannelOffsetPx(trendLine);
             paint.setColor(trendLine.getColor());
-            canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
+            this.drawLineShape(canvas, paint, p1.x, p1.y, p2.x, p2.y,
+                    trendLine.getType(), offsetPx);
         }
         // 描画当前正在画的线
-        if (downPoint == null || currentPoint == null) {
+        if (downPoint == null || currentPoint == null || channelLine != null) {
             return;
         }
         int type = editLine != null ? editLine.getType() : activity.getTrendLineType();
@@ -663,8 +779,41 @@ public class StickView extends View {
         float y1 = type == TrendLine.TYPE_HORIZONTAL
                 ? (editLine != null ? currentPoint.y : downPoint.y) : downPoint.y;
         float y2 = type == TrendLine.TYPE_HORIZONTAL ? y1 : currentPoint.y;
-        float[] ends = this.getLineEnds(downPoint.x, y1, currentPoint.x, y2, type);
+        float offsetPx = editLine != null ? this.getChannelOffsetPx(editLine)
+                : -CHANNEL_DEFAULT_OFFSET_PX;
+        this.drawLineShape(canvas, paint, downPoint.x, y1, currentPoint.x, y2, type, offsetPx);
+    }
+
+    /* 按线型绘制：通道线带平行线，斐波那契线为水平回撤线（0在第二点，1在第一点） */
+    private void drawLineShape(Canvas canvas, Paint paint, float x1, float y1,
+                               float x2, float y2, int type, float offsetPx) {
+        if (type == TrendLine.TYPE_FIBONACCI) {
+            this.drawFibonacci(canvas, paint, x1, y1, x2, y2);
+            return;
+        }
+        float[] ends = this.getLineEnds(x1, y1, x2, y2, type);
         canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
+        if (type == TrendLine.TYPE_CHANNEL) {
+            canvas.drawLine(x1, y1 + offsetPx, x2, y2 + offsetPx, paint);
+        }
+    }
+
+    private void drawFibonacci(Canvas canvas, Paint paint, float x1, float y1,
+                               float x2, float y2) {
+        float textSize = paint.getTextSize();
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setFakeBoldText(true);
+        canvas.drawLine(x1, y1, x2, y2, paint);
+        float left = Math.min(x1, x2);
+        for (float level : FIB_LEVELS) {
+            float y = y2 + (y1 - y2) * level;
+            canvas.drawLine(left, y, comnInfo.getScreenWidth(), y, paint);
+            String label = String.format(Locale.US, "%s (%s)", level,
+                    getLimitDigit(this.getPrice(new Point(0, Math.round(y)))));
+            canvas.drawText(label, left + 4, y - 4, paint);
+        }
+        paint.setFakeBoldText(false);
+        paint.setTextSize(textSize);
     }
 
     /* TD序列の数字を描く */

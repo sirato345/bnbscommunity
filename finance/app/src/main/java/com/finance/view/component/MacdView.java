@@ -396,10 +396,68 @@ public class MacdView  extends View {
         drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight,
                 markerSize, sarAverageKdjSignal);
+        drawFearGreedGauge(canvas, firstSignalCenter - markerSize / 2 - markerGap,
+                top + buttonHeight / 2, markerSize, density);
+    }
+
+    /* 贪婪恐慌指数仪表：画在两个指标标记的左侧，仅加密货币显示 */
+    private void drawFearGreedGauge(Canvas canvas, float right, float centerY,
+                                    float markerSize, float density) {
+        int value = com.finance.model.net.FearGreedIndex.getValue();
+        if (!activity.isCryptoSymbol() || value < 0) {
+            return;
+        }
+        float titleRight = 8 * density + getTitleBounds().width();
+        float width = Math.min(markerSize * 2.2f, right - titleRight - 8 * density);
+        if (width < markerSize) {
+            return;
+        }
+        float stroke = width * 0.12f;
+        float radius = (width - stroke) / 2;
+        float centerX = right - width / 2;
+        // 半圆总高约为宽度的一半，垂直居中于标记
+        float bottom = centerY + width / 4;
+        RectF oval = new RectF(centerX - radius, bottom - radius,
+                centerX + radius, bottom + radius);
+        float arcCenterY = bottom;
+        Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
+        arc.setStyle(Paint.Style.STROKE);
+        arc.setStrokeWidth(stroke);
+        arc.setShader(new android.graphics.SweepGradient(centerX, arcCenterY,
+                new int[] {Color.rgb(46, 229, 157), Color.rgb(255, 77, 106),
+                        Color.rgb(255, 152, 67), Color.rgb(253, 216, 53),
+                        Color.rgb(46, 200, 140), Color.rgb(46, 229, 157)},
+                new float[] {0f, 0.5f, 0.625f, 0.75f, 0.875f, 1f}));
+        canvas.drawArc(oval, 180, 180, false, arc);
+
+        // 指针：沿弧内侧，指向对应数值的位置
+        double angle = Math.toRadians(180 + value * 1.8);
+        float pointerRadius = radius - stroke * 1.2f;
+        float tipRadius = pointerRadius + stroke * 0.7f;
+        float baseHalf = stroke * 0.45f;
+        float cos = (float) Math.cos(angle);
+        float sin = (float) Math.sin(angle);
+        float bx = centerX + cos * pointerRadius;
+        float by = arcCenterY + sin * pointerRadius;
+        Path pointer = new Path();
+        pointer.moveTo(centerX + cos * tipRadius, arcCenterY + sin * tipRadius);
+        pointer.lineTo(bx - sin * baseHalf, by + cos * baseHalf);
+        pointer.lineTo(bx + sin * baseHalf, by - cos * baseHalf);
+        pointer.close();
+        Paint pointerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        pointerPaint.setColor(Color.rgb(140, 150, 170));
+        canvas.drawPath(pointer, pointerPaint);
+
+        Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        text.setColor(Color.rgb(240, 242, 246));
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setFakeBoldText(true);
+        text.setTextSize(width * 0.34f);
+        canvas.drawText(String.valueOf(value), centerX, bottom, text);
     }
 
     private float getSignalControlsTop(float buttonHeight, float markerSize) {
-        float titleTop = CHART_TITLE_BASELINE + getTitleBounds().top;
+        float titleTop = getTitleBaseline() + getTitleBounds().top;
         return titleTop - (buttonHeight - markerSize) / 2;
     }
 
@@ -421,9 +479,19 @@ public class MacdView  extends View {
         return getPriceTextBounds(getPriceTextSize());
     }
 
+    /* 标题字号与右侧价格一致；没有价格时用默认大字号 */
+    private float getTitleTextSize() {
+        return Const.FONT_SIZE_LARGE + 12;
+    }
+
+    /* 标题变大后基线随之下移，避免顶部被裁掉 */
+    private float getTitleBaseline() {
+        return Math.max(CHART_TITLE_BASELINE, 10 - getTitleBounds().top);
+    }
+
     private Rect getTitleBounds() {
         Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        titlePaint.setTextSize(Const.FONT_SIZE_LARGE);
+        titlePaint.setTextSize(getTitleTextSize());
         Rect titleBounds = new Rect();
         String title = getChartTitle();
         titlePaint.getTextBounds(title, 0, title.length(), titleBounds);
@@ -550,7 +618,7 @@ public class MacdView  extends View {
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.LEFT);
         paint.setFakeBoldText(true);
-        float baseline = 45 + paint.getFontSpacing();
+        float baseline = getTitleBaseline() + 20 + paint.getFontSpacing();
         String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
         paint.setColor(Color.rgb(255, 193, 7));
         canvas.drawText(kValue, 0, baseline, paint);
@@ -793,8 +861,8 @@ public class MacdView  extends View {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
         paint.setStrokeWidth(2);
-        paint.setTextSize(Const.FONT_SIZE_LARGE);
-        canvas.drawText(getChartTitle(), 0, CHART_TITLE_BASELINE, paint);
+        paint.setTextSize(getTitleTextSize());
+        canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
         drawCurrentPrice(canvas);
     }
 
@@ -810,7 +878,7 @@ public class MacdView  extends View {
         paint.setColor(stickList.get(0).getColor());
         float density = getResources().getDisplayMetrics().density;
         Rect priceBounds = getPriceTextBounds();
-        float priceBaseline = CHART_TITLE_BASELINE + getTitleBounds().top - priceBounds.top;
+        float priceBaseline = getTitleBaseline() + getTitleBounds().top - priceBounds.top;
         canvas.drawText(price, getWidth() - 8 * density, priceBaseline, paint);
     }
 
@@ -872,10 +940,9 @@ public class MacdView  extends View {
             timeFrameText = replace(getResources().getString(R.string.timeframe_year));
         }
         if (Const.K_Line.Normal.toString().equals(kLine)) {
-            kLineText = "(KA)";
-        } else {
-            kLineText = "(HA)";
+            return symbolText + "  " + timeFrameText;
         }
+        kLineText = "(HA)";
         return symbolText + "  " + timeFrameText + " " + kLineText;
     }
 
@@ -892,7 +959,7 @@ public class MacdView  extends View {
     private RectF getMacdModeButtonRect() {
         float density = getResources().getDisplayMetrics().density;
         float left = 4 * density;
-        float top = CHART_TITLE_BASELINE + 10 * density;
+        float top = getTitleBaseline() + 10 * density;
         return new RectF(left, top, left + 40 * density, top + 30 * density);
     }
 

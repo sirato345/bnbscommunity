@@ -646,12 +646,13 @@ public class DBOperator {
     }
 
     public List<Object[]> loadTrendLines(String symbol, String timeFrame) {
-        String query = "select Id, Symbol, Timeframe, Date1, Price1, Date2, Price2, Type, Color from "
+        String query = "select Id, Symbol, Timeframe, Date1, Price1, Date2, Price2,         Type, Color, Offset from "
                 + Const.TREND_LINE_TABLE + " where Symbol = ? and Timeframe = ? order by Id";
         List<Object[]> dataList = new ArrayList<>();
         try (Cursor cursor = dbReadable.rawQuery(query, new String[] {symbol, timeFrame})) {
             while (cursor.moveToNext()) {
-                Object[] data = new Object[9];
+                        Object[] data = new Object[10];
+                        data[9] = cursor.getFloat(9);
                 data[0] = cursor.getInt(0);
                 data[1] = cursor.getString(1);
                 data[2] = cursor.getString(2);
@@ -677,6 +678,7 @@ public class DBOperator {
         values.put("Price2", trendLine.getPrice2());
         values.put("Type", trendLine.getType());
         values.put("Color", trendLine.getColor());
+        values.put("Offset", trendLine.getOffset());
         dbWritable.beginTransactionNonExclusive();
         try {
             dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values);
