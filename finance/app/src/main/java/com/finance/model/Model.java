@@ -102,11 +102,11 @@ public class Model {
         }
     }
 
-    /* 贪婪恐慌指数品种：取最近30天写入日线，完成后在主线程回调 */
-    public void loadFearGreedHistory(@NonNull String symbol, @NonNull Runnable onDone) {
+    /* 更新贪婪恐慌指数日线，完成后在主线程回调 */
+    public void updateFearGreedHistory(@NonNull String symbol, @NonNull List<String> records,
+                                       @NonNull Runnable onDone) {
         new Thread(() -> {
             try {
-                List<String> records = com.finance.model.net.FearGreedIndex.fetchRecords(30);
                 if (!records.isEmpty() && dbOperator != null) {
                     dbOperator.updateDB(symbol, "d", records);
                     view.runOnUiThread(onDone);

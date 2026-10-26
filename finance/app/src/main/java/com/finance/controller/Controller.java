@@ -66,9 +66,10 @@ public class Controller {
         return Collections.emptyList();
     }
 
-    public void loadFearGreedHistory(@NonNull String symbol, @NonNull Runnable onDone) {
+    public void updateFearGreedHistory(@NonNull String symbol, @NonNull List<String> records,
+                                      @NonNull Runnable onDone) {
         if (model != null) {
-            model.loadFearGreedHistory(symbol, onDone);
+            model.updateFearGreedHistory(symbol, records, onDone);
         }
     }
 

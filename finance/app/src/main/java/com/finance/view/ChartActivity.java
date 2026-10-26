@@ -52,6 +52,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private static final long BINANCE_REFRESH_INTERVAL_MS = 2000L;
+    private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -92,6 +93,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 requestBinanceRealtimeCandle();
             }
             handler.postDelayed(this, BINANCE_REFRESH_INTERVAL_MS);
+        }
+    };
+    private final Runnable fearGreedRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!activityResumed) {
+                return;
+            }
+            if (isCryptoSymbol() || isFearGreedSymbol()) {
+                requestFearGreedIndex();
+            }
+            handler.postDelayed(this, FEAR_GREED_REFRESH_INTERVAL_MS);
         }
     };
     // 滑动柱体数量
@@ -178,10 +191,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
         super.onResume();
         activityResumed = true;
         handler.removeCallbacks(binanceRefreshRunnable);
+        handler.removeCallbacks(fearGreedRefreshRunnable);
         if (isBinanceRealtimeEligible()) {
             requestBinanceRealtimeCandle();
             handler.postDelayed(binanceRefreshRunnable, BINANCE_REFRESH_INTERVAL_MS);
         }
+        handler.postDelayed(fearGreedRefreshRunnable, FEAR_GREED_REFRESH_INTERVAL_MS);
         if (intradayInterval == null) {
             controller.calculateWMQY(symbol);
         }
@@ -194,24 +209,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     protected void onPause() {
         activityResumed = false;
         handler.removeCallbacks(binanceRefreshRunnable);
+        handler.removeCallbacks(fearGreedRefreshRunnable);
         super.onPause();
     }
 
     private void requestMarketData() {
         if (isFearGreedSymbol()) {
-            if (app.isDailyDataRefreshDue(symbol, null)) {
-                app.markDailyDataRefreshAttempted(symbol);
-                controller.loadFearGreedHistory(symbol, () -> {
-                    if (isFearGreedSymbol()) {
-                        showUI();
-                    }
-                });
-            }
+            requestFearGreedIndex();
             return;
         }
         if (isCryptoSymbol()) {
-            com.finance.model.net.FearGreedIndex.refreshIfDue(
-                    () -> runOnUiThread(() -> macdView.invalidate()));
+            requestFearGreedIndex();
         }
         if (intradayInterval != null) {
             if (intradayRecords.isEmpty() && !intradayLoading) {
@@ -242,6 +250,20 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else if (updateIntraday && app.isNeedConnect(symbol)) {
             loadDailyDataIfNeeded(symbol, latestDbDate);
         }
+    }
+
+    private void requestFearGreedIndex() {
+        com.finance.model.net.FearGreedIndex.refreshIfDue(records -> {
+            if (isFearGreedSymbol()) {
+                controller.updateFearGreedHistory(symbol, records, () -> {
+                    if (isFearGreedSymbol()) {
+                        showUI();
+                    }
+                });
+            } else if (isCryptoSymbol()) {
+                runOnUiThread(() -> macdView.invalidate());
+            }
+        });
     }
 
     @Override
