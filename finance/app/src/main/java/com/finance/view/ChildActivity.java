@@ -92,13 +92,16 @@ public class ChildActivity extends Activity {
             button = (Button)this.findViewById(R.id.button_nasdaq);
         }
         if (symbol.equals(Const.Symbol.nikkei.toString())) {
-            button = (Button)this.findViewById(R.id.button_nikkei);
+            button = null;
         }
         if (symbol.equals(Const.Symbol.usdx.toString())) {
             button = (Button)this.findViewById(R.id.button_dollor);
         }
         if (symbol.equals(Const.Symbol.usbond.toString())) {
             button = (Button)this.findViewById(R.id.button_usbond);
+        }
+        if (symbol.equals(Const.Symbol.fng.toString())) {
+            button = (Button)this.findViewById(R.id.button_fng);
         }
         if (button != null) {
             Drawable drawable = getResources().getDrawable(R.drawable.button_symbol_select);
@@ -159,6 +162,12 @@ public class ChildActivity extends Activity {
         setCryptoTimeframeEnabled(R.id.button_timeframe_1h, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_15m, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_5m, isCrypto);
+        if (Const.Symbol.fng.toString().equals(symbol)) {
+            setCryptoTimeframeEnabled(R.id.button_timeframe_week, false);
+            setCryptoTimeframeEnabled(R.id.button_timeframe_month, false);
+            setCryptoTimeframeEnabled(R.id.button_timeframe_quarter, false);
+            setCryptoTimeframeEnabled(R.id.button_timeframe_year, false);
+        }
     }
 
     private void setCryptoTimeframeEnabled(int buttonId, boolean enabled) {
@@ -200,6 +209,9 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Usbond(View v) {
         setResult(Const.Symbol.usbond);
+    }
+    public void onClick_Fng(View v) {
+        setResult(Const.Symbol.fng);
     }
     public void onClick_Macd(View v) {
         setResult(Const.Macd.Single);

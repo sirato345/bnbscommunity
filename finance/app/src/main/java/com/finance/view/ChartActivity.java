@@ -198,6 +198,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void requestMarketData() {
+        if (isFearGreedSymbol()) {
+            if (app.isDailyDataRefreshDue(symbol, null)) {
+                app.markDailyDataRefreshAttempted(symbol);
+                controller.loadFearGreedHistory(symbol, () -> {
+                    if (isFearGreedSymbol()) {
+                        showUI();
+                    }
+                });
+            }
+            return;
+        }
         if (isCryptoSymbol()) {
             com.finance.model.net.FearGreedIndex.refreshIfDue(
                     () -> runOnUiThread(() -> macdView.invalidate()));
@@ -500,6 +511,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
                     showUI();
                 });
+    }
+
+    public boolean isFearGreedSymbol() {
+        return Const.Symbol.fng.toString().equals(symbol);
     }
 
     public boolean isCryptoSymbol() {
@@ -957,8 +972,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     intradayInterval = null;
                     resetIntradayRecords();
                 }
-                if (!isCryptoSymbol(newSymbol)
-                        && Const.TimeFrame.d3.toString().equals(timeFrame)) {
+                if ((!isCryptoSymbol(newSymbol)
+                        && Const.TimeFrame.d3.toString().equals(timeFrame))
+                        || Const.Symbol.fng.toString().equals(newSymbol)) {
                     timeFrame = Const.TimeFrame.d.toString();
                 }
                 this.symbol = newSymbol;
@@ -1273,6 +1289,16 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (e1 == null || e2 == null) {
             return true;
         }
+        if (isFearGreedSymbol()) {
+            float dx = e2.getX() - e1.getX();
+            float dy = e2.getY() - e1.getY();
+            if (Math.abs(dy) > 180 && Math.abs(dy / dx) > 2) {
+                this.timeFrame = "d";
+                this.setOffset(0);
+                this.showUI();
+            }
+            return true;
+        }
         float x_move = e2.getX() - e1.getX();
         float y_move = e2.getY() - e1.getY();
         if (isCryptoSymbol()
@@ -1457,6 +1483,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void updateEditButtonImage() {
+        boolean fng = isFearGreedSymbol();
+        if (fng && isEidtMode) {
+            isEidtMode = false;
+        }
+        editButtonContainer.setVisibility(fng ? View.GONE : View.VISIBLE);
         editButton.setImageResource(R.drawable.ic_chart_edit);
         editButton.setColorFilter(isEidtMode
                 ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));

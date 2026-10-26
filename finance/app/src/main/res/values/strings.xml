@@ -10,6 +10,7 @@
     <string name="symbol_usbond">10-year Yield</string>
     <string name="symbol_gold">Gold</string>
     <string name="symbol_silver">Silver</string>
+    <string name="symbol_fng">Fear &amp; Greed</string>
 
     <string name="macd">MACD</string>
     <string name="kdj">KDJ</string>

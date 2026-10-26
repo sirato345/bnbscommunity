@@ -3,6 +3,7 @@ package com.finance.view.component;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
@@ -320,6 +321,9 @@ public class MacdView  extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        if (activity.isFearGreedSymbol()) {
+            canvas.drawColor(Color.WHITE);
+        }
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdj(canvas);
         } else if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
@@ -391,6 +395,11 @@ public class MacdView  extends View {
         float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
         float top = getSignalControlsTop(buttonHeight, markerSize);
+        if (Const.Symbol.fng.toString().equals(symbol)) {
+            drawFearGreedGauge(canvas, getWidth() - 8 * density,
+                    top + buttonHeight / 2, markerSize, density);
+            return;
+        }
         drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight, markerSize, macdKdjSignal);
         drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
@@ -403,8 +412,11 @@ public class MacdView  extends View {
     /* 贪婪恐慌指数仪表：画在两个指标标记的左侧，仅加密货币显示 */
     private void drawFearGreedGauge(Canvas canvas, float right, float centerY,
                                     float markerSize, float density) {
-        int value = com.finance.model.net.FearGreedIndex.getValue();
-        if (!activity.isCryptoSymbol() || value < 0) {
+        boolean fngSymbol = Const.Symbol.fng.toString().equals(symbol);
+        int value = fngSymbol && stickList != null && !stickList.isEmpty()
+                ? Math.max(0, Math.min(100, Math.round(stickList.get(0).getClose())))
+                : com.finance.model.net.FearGreedIndex.getValue();
+        if (!(activity.isCryptoSymbol() || fngSymbol) || value < 0) {
             return;
         }
         float titleRight = 8 * density + getTitleBounds().width();
@@ -412,11 +424,15 @@ public class MacdView  extends View {
         if (width < markerSize) {
             return;
         }
-        float stroke = width * 0.12f;
-        float radius = (width - stroke) / 2;
         float centerX = right - width / 2;
         // 半圆总高约为宽度的一半，垂直居中于标记
         float bottom = centerY + width / 4;
+        drawGaugeShape(canvas, centerX, bottom, width, value);
+    }
+
+    private void drawGaugeShape(Canvas canvas, float centerX, float bottom, float width, int value) {
+        float stroke = width * 0.12f;
+        float radius = (width - stroke) / 2;
         RectF oval = new RectF(centerX - radius, bottom - radius,
                 centerX + radius, bottom + radius);
         float arcCenterY = bottom;
@@ -449,7 +465,7 @@ public class MacdView  extends View {
         canvas.drawPath(pointer, pointerPaint);
 
         Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        text.setColor(Color.rgb(240, 242, 246));
+        text.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.rgb(240, 242, 246));
         text.setTextAlign(Paint.Align.CENTER);
         text.setFakeBoldText(true);
         text.setTextSize(width * 0.34f);
@@ -481,7 +497,7 @@ public class MacdView  extends View {
 
     /* 标题字号与右侧价格一致；没有价格时用默认大字号 */
     private float getTitleTextSize() {
-        return Const.FONT_SIZE_LARGE + 12;
+        return Const.FONT_SIZE_LARGE;
     }
 
     /* 标题变大后基线随之下移，避免顶部被裁掉 */
@@ -567,11 +583,16 @@ public class MacdView  extends View {
         float top = Const.MACD_CHART_VERTICAL_INSET;
         float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        guidePaint.setColor(Color.rgb(70, 70, 70));
-        guidePaint.setStrokeWidth(density);
+        guidePaint.setColor(Color.rgb(90, 90, 90));
+        guidePaint.setStrokeWidth(1);
+        guidePaint.setStyle(Paint.Style.STROKE);
+        guidePaint.setPathEffect(new DashPathEffect(new float[] {10, 8}, 0));
         for (float level : new float[] {20f, 80f}) {
             float y = getKdjY(level, top, bottom);
-            canvas.drawLine(0, y, getWidth(), y, guidePaint);
+            Path guide = new Path();
+            guide.moveTo(0, y);
+            guide.lineTo(getWidth(), y);
+            canvas.drawPath(guide, guidePaint);
         }
         drawKdjLine(canvas, kdjK, Color.rgb(255, 193, 7), top, bottom);
         drawKdjLine(canvas, kdjD, Color.rgb(3, 218, 198), top, bottom);
@@ -857,9 +878,13 @@ public class MacdView  extends View {
     }
 
     /* 銘柄、タイムフレーム文字を表示 */
+    private int getTextColor() {
+        return activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE;
+    }
+
     private void drawText(Canvas canvas) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(Color.WHITE);
+        paint.setColor(getTextColor());
         paint.setStrokeWidth(2);
         paint.setTextSize(getTitleTextSize());
         canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
@@ -869,6 +894,9 @@ public class MacdView  extends View {
     private void drawCurrentPrice(Canvas canvas) {
         String price = getCurrentPriceText();
         if (price == null) {
+            return;
+        }
+        if (Const.Symbol.fng.toString().equals(symbol)) {
             return;
         }
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -887,6 +915,9 @@ public class MacdView  extends View {
             return null;
         }
         float close = stickList.get(0).getClose();
+        if (Const.Symbol.fng.toString().equals(symbol)) {
+            return String.valueOf(Math.round(close));
+        }
         if (Const.Symbol.trump.toString().equals(symbol)) {
             return trumpPriceFormat.format(close);
         }
@@ -900,7 +931,6 @@ public class MacdView  extends View {
     private String getChartTitle() {
         String symbolText = "";
         String timeFrameText = "";
-        String kLineText = "";
         if (Const.Symbol.btc.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_btc));
         } else if (Const.Symbol.eth.toString().equals(symbol)) {
@@ -923,8 +953,12 @@ public class MacdView  extends View {
             symbolText = replace(getResources().getString(R.string.symbol_gold));
         } else if (Const.Symbol.xagusd.toString().equals(symbol)) {
             symbolText = replace(getResources().getString(R.string.symbol_silver));
+        } else if (Const.Symbol.fng.toString().equals(symbol)) {
+            symbolText = replace(getResources().getString(R.string.symbol_fng));
         }
-        if (activity.getIntradayInterval() != null) {
+        if (Const.Symbol.fng.toString().equals(symbol)) {
+            timeFrameText = "";
+        } else if (activity.getIntradayInterval() != null) {
             timeFrameText = activity.getIntradayInterval().toUpperCase(Locale.US);
         } else if (Const.TimeFrame.d3.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_3day));
@@ -939,11 +973,10 @@ public class MacdView  extends View {
         } else if (Const.TimeFrame.y.toString().equals(timeFrame)) {
             timeFrameText = replace(getResources().getString(R.string.timeframe_year));
         }
-        if (Const.K_Line.Normal.toString().equals(kLine)) {
-            return symbolText + "  " + timeFrameText;
+        if (Const.Symbol.fng.toString().equals(symbol)) {
+            return symbolText;
         }
-        kLineText = "(HA)";
-        return symbolText + "  " + timeFrameText + " " + kLineText;
+        return symbolText + "  " + timeFrameText;
     }
 
     /* 单击事件，由Activity转发事件 */
@@ -991,7 +1024,7 @@ public class MacdView  extends View {
         Paint paint = new Paint();
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(2);
-        paint.setColor(Color.WHITE);
+        paint.setColor(getTextColor());
         paint.setTextSize(Const.FONT_SIZE);
         if (touchedDate != null) {
             canvas.drawLine(touchPoint.x, 0, touchPoint.x, getHeight(), paint);

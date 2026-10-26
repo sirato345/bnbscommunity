@@ -76,8 +76,11 @@ public class DateView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (activity.isFearGreedSymbol()) {
+            canvas.drawColor(Color.WHITE);
+        }
         Paint paint = new Paint();
-        paint.setColor(Color.WHITE);
+        paint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
         paint.setStrokeWidth(4);
         paint.setAntiAlias(true);
         paint.setTextSize(Const.FONT_SIZE);

@@ -66,6 +66,12 @@ public class Controller {
         return Collections.emptyList();
     }
 
+    public void loadFearGreedHistory(@NonNull String symbol, @NonNull Runnable onDone) {
+        if (model != null) {
+            model.loadFearGreedHistory(symbol, onDone);
+        }
+    }
+
     /**
      * 当日データをロード
      */

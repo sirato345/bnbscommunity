@@ -3,6 +3,7 @@ package com.finance.view.component;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
@@ -77,6 +78,8 @@ public class StickView extends View {
     private float channelOffsetPx;
     private static final float[] FIB_LEVELS = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
     private static final int CHANNEL_DEFAULT_OFFSET_PX = 80;
+    private static final float FNG_AXIS_MAX = 100f;
+    private static final float FNG_AXIS_MIN = 0f;
     private List<TrendLine> trendLines = new ArrayList<>();
 
     public StickView(Context context) {
@@ -133,6 +136,11 @@ public class StickView extends View {
             } else {
                 maxValue = maxValue >= high ? maxValue : high;
             }
+        }
+        // 贪婪恐慌指数固定为0-100的纵轴，上下各留一点空白
+        if (activity.isFearGreedSymbol()) {
+            maxValue = FNG_AXIS_MAX;
+            minValue = FNG_AXIS_MIN;
         }
         // ローソク足に計算値を設定し、ローソク自身情報も計算
         for (int i = 0; i < maxStickCount; i++) {
@@ -490,6 +498,13 @@ public class StickView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        if (activity.isFearGreedSymbol()) {
+            this.drawFearGreedBands(canvas);
+            this.drawFearGreedLine(canvas);
+            this.drawTouchedLine(canvas);
+            this.drawTrandLine(canvas);
+            return;
+        }
         this.drawStick(canvas);
         if(activity.isAvg10Disp) {
             this.drawAverageLine(canvas, average10, Color.parseColor("#FFFF00"));
@@ -507,6 +522,96 @@ public class StickView extends View {
         this.drawTouchedLine(canvas);
         this.drawTrandLine(canvas);
         this.drawTDtdSequential(canvas);
+    }
+
+    /* 贪婪恐慌指数：黑底，80以上淡绿、20以下淡红，上下边界（100/0）各画一条白线 */
+    private void drawFearGreedBands(Canvas canvas) {
+        if (stickList == null || stickList.isEmpty()) {
+            return;
+        }
+        canvas.drawColor(Color.WHITE);
+        StickInfo latest = stickList.get(0);
+        int width = comnInfo.getScreenWidth();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.parseColor("#1100C07A"));
+        canvas.drawRect(0, latest.getYPoint(100), width, latest.getYPoint(80), paint);
+        paint.setColor(Color.parseColor("#11FF3B3B"));
+        canvas.drawRect(0, latest.getYPoint(20), width, latest.getYPoint(0), paint);
+        paint.setColor(Color.DKGRAY);
+        paint.setStrokeWidth(2);
+        canvas.drawLine(0, latest.getYPoint(100), width, latest.getYPoint(100), paint);
+        canvas.drawLine(0, latest.getYPoint(0), width, latest.getYPoint(0), paint);
+        Paint dash = new Paint(paint);
+        dash.setStrokeWidth(1);
+        dash.setStyle(Paint.Style.STROKE);
+        dash.setPathEffect(new DashPathEffect(new float[] {10, 8}, 0));
+        for (int v = 20; v <= 80; v += 20) {
+            Path path = new Path();
+            path.moveTo(0, latest.getYPoint(v));
+            path.lineTo(width, latest.getYPoint(v));
+            canvas.drawPath(path, dash);
+        }
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        float margin = 4 * getResources().getDisplayMetrics().density;
+        for (int v = 0; v <= 100; v += 20) {
+            float y = latest.getYPoint(v);
+            // 0在分界线上方，其余在分界线下方
+            float textY = v == 0 ? y - margin : y + paint.getTextSize();
+            canvas.drawText(String.valueOf(v), width - margin, textY, paint);
+        }
+    }
+
+    private int getFearGreedColor(float value) {
+        if (value >= 80) {
+            return Color.parseColor("#16C784");
+        } else if (value >= 60) {
+            return Color.parseColor("#7CFF00");
+        } else if (value >= 40) {
+            return Color.parseColor("#FFE600");
+        } else if (value >= 20) {
+            return Color.parseColor("#FF9500");
+        }
+        return Color.parseColor("#EA3943");
+    }
+
+    /* 贪婪恐慌指数按数值区间分色的折线 */
+    private void drawFearGreedLine(Canvas canvas) {
+        if (stickList == null || stickList.isEmpty()) {
+            return;
+        }
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(9);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        for (int i = 0; i + 1 < maxStickCount; i++) {
+            StickInfo from = stickList.get(i);
+            StickInfo to = stickList.get(i + 1);
+            float v1 = from.getClose();
+            float v2 = to.getClose();
+            float x1 = from.getLineRect().left;
+            float x2 = to.getLineRect().left;
+            // 线段跨过20/40/60/80时在分界线处切开，各段按所在区间着色
+            List<Float> cuts = new ArrayList<>();
+            cuts.add(0f);
+            for (int level = 20; level <= 80; level += 20) {
+                if ((v1 - level) * (v2 - level) < 0) {
+                    cuts.add((level - v1) / (v2 - v1));
+                }
+            }
+            cuts.add(1f);
+            Collections.sort(cuts);
+            for (int c = 0; c + 1 < cuts.size(); c++) {
+                float t1 = cuts.get(c);
+                float t2 = cuts.get(c + 1);
+                float va = v1 + (v2 - v1) * t1;
+                float vb = v1 + (v2 - v1) * t2;
+                paint.setColor(getFearGreedColor((va + vb) / 2));
+                canvas.drawLine(x1 + (x2 - x1) * t1, from.getYPoint(va),
+                        x1 + (x2 - x1) * t2, from.getYPoint(vb), paint);
+            }
+        }
     }
 
     private void drawSar(Canvas canvas) {
@@ -650,7 +755,7 @@ public class StickView extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(3);
         paint.setTextSize(Const.FONT_SIZE_MIDDLE);
-        paint.setColor(Color.WHITE);
+        paint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
         if (touchPoint.y <= comnInfo.getStickHeight()) {
             if (currentValue != null) {
                 // 价格线

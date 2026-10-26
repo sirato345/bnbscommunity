@@ -95,16 +95,6 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:text="@string/symbol_nikkei"
-            android:textSize="@dimen/button_text_size"
-            android:layout_margin="1dp"
-            android:background="@drawable/button_symbol"
-            android:id="@+id/button_nikkei"
-            android:onClick="onClick_Nikkei" />
-        <Button
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
             android:text="@string/symbol_dollor"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
@@ -121,6 +111,16 @@
             android:background="@drawable/button_symbol"
             android:id="@+id/button_usbond"
             android:onClick="onClick_Usbond" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="@string/symbol_fng"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_symbol"
+            android:id="@+id/button_fng"
+            android:onClick="onClick_Fng" />
     </LinearLayout>
     <LinearLayout
         android:orientation="horizontal"
