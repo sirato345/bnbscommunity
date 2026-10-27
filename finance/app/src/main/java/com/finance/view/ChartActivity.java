@@ -1172,8 +1172,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 // 单手指操作
                 if (event.getPointerCount() == 1) {
                     Point point = this.ajustPoint(event);
-                    stickView.onTouchEvent(event.getAction(), point);
-                    this.showUI();
+                    if (!macdView.handleDivergenceEdit(event.getAction(), point)) {
+                        stickView.onTouchEvent(event.getAction(), point);
+                        this.showUI();
+                    }
                 }
                 // 由Activity处理双击,滑动事件
                 ges.onTouchEvent(event);
@@ -1347,7 +1349,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         if(isEidtMode) {
             Point point = this.ajustPoint(e);
-            stickView.onDoubleTap(point);
+            if (!macdView.deleteDivergenceAt(point)) {
+                stickView.onDoubleTap(point);
+            }
             return true;
         }
         // 同じパッケージのアクティビティを起動

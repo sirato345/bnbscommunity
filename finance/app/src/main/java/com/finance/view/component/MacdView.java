@@ -1,6 +1,7 @@
 package com.finance.view.component;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -32,8 +33,10 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Created by gu zihan on 08/30/2015.
@@ -44,6 +47,9 @@ public class MacdView  extends View {
     };
     private static final int VISIBLE_CRYPTO_TIMEFRAMES = 5;
     private static final float CHART_TITLE_BASELINE = 45;
+    private static final String DIVERGENCE_PREFS = "divergence_lines";
+    private static final float DIVERGENCE_HIT_RADIUS_DP = 24;
+    private static final String DIVERGENCE_DELETED = "deleted";
 
     // アクティビティ
     private ChartActivity activity;
@@ -58,6 +64,25 @@ public class MacdView  extends View {
     // ローソク線の情報
     private List<MacdInfo> macdList;
     private MacdDivergenceCalculator.Divergence[] macdDivergences;
+    // 正在拖动的背离线端点
+    private String draggingDivergenceKey;
+    private boolean draggingDivergenceStart;
+    private Point draggingDivergencePoint;
+
+    private static final class DivergenceLine {
+        String key;
+        boolean isTop;
+        String label;
+        // 端点的索引可能在屏幕之外（超出范围的按等间距推算）
+        int startIndex;
+        int endIndex;
+        String startDate;
+        String endDate;
+        float startMacd;
+        float endMacd;
+        Point startPoint;
+        Point endPoint;
+    }
     private float[] kdjK;
     private float[] kdjD;
     private float[] kdjJ;
@@ -869,6 +894,44 @@ public class MacdView  extends View {
         paint.setTextAlign(Paint.Align.CENTER);
         Rect textBounds = new Rect();
 
+        for (DivergenceLine line : buildDivergenceLines()) {
+            boolean isTop = line.isTop;
+            Point startPoint = line.startPoint;
+            Point endPoint = line.endPoint;
+            if (line.key.equals(draggingDivergenceKey) && draggingDivergencePoint != null) {
+                if (draggingDivergenceStart) {
+                    startPoint = draggingDivergencePoint;
+                } else {
+                    endPoint = draggingDivergencePoint;
+                }
+            }
+            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.rgb(0, 230, 118));
+            paint.getTextBounds(line.label, 0, line.label.length(), textBounds);
+            float baseline = isTop
+                    ? endPoint.y - gap - textBounds.bottom
+                    : endPoint.y + gap - textBounds.top;
+
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(3 * density);
+            canvas.drawLine(startPoint.x, startPoint.y, endPoint.x, endPoint.y, paint);
+
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawText(line.label, endPoint.x, baseline, paint);
+        }
+    }
+
+    /* 自动计算的背离线，叠加用户手动调整过的端点 */
+    private List<DivergenceLine> buildDivergenceLines() {
+        List<DivergenceLine> lines = new ArrayList<>();
+        if (macdDivergences == null) {
+            return lines;
+        }
+        SharedPreferences prefs = getContext()
+                .getSharedPreferences(DIVERGENCE_PREFS, Context.MODE_PRIVATE);
+        Map<String, Integer> indexByDate = new HashMap<>();
+        for (int i = 0; i < macdList.size(); i++) {
+            indexByDate.put(macdList.get(i).getDate(), i);
+        }
         int count = Math.min(maxStickCount, macdDivergences.length);
         for (int i = 0; i < count; i++) {
             MacdDivergenceCalculator.Divergence divergence = macdDivergences[i];
@@ -876,44 +939,218 @@ public class MacdView  extends View {
             if (type == MacdDivergenceCalculator.Type.NONE) {
                 continue;
             }
-
-            String label;
-            float baseline;
-            boolean isTop = type == MacdDivergenceCalculator.Type.TOP
+            DivergenceLine line = new DivergenceLine();
+            line.key = symbol + "|" + timeFrame + "|" + macdList.get(i).getDate();
+            line.isTop = type == MacdDivergenceCalculator.Type.TOP
                     || type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS;
-            Point histogramPoint = getHistogramPivotPoint(i, isTop);
-            if (isTop) {
-                label = type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS
+            if (line.isTop) {
+                line.label = type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS
                         ? "死叉顶背离" : "顶背离";
             } else {
-                label = type == MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS
+                line.label = type == MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS
                         ? "金叉底背离" : "底背离";
             }
-            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.rgb(0, 230, 118));
-            paint.getTextBounds(label, 0, label.length(), textBounds);
-            baseline = isTop
-                    ? histogramPoint.y - gap - textBounds.bottom
-                    : histogramPoint.y + gap - textBounds.top;
+            line.startIndex = divergence.getComparisonIndex();
+            line.endIndex = i;
+            line.startDate = macdList.get(line.startIndex).getDate();
+            line.endDate = macdList.get(i).getDate();
+            line.startMacd = macdList.get(line.startIndex).getMacd();
+            line.endMacd = macdList.get(i).getMacd();
+            int referenceIndex = i;
+            String saved = prefs.getString(line.key, null);
+            if (DIVERGENCE_DELETED.equals(saved)) {
+                continue;
+            }
+            if (saved != null) {
+                String[] fields = saved.split("\\|", -1);
+                try {
+                    Integer start = indexByDate.get(fields[0]);
+                    Integer end = indexByDate.get(fields[1]);
+                    boolean startVisible = start != null && start < maxStickCount;
+                    boolean endVisible = end != null && end < maxStickCount;
+                    int span = Integer.parseInt(fields[4]);
+                    if (!startVisible && !endVisible) {
+                        // 两端都已滑出屏幕
+                        continue;
+                    }
+                    line.startDate = fields[0];
+                    line.endDate = fields[1];
+                    line.startMacd = Float.parseFloat(fields[2]);
+                    line.endMacd = Float.parseFloat(fields[3]);
+                    if (startVisible) {
+                        line.startIndex = start;
+                        line.endIndex = endVisible ? end : start - span;
+                        referenceIndex = start;
+                    } else {
+                        line.endIndex = end;
+                        line.startIndex = end + span;
+                        referenceIndex = end;
+                    }
+                } catch (RuntimeException e) {
+                    // 保存的数据不可用时，恢复自动计算的位置
+                    line.startIndex = divergence.getComparisonIndex();
+                    line.endIndex = i;
+                    line.startDate = macdList.get(line.startIndex).getDate();
+                    line.endDate = macdList.get(i).getDate();
+                    line.startMacd = macdList.get(line.startIndex).getMacd();
+                    line.endMacd = macdList.get(i).getMacd();
+                    referenceIndex = i;
+                }
+            }
+            resolveDivergencePoints(line, referenceIndex);
+            lines.add(line);
+        }
+        return lines;
+    }
 
-            Point comparisonPoint = getHistogramPivotPoint(
-                    divergence.getComparisonIndex(), isTop);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(3 * density);
-            canvas.drawLine(comparisonPoint.x, comparisonPoint.y,
-                    histogramPoint.x, histogramPoint.y, paint);
-            float textCenterY = baseline + (textBounds.top + textBounds.bottom) / 2f;
-            canvas.drawLine(histogramPoint.x, histogramPoint.y,
-                    histogramPoint.x, textCenterY, paint);
+    /* 屏幕之外的端点按K线等间距推算位置，纵向位置按保存的MACD值推算 */
+    private void resolveDivergencePoints(DivergenceLine line, int referenceIndex) {
+        Rect referenceRect = macdList.get(referenceIndex).getMacdRect();
+        MacdInfo referenceInfo = macdList.get(referenceIndex);
+        int stickWidth = comnInfo.getStickWidth();
+        line.startPoint = new Point(
+                referenceRect.centerX() - (line.startIndex - referenceIndex) * stickWidth,
+                getPivotY(referenceInfo, line.startMacd, line.isTop));
+        line.endPoint = new Point(
+                referenceRect.centerX() - (line.endIndex - referenceIndex) * stickWidth,
+                getPivotY(referenceInfo, line.endMacd, line.isTop));
+    }
 
-            paint.setStyle(Paint.Style.FILL);
-            canvas.drawText(label, histogramPoint.x, baseline, paint);
+    private int getPivotY(MacdInfo info, float macd, boolean isTop) {
+        boolean useValue = isTop ? macd >= 0f : macd < 0f;
+        return info.getYPoint(useValue ? macd : 0f);
+    }
+
+    /* 编辑模式：拖动背离线端点重画。返回true表示事件已由背离线处理 */
+    public boolean handleDivergenceEdit(int action, Point point) {
+        if (!Const.Macd.Single.toString().equals(macdType) || macdList == null
+                || comnInfo == null) {
+            return false;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float x = point.x;
+        float y = point.y - comnInfo.getStickHeight();
+        if (action == MotionEvent.ACTION_DOWN) {
+            float radius = DIVERGENCE_HIT_RADIUS_DP * density;
+            float best = radius;
+            draggingDivergenceKey = null;
+            for (DivergenceLine line : buildDivergenceLines()) {
+                Point startPoint = line.startPoint;
+                Point endPoint = line.endPoint;
+                float startDistance = (float) Math.hypot(startPoint.x - x, startPoint.y - y);
+                float endDistance = (float) Math.hypot(endPoint.x - x, endPoint.y - y);
+                if (startDistance <= best) {
+                    best = startDistance;
+                    draggingDivergenceKey = line.key;
+                    draggingDivergenceStart = true;
+                }
+                if (endDistance < best) {
+                    best = endDistance;
+                    draggingDivergenceKey = line.key;
+                    draggingDivergenceStart = false;
+                }
+            }
+            if (draggingDivergenceKey == null) {
+                return false;
+            }
+            draggingDivergencePoint = new Point((int) x, (int) y);
+            invalidate();
+            return true;
+        }
+        if (draggingDivergenceKey == null) {
+            return false;
+        }
+        draggingDivergencePoint = new Point((int) x, (int) y);
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            if (action == MotionEvent.ACTION_UP) {
+                saveDraggedDivergence((int) x);
+            }
+            draggingDivergenceKey = null;
+            draggingDivergencePoint = null;
+        }
+        invalidate();
+        return true;
+    }
+
+    /* 编辑模式：双击背离线删除。返回true表示命中并已删除 */
+    public boolean deleteDivergenceAt(Point point) {
+        if (!Const.Macd.Single.toString().equals(macdType) || macdList == null
+                || comnInfo == null) {
+            return false;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float radius = DIVERGENCE_HIT_RADIUS_DP * density;
+        float x = point.x;
+        float y = point.y - comnInfo.getStickHeight();
+        DivergenceLine hit = null;
+        float best = radius;
+        for (DivergenceLine line : buildDivergenceLines()) {
+            Point a = line.startPoint;
+            Point b = line.endPoint;
+            float distance = distanceToSegment(x, y, a.x, a.y, b.x, b.y);
+            if (distance <= best) {
+                best = distance;
+                hit = line;
+            }
+        }
+        draggingDivergenceKey = null;
+        draggingDivergencePoint = null;
+        if (hit == null) {
+            return false;
+        }
+        getContext().getSharedPreferences(DIVERGENCE_PREFS, Context.MODE_PRIVATE)
+                .edit().putString(hit.key, DIVERGENCE_DELETED).apply();
+        invalidate();
+        return true;
+    }
+
+    private static float distanceToSegment(float px, float py,
+                                           float ax, float ay, float bx, float by) {
+        float dx = bx - ax;
+        float dy = by - ay;
+        float lengthSquared = dx * dx + dy * dy;
+        float t = lengthSquared == 0 ? 0
+                : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+        return (float) Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    private void saveDraggedDivergence(int x) {
+        int nearest = -1;
+        int nearestDistance = Integer.MAX_VALUE;
+        int count = Math.min(maxStickCount, macdList.size());
+        for (int i = 0; i < count; i++) {
+            int distance = Math.abs(macdList.get(i).getMacdRect().centerX() - x);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = i;
+            }
+        }
+        if (nearest < 0) {
+            return;
+        }
+        for (DivergenceLine line : buildDivergenceLines()) {
+            if (!line.key.equals(draggingDivergenceKey)) {
+                continue;
+            }
+            int start = draggingDivergenceStart ? nearest : line.startIndex;
+            int end = draggingDivergenceStart ? line.endIndex : nearest;
+            if (start == end) {
+                return;
+            }
+            MacdInfo nearestInfo = macdList.get(nearest);
+            String startDate = draggingDivergenceStart ? nearestInfo.getDate() : line.startDate;
+            String endDate = draggingDivergenceStart ? line.endDate : nearestInfo.getDate();
+            float startMacd = draggingDivergenceStart ? nearestInfo.getMacd() : line.startMacd;
+            float endMacd = draggingDivergenceStart ? line.endMacd : nearestInfo.getMacd();
+            getContext().getSharedPreferences(DIVERGENCE_PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(line.key, startDate + "|" + endDate + "|" + startMacd + "|"
+                            + endMacd + "|" + (start - end))
+                    .apply();
+            return;
         }
     }
 
-    private Point getHistogramPivotPoint(int index, boolean isTop) {
-        Rect barRect = macdList.get(index).getMacdRect();
-        return new Point(barRect.centerX(), isTop ? barRect.top : barRect.bottom);
-    }
 
     /* MACD单线柱体 */
     private void drawMacd(Canvas canvas, int color) {
