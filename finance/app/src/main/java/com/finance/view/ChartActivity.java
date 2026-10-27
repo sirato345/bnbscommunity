@@ -54,6 +54,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private static final long BINANCE_REFRESH_INTERVAL_MS = 2000L;
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
+    private static final int MIN_STICK_WIDTH = 4;
+    private static final int MAX_STICK_WIDTH = 60;
+    private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -129,13 +132,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
     //当前按下时的位置
     private int mCurrentMotionY;
     // 双指按下时，双指间的距离
-    private int fingerDistance;
+    private float fingerDistance;
+    private float pinchStickWidth;
     // 蝋燭の幅
     private int stickWidth;
     // ハンドラ
     private Handler handler = new Handler();
-    // 拡大、縮小後の判定
-    private boolean isAfterZoom;
+    private boolean zoomRefreshPending;
     // 日付選択ダイアログ
     private DialogFragment newFragment = new DatePickerFragment();
     // 长按
@@ -1177,11 +1180,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
             } else {
                 // 单手指操作
                 if (event.getPointerCount() == 1) {
-                    // 扩大缩小后，延迟一秒再允许其他动作
-                    if (isAfterZoom) {
-                        // 后面的事件不再执行
-                        return false;
-                    }
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
                             cryptoTimeframeControlGesture =
@@ -1224,7 +1222,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             mCurrentMotionY = y;
                             if (!cryptoTimeframeControlGesture) {
                                 offset = offset - (int) Math.floor(
-                                        (mLastMotionX - x) / Const.ZOOM_IN);
+                                        (mLastMotionX - x) / (float) Math.max(1, stickWidth));
                                 if (offset < 0) {
                                     offset = 0;
                                 }
@@ -1252,20 +1250,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 if (event.getPointerCount() == 2) {
                     switch (event.getAction() & MotionEvent.ACTION_MASK) {
                         case MotionEvent.ACTION_MOVE:
-                            if (fingerDistance - getDistance(event) > 60) {
-                                // 缩小
-                                if (Const.ZOOM_OUT == stickWidth) {
-                                    stickWidth = Const.ZOOM_IN;
-                                    this.showUI();
+                            float currentFingerDistance = getDistance(event);
+                            if (fingerDistance > 0 && currentFingerDistance > 0) {
+                                pinchStickWidth = Math.max(MIN_STICK_WIDTH,
+                                        Math.min(MAX_STICK_WIDTH, pinchStickWidth
+                                                * currentFingerDistance / fingerDistance));
+                                int scaledStickWidth = Math.round(pinchStickWidth);
+                                if (scaledStickWidth != stickWidth) {
+                                    stickWidth = scaledStickWidth;
+                                    scheduleZoomRefresh();
                                 }
                             }
-                            if (fingerDistance - getDistance(event) < -60) {
-                                // 放大
-                                if (Const.ZOOM_IN == stickWidth) {
-                                    stickWidth = Const.ZOOM_OUT;
-                                    this.showUI();
-                                }
-                            }
+                            fingerDistance = currentFingerDistance;
                             break;
                         case MotionEvent.ACTION_UP:
                             fingerDistance = 0;
@@ -1273,13 +1269,21 @@ public class ChartActivity extends FragmentActivity implements Observer,
                         case MotionEvent.ACTION_POINTER_DOWN:      // 第二指押下触发
                             if (event.getPointerCount() == 2) {
                                 fingerDistance = getDistance(event);
+                                pinchStickWidth = stickWidth;
                             }
                             break;
                         case MotionEvent.ACTION_POINTER_UP:        // 第二指抬起触发
                             if (event.getPointerCount() == 2) {
                                 fingerDistance = 0;
-                                isAfterZoom = true;
-                                handler.post(runnable);
+                                refreshZoomImmediately();
+                                // 以剩下的手指为滑动起点，避免抬起一指后图表跳动
+                                int remaining = event.getActionIndex() == 0 ? 1 : 0;
+                                mLastMotionX = (int) event.getX(remaining);
+                                mLastMotionY = (int) event.getY(remaining);
+                                mCurrentMotionX = mLastMotionX;
+                                mCurrentMotionY = mLastMotionY;
+                                offsetBk = offset;
+                                offsetLast = offset;
                             }
                             break;
                     }
@@ -1312,13 +1316,28 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return false;
     }
 
-    Runnable runnable = new Runnable() {
+    private final Runnable zoomRefreshRunnable = new Runnable() {
         @Override
         public void run() {
-            handler.postDelayed(this, 1000);
-            isAfterZoom = false;
+            zoomRefreshPending = false;
+            showUI();
         }
     };
+
+    private void scheduleZoomRefresh() {
+        if (!zoomRefreshPending) {
+            zoomRefreshPending = true;
+            handler.postDelayed(zoomRefreshRunnable, ZOOM_REFRESH_INTERVAL_MS);
+        }
+    }
+
+    private void refreshZoomImmediately() {
+        if (zoomRefreshPending) {
+            handler.removeCallbacks(zoomRefreshRunnable);
+            zoomRefreshPending = false;
+            showUI();
+        }
+    }
 
     @Override
     /* 双击：設定画面表示 */
@@ -1501,12 +1520,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     /*获取两指之间的距离*/
-    private int getDistance(MotionEvent event) {
-        int distance = 0;
+    private float getDistance(MotionEvent event) {
+        float distance = 0;
         if (event.getPointerCount() == 2) {
             float x = event.getX(1) - event.getX(0);
             float y = event.getY(1) - event.getY(0);
-            distance = (int) Math.sqrt(x * x + y * y);
+            distance = (float) Math.sqrt(x * x + y * y);
         }
         return distance;
     }

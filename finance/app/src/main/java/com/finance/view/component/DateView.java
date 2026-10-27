@@ -95,17 +95,9 @@ public class DateView extends View {
             if (offset > Const.DEFAULT_OFFSET) {
                 offset = Const.DEFAULT_OFFSET;
             }
-            if (Const.ZOOM_IN == activity.getStickWidth()) {
-                // 缩小后，右侧空白位置不变，则日期表示不全，所以表示向左移动4个柱体的日期
-                offset = offset + 4;
-            }
         }
         // 日付の間隔を設定
-        if (Const.ZOOM_OUT == activity.getStickWidth()) {
-            interval = 11;
-        } else {
-            interval = 22;
-        }
+        interval = Math.max(1, Math.round(220f / activity.getStickWidth()));
         // 画面右側（４）、ローソク間（11）の間隔を取る
         for (int i = offset; i < maxStickCount; i += interval) {
             StickInfo stickInfo = stickList.get(i);
@@ -113,10 +105,6 @@ public class DateView extends View {
                     activity.getIntradayInterval() != null);
             Rect lineRect = new Rect();
             lineRect.right = stickInfo.getStickRect().centerX();
-            if (Const.ZOOM_IN == activity.getStickWidth()) {
-                // 缩小后，表示位置向左微调整，与放大后表示位置一致
-                lineRect.right = lineRect.right - (int)(0.5 * Const.ZOOM_IN);
-            }
             lineRect.left = lineRect.right;
             lineRect.top = 0;
             lineRect.bottom = comnInfo.getDateTickHeight();
