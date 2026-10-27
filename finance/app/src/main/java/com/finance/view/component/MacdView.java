@@ -10,8 +10,11 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.PopupWindow;
 
 import com.finance.R;
 import com.finance.common.Const;
@@ -36,7 +39,10 @@ import java.util.Locale;
  * Created by gu zihan on 08/30/2015.
  */
 public class MacdView  extends View {
-    private static final String[] INTRADAY_INTERVALS = {"4h", "1h", "15m", "5m"};
+    private static final String[] CRYPTO_TIMEFRAMES = {
+            "5m", "15m", "1h", "4h", "d", "3d", "w", "m", "q", "y"
+    };
+    private static final int VISIBLE_CRYPTO_TIMEFRAMES = 5;
     private static final float CHART_TITLE_BASELINE = 45;
 
     // アクティビティ
@@ -86,6 +92,9 @@ public class MacdView  extends View {
     // タッチ箇所の日付
     private String touchedDate;
     private final Paint intervalButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private PopupWindow symbolPopupWindow;
+    private int firstVisibleCryptoTimeframe = 2;
+    private float cryptoTimeframeScrollDistance;
     private final DecimalFormat cryptoPriceFormat = new DecimalFormat(
             "0.00", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat trumpPriceFormat = new DecimalFormat(
@@ -342,7 +351,6 @@ public class MacdView  extends View {
         }
         this.drawTouchedLine(canvas);
         drawIntradayControls(canvas);
-        drawMacdModeButton(canvas);
     }
 
     private void calculateSignals() {
@@ -497,7 +505,12 @@ public class MacdView  extends View {
 
     /* 标题字号与右侧价格一致；没有价格时用默认大字号 */
     private float getTitleTextSize() {
-        return Const.FONT_SIZE_LARGE;
+        return (getCurrentPriceText() == null ? Const.FONT_SIZE_ARROW : getPriceTextSize())
+                - 8 * getResources().getDisplayMetrics().density;
+    }
+
+    private float getBtcTitleTextSize() {
+        return getTitleTextSize();
     }
 
     /* 标题变大后基线随之下移，避免顶部被裁掉 */
@@ -508,8 +521,9 @@ public class MacdView  extends View {
     private Rect getTitleBounds() {
         Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setTextSize(getTitleTextSize());
+        titlePaint.setFakeBoldText(true);
         Rect titleBounds = new Rect();
-        String title = getChartTitle();
+        String title = getSymbolTitle();
         titlePaint.getTextBounds(title, 0, title.length(), titleBounds);
         return titleBounds;
     }
@@ -657,20 +671,24 @@ public class MacdView  extends View {
         if (!activity.isCryptoSymbol()) {
             return;
         }
-        String[] intervals = INTRADAY_INTERVALS;
         float density = getResources().getDisplayMetrics().density;
-        float buttonWidth = 58 * density;
-        float buttonHeight = 34 * density;
         float gap = 6 * density;
-        float right = getIntradayControlsRight(density);
+        float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
+        float buttonHeight = 34 * density * 0.88f;
+        float controlsLeft = getIntradayControlsRight(density)
+                - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
         float bottom = getHeight() - 7 * density;
-        float textSize = 14 * density;
+        float textSize = 14 * density * 0.88f;
         intervalButtonPaint.setTextSize(textSize);
         intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
-        for (int i = 0; i < intervals.length; i++) {
-            float left = right - buttonWidth;
+        int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
+        for (int i = firstVisibleCryptoTimeframe; i <= lastVisible; i++) {
+            float left = controlsLeft;
+            float right = left + buttonWidth;
             float top = bottom - buttonHeight;
-            boolean selected = intervals[i].equals(activity.getIntradayInterval());
+            String timeframe = CRYPTO_TIMEFRAMES[i];
+            boolean selected = isCryptoTimeframeSelected(timeframe);
             intervalButtonPaint.setStyle(Paint.Style.FILL);
             intervalButtonPaint.setColor(Color.TRANSPARENT);
             canvas.drawRoundRect(left, top, right, bottom, 10 * density,
@@ -682,12 +700,12 @@ public class MacdView  extends View {
             canvas.drawRoundRect(left, top, right, bottom, 10 * density,
                     10 * density, intervalButtonPaint);
             intervalButtonPaint.setStyle(Paint.Style.FILL);
-            intervalButtonPaint.setColor(Color.WHITE);
+            intervalButtonPaint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
             Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
             float textY = top + (buttonHeight - fontMetrics.ascent - fontMetrics.descent) / 2;
-            canvas.drawText(intervals[i].toUpperCase(Locale.US), (left + right) / 2,
+            canvas.drawText(getCryptoTimeframeLabel(timeframe), (left + right) / 2,
                     textY, intervalButtonPaint);
-            right = left - gap;
+            controlsLeft = right + gap;
         }
     }
 
@@ -696,45 +714,131 @@ public class MacdView  extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        String[] intervals = INTRADAY_INTERVALS;
-        float density = getResources().getDisplayMetrics().density;
-        float buttonWidth = 58 * density;
-        float buttonHeight = 34 * density;
-        float signalButtonHeight = 34 * density;
-        float gap = 6 * density;
-        float markerSize = getIndicatorMarkerSize();
-        float markerGap = 12 * density;
-        float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
-        float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
-        float firstSignalLeft = firstSignalCenter - markerSize / 2;
-        float signalTop = getSignalControlsTop(signalButtonHeight, markerSize);
-        float signalBottom = signalTop + signalButtonHeight;
-        if (x >= firstSignalLeft && x <= secondSignalCenter + markerSize / 2
-                && y >= signalTop && y <= signalBottom) {
-            return true;
-        }
-        if (!Const.Macd.KDJ.toString().equals(macdType)
-                && getMacdModeButtonRect().contains(x, y)) {
-            activity.macd = Const.Macd.Double.toString().equals(macdType)
-                    ? Const.Macd.Single.toString() : Const.Macd.Double.toString();
-            activity.showUI();
-            return true;
-        }
         if (!activity.isCryptoSymbol()) {
             return false;
         }
-        float right = getIntradayControlsRight(density);
+        float density = getResources().getDisplayMetrics().density;
+        float gap = 6 * density;
+        float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
+        float buttonHeight = 34 * density * 0.88f;
+        float controlsLeft = getIntradayControlsRight(density)
+                - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
-        for (String interval : intervals) {
-            float left = right - buttonWidth;
+        int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
+        for (int i = firstVisibleCryptoTimeframe; i <= lastVisible; i++) {
+            float left = controlsLeft;
+            float right = left + buttonWidth;
             if (x >= left && x <= right && y >= top && y <= bottom) {
-                activity.selectBinanceInterval(interval);
+                activity.selectCryptoTimeframe(CRYPTO_TIMEFRAMES[i]);
                 return true;
             }
-            right = left - gap;
+            controlsLeft = right + gap;
         }
         return false;
+    }
+
+    public boolean handleCryptoTimeframeScroll(MotionEvent startEvent, float distanceX) {
+        if (!activity.isCryptoSymbol()) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = startEvent.getRawX() - location[0];
+        float y = startEvent.getRawY() - location[1];
+        float density = getResources().getDisplayMetrics().density;
+        float gap = 6 * density;
+        float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
+        float bottom = getHeight() - 7 * density;
+        float top = bottom - 34 * density * 0.88f;
+        float right = getIntradayControlsRight(density);
+        float left = right - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        if (x < left || x > right || y < top || y > bottom) {
+            return false;
+        }
+
+        cryptoTimeframeScrollDistance += distanceX;
+        float scrollStep = buttonWidth + gap;
+        int maxFirstVisible = CRYPTO_TIMEFRAMES.length - VISIBLE_CRYPTO_TIMEFRAMES;
+        while (cryptoTimeframeScrollDistance >= scrollStep
+                && firstVisibleCryptoTimeframe < maxFirstVisible) {
+            firstVisibleCryptoTimeframe++;
+            cryptoTimeframeScrollDistance -= scrollStep;
+        }
+        while (cryptoTimeframeScrollDistance <= -scrollStep
+                && firstVisibleCryptoTimeframe > 0) {
+            firstVisibleCryptoTimeframe--;
+            cryptoTimeframeScrollDistance += scrollStep;
+        }
+        if ((firstVisibleCryptoTimeframe == 0 && cryptoTimeframeScrollDistance < 0)
+                || (firstVisibleCryptoTimeframe == maxFirstVisible
+                && cryptoTimeframeScrollDistance > 0)) {
+            cryptoTimeframeScrollDistance = 0;
+        }
+        invalidate();
+        return true;
+    }
+
+    public boolean isCryptoTimeframeControlTouch(MotionEvent event) {
+        if (!activity.isCryptoSymbol()) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        float density = getResources().getDisplayMetrics().density;
+        float gap = 6 * density;
+        float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
+        float right = getIntradayControlsRight(density);
+        float left = right - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        float bottom = getHeight() - 7 * density;
+        float top = bottom - 34 * density * 0.88f;
+        return x >= left && x <= right && y >= top && y <= bottom;
+    }
+
+    private float getCryptoTimeframeButtonWidth(float density, float gap) {
+        float right = getIntradayControlsRight(density);
+        float editButtonRight = 20 + 58 * density;
+        float minimumLeft = editButtonRight + gap;
+        float maxWidth = (right - minimumLeft
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap) / VISIBLE_CRYPTO_TIMEFRAMES;
+        return Math.max(0, Math.min(58 * density * 0.88f, maxWidth));
+    }
+
+    private boolean isCryptoTimeframeSelected(String timeframe) {
+        if ("5m".equals(timeframe) || "15m".equals(timeframe)
+                || "1h".equals(timeframe) || "4h".equals(timeframe)) {
+            return timeframe.equals(activity.getIntradayInterval());
+        }
+        return activity.getIntradayInterval() == null && timeframe.equals(timeFrame);
+    }
+
+    private String getCryptoTimeframeLabel(String timeframe) {
+        switch (timeframe) {
+            case "5m":
+            case "15m":
+            case "1h":
+            case "4h":
+                return timeframe;
+            case "d":
+                return "1D";
+            case "3d":
+                return "3D";
+            case "w":
+                return "1W";
+            case "m":
+                return "1M";
+            case "q":
+                return "3M";
+            case "y":
+                return "1Y";
+            default:
+                throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+        }
     }
 
     /* MACD双线柱体 */
@@ -887,8 +991,14 @@ public class MacdView  extends View {
         paint.setColor(getTextColor());
         paint.setStrokeWidth(2);
         paint.setTextSize(getTitleTextSize());
-        canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
+        paint.setFakeBoldText(true);
         drawCurrentPrice(canvas);
+        if (Const.Symbol.btc.toString().equals(symbol)) {
+            paint.setTextSize(getBtcTitleTextSize());
+            canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
+        } else {
+            canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
+        }
     }
 
     private void drawCurrentPrice(Canvas canvas) {
@@ -929,54 +1039,174 @@ public class MacdView  extends View {
     }
 
     private String getChartTitle() {
-        String symbolText = "";
-        String timeFrameText = "";
+        String symbolText = getSymbolTitle();
+        return symbolText;
+    }
+
+    private String getSymbolTitle() {
         if (Const.Symbol.btc.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_btc));
-        } else if (Const.Symbol.eth.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_eth));
-        } else if (Const.Symbol.trump.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_trump));
-        } else if (Const.Symbol.dow.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_dow));
-        } else if (Const.Symbol.sp500.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_sp500));
-        } else if (Const.Symbol.nasdaq.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_nasdaq));
-        } else if (Const.Symbol.nikkei.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_nikkei));
-        } else if (Const.Symbol.usdx.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_dollor));
-        } else if (Const.Symbol.usbond.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_usbond));
-        } else if (Const.Symbol.xauusd.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_gold));
-        } else if (Const.Symbol.xagusd.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_silver));
-        } else if (Const.Symbol.fng.toString().equals(symbol)) {
-            symbolText = replace(getResources().getString(R.string.symbol_fng));
+            return replace(getResources().getString(R.string.symbol_btc));
+        }
+        if (Const.Symbol.eth.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_eth));
+        }
+        if (Const.Symbol.trump.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_trump));
+        }
+        if (Const.Symbol.dow.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_dow));
+        }
+        if (Const.Symbol.sp500.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_sp500));
+        }
+        if (Const.Symbol.nasdaq.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_nasdaq));
+        }
+        if (Const.Symbol.nikkei.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_nikkei));
+        }
+        if (Const.Symbol.usdx.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_dollor));
+        }
+        if (Const.Symbol.usbond.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_usbond));
+        }
+        if (Const.Symbol.xauusd.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_gold));
+        }
+        if (Const.Symbol.xagusd.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_silver));
         }
         if (Const.Symbol.fng.toString().equals(symbol)) {
-            timeFrameText = "";
-        } else if (activity.getIntradayInterval() != null) {
-            timeFrameText = activity.getIntradayInterval().toUpperCase(Locale.US);
-        } else if (Const.TimeFrame.d3.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_3day));
-        } else if (Const.TimeFrame.d.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_day));
-        } else if (Const.TimeFrame.w.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_week));
-        } else if (Const.TimeFrame.m.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_month));
-        } else if (Const.TimeFrame.q.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_quarter));
-        } else if (Const.TimeFrame.y.toString().equals(timeFrame)) {
-            timeFrameText = replace(getResources().getString(R.string.timeframe_year));
+            return replace(getResources().getString(R.string.symbol_fng));
         }
-        if (Const.Symbol.fng.toString().equals(symbol)) {
-            return symbolText;
+        return "";
+    }
+
+    public boolean handleSymbolTitleTap(MotionEvent event) {
+        if (!(Const.Symbol.btc.toString().equals(symbol)
+                || Const.Symbol.eth.toString().equals(symbol)
+                || Const.Symbol.trump.toString().equals(symbol)
+                || Const.Symbol.fng.toString().equals(symbol))) {
+            return false;
         }
-        return symbolText + "  " + timeFrameText;
+        Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        titlePaint.setTextSize(Const.Symbol.btc.toString().equals(symbol)
+                ? getBtcTitleTextSize() : getTitleTextSize());
+        titlePaint.setFakeBoldText(true);
+        String symbolTitle = getSymbolTitle();
+        Rect symbolBounds = new Rect();
+        titlePaint.getTextBounds(symbolTitle, 0, symbolTitle.length(), symbolBounds);
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        float density = getResources().getDisplayMetrics().density;
+        float padding = 6 * density;
+        if (x < 0 || x > titlePaint.measureText(symbolTitle) + padding
+                || y < getTitleBaseline() + symbolBounds.top - padding
+                || y > getTitleBaseline() + symbolBounds.bottom + padding) {
+            return false;
+        }
+        showSymbolPicker();
+        return true;
+    }
+
+    private void showSymbolPicker() {
+        if (symbolPopupWindow != null && symbolPopupWindow.isShowing()) {
+            symbolPopupWindow.dismiss();
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        Const.Symbol[] symbols = {
+                Const.Symbol.btc, Const.Symbol.eth, Const.Symbol.trump, Const.Symbol.fng
+        };
+        Const.Symbol selectedSymbol = Const.Symbol.valueOf(symbol);
+        List<Const.Symbol> otherSymbols = new ArrayList<>();
+        for (Const.Symbol optionSymbol : symbols) {
+            if (optionSymbol != selectedSymbol) {
+                otherSymbols.add(optionSymbol);
+            }
+        }
+        Paint optionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        optionPaint.setTextSize(getBtcTitleTextSize());
+        optionPaint.setFakeBoldText(true);
+        int width = 0;
+        for (Const.Symbol optionSymbol : otherSymbols) {
+            width = Math.max(width, (int) Math.ceil(optionPaint.measureText(
+                    getSymbolLabel(optionSymbol))));
+        }
+        width += (int) (8 * density);
+        int itemSpacing = 40;
+        final String[] labels = new String[otherSymbols.size()];
+        final Rect[] labelBounds = new Rect[otherSymbols.size()];
+        final int[] labelTops = new int[otherSymbols.size()];
+        int popupHeight = 0;
+        for (int i = 0; i < otherSymbols.size(); i++) {
+            labels[i] = getSymbolLabel(otherSymbols.get(i));
+            labelBounds[i] = new Rect();
+            optionPaint.getTextBounds(labels[i], 0, labels[i].length(), labelBounds[i]);
+            labelTops[i] = popupHeight;
+            popupHeight += labelBounds[i].height() + itemSpacing;
+        }
+        popupHeight -= itemSpacing;
+        final Paint menuPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        menuPaint.setTextSize(getBtcTitleTextSize());
+        menuPaint.setFakeBoldText(true);
+        menuPaint.setColor(getTextColor());
+        View options = new View(getContext()) {
+            @Override
+            protected void onDraw(Canvas canvas) {
+                super.onDraw(canvas);
+                for (int i = 0; i < labels.length; i++) {
+                    canvas.drawText(labels[i], 0, labelTops[i] - labelBounds[i].top,
+                            menuPaint);
+                }
+            }
+
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    for (int i = 0; i < labels.length; i++) {
+                        Rect bounds = labelBounds[i];
+                        if (event.getX() >= 0 && event.getX() <= bounds.width()
+                                && event.getY() >= labelTops[i]
+                                && event.getY() <= labelTops[i] + bounds.height()) {
+                            symbolPopupWindow.dismiss();
+                            activity.selectSymbol(otherSymbols.get(i));
+                            return true;
+                        }
+                    }
+                }
+                return true;
+            }
+        };
+        symbolPopupWindow = new PopupWindow(
+                options, width, popupHeight, true);
+        symbolPopupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        symbolPopupWindow.setOutsideTouchable(true);
+        symbolPopupWindow.setElevation(0);
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        int popupTop = Math.max(0, location[1] + (int) getTitleBaseline()
+                + getTitleBounds().bottom + itemSpacing);
+        symbolPopupWindow.showAtLocation(this, Gravity.TOP | Gravity.LEFT,
+                location[0], popupTop);
+    }
+
+    private String getSymbolLabel(Const.Symbol optionSymbol) {
+        switch (optionSymbol) {
+            case btc:
+                return getResources().getString(R.string.symbol_btc);
+            case eth:
+                return getResources().getString(R.string.symbol_eth);
+            case trump:
+                return getResources().getString(R.string.symbol_trump);
+            case fng:
+                return getResources().getString(R.string.symbol_fng);
+            default:
+                throw new IllegalArgumentException("Unsupported symbol: " + optionSymbol);
+        }
     }
 
     /* 单击事件，由Activity转发事件 */
@@ -987,33 +1217,6 @@ public class MacdView  extends View {
             activity.macd = Const.Macd.KDJ.toString();
         }
         activity.showUI();
-    }
-
-    private RectF getMacdModeButtonRect() {
-        float density = getResources().getDisplayMetrics().density;
-        float left = 4 * density;
-        float top = getTitleBaseline() + 10 * density;
-        return new RectF(left, top, left + 40 * density, top + 30 * density);
-    }
-
-    private void drawMacdModeButton(Canvas canvas) {
-        if (Const.Macd.KDJ.toString().equals(macdType)) {
-            return;
-        }
-        float density = getResources().getDisplayMetrics().density;
-        RectF rect = getMacdModeButtonRect();
-        intervalButtonPaint.setTextSize(14 * density);
-        intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
-        intervalButtonPaint.setStyle(Paint.Style.STROKE);
-        intervalButtonPaint.setStrokeWidth(1.2f * density);
-        intervalButtonPaint.setColor(Color.rgb(96, 125, 139));
-        canvas.drawRoundRect(rect, 10 * density, 10 * density, intervalButtonPaint);
-        intervalButtonPaint.setStyle(Paint.Style.FILL);
-        intervalButtonPaint.setColor(Color.WHITE);
-        Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
-        float textY = rect.centerY() - (fontMetrics.ascent + fontMetrics.descent) / 2;
-        String label = Const.Macd.Double.toString().equals(macdType) ? "D" : "S";
-        canvas.drawText(label, rect.centerX(), textY, intervalButtonPaint);
     }
 
     /* タッチ箇所の価格と日付を描く */

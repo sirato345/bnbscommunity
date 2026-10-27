@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.view.GestureDetector;
+import androidx.annotation.NonNull;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.FragmentActivity;
 import android.view.MotionEvent;
@@ -80,6 +81,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
     private boolean activityResumed;
     private boolean binanceRealtimeLoading;
+    private boolean cryptoTimeframeControlGesture;
     private String realtimeCandle;
     private LinearLayout editButtonContainer;
     private ImageView editButton;
@@ -831,6 +833,25 @@ public class ChartActivity extends FragmentActivity implements Observer,
         showUI();
     }
 
+    public void selectCryptoTimeframe(@NonNull String selectedTimeframe) {
+        if ("5m".equals(selectedTimeframe) || "15m".equals(selectedTimeframe)
+                || "1h".equals(selectedTimeframe) || "4h".equals(selectedTimeframe)) {
+            selectBinanceInterval(selectedTimeframe);
+            return;
+        }
+        if (!isCryptoSymbol()
+                || !("d".equals(selectedTimeframe) || "3d".equals(selectedTimeframe)
+                || "w".equals(selectedTimeframe) || "m".equals(selectedTimeframe)
+                || "q".equals(selectedTimeframe) || "y".equals(selectedTimeframe))) {
+            return;
+        }
+        clearIntradaySelection();
+        timeFrame = selectedTimeframe;
+        setOffset(0);
+        showUI();
+        requestMarketData();
+    }
+
     private void clearIntradaySelection() {
         intradayInterval = null;
         resetIntradayRecords();
@@ -983,25 +1004,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 // タイムフレーム切替によりスクロールをリセット
                 this.setOffset(0);
             } else if (result instanceof  Const.Symbol) {
-                String newSymbol = result.toString();
-                if (!symbol.equals(newSymbol)) {
-                    realtimeCandle = null;
-                }
-                if (intradayInterval != null && isCryptoSymbol()
-                        && isCryptoSymbol(newSymbol)) {
-                    resetIntradayRecords();
-                } else {
-                    intradayInterval = null;
-                    resetIntradayRecords();
-                }
-                if ((!isCryptoSymbol(newSymbol)
-                        && Const.TimeFrame.d3.toString().equals(timeFrame))
-                        || Const.Symbol.fng.toString().equals(newSymbol)) {
-                    timeFrame = Const.TimeFrame.d.toString();
-                }
-                this.symbol = newSymbol;
-                // 銘柄切替によりスクロールをリセット
-                this.setOffset(0);
+                applySymbolSelection(result.toString());
             } else if (result instanceof  Const.Macd) {
                 this.macd = result.toString();
             } else {
@@ -1009,6 +1012,35 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
         }
         // ＊設定後、Activity再表示のため、onResumeにより画面再度更新＊
+    }
+
+    public void selectSymbol(@NonNull Const.Symbol selectedSymbol) {
+        applySymbolSelection(selectedSymbol.toString());
+        showUI();
+        if (isBinanceRealtimeEligible()) {
+            requestBinanceRealtimeCandle();
+        }
+        requestMarketData();
+    }
+
+    private void applySymbolSelection(String newSymbol) {
+        if (!symbol.equals(newSymbol)) {
+            realtimeCandle = null;
+        }
+        if (intradayInterval != null && isCryptoSymbol()
+                && isCryptoSymbol(newSymbol)) {
+            resetIntradayRecords();
+        } else {
+            intradayInterval = null;
+            resetIntradayRecords();
+        }
+        if ((!isCryptoSymbol(newSymbol)
+                && Const.TimeFrame.d3.toString().equals(timeFrame))
+                || Const.Symbol.fng.toString().equals(newSymbol)) {
+            timeFrame = Const.TimeFrame.d.toString();
+        }
+        symbol = newSymbol;
+        setOffset(0);
     }
 
     @Override
@@ -1152,6 +1184,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     }
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
+                            cryptoTimeframeControlGesture =
+                                    macdView.isCryptoTimeframeControlTouch(event);
                             mLastMotionX = x;
                             mLastMotionY = y;
                             // 长按时距离测定用X轴位置
@@ -1188,15 +1222,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             mCurrentMotionX = x;
                             // 长按时距离测定用Y轴位置
                             mCurrentMotionY = y;
-                            offset = offset - (int) Math.floor((mLastMotionX - x) / Const.ZOOM_IN);
-                            if (offset < 0) {
-                                offset = 0;
+                            if (!cryptoTimeframeControlGesture) {
+                                offset = offset - (int) Math.floor(
+                                        (mLastMotionX - x) / Const.ZOOM_IN);
+                                if (offset < 0) {
+                                    offset = 0;
+                                }
+                                // ②对最后一次偏移进行备份，以便在抬起时设置到偏移量中
+                                offsetLast = offset;
+                                this.showUI();
+                                // ③一次移动完成后，回设偏移量到该次触摸的初始值
+                                offset = offsetBk;
                             }
-                            // ②对最后一次偏移进行备份，以便在抬起时设置到偏移量中
-                            offsetLast = offset;
-                            this.showUI();
-                            // ③一次移动完成后，回设偏移量到该次触摸的初始值，以便多次移动均对初始值进行偏移
-                            offset = offsetBk;
                             break;
                         case MotionEvent.ACTION_UP:
                             mLastMotionX = 0;
@@ -1205,7 +1242,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             mCurrentMotionY = 0;
                             // ④由于每次移动偏移量都回设为初始值，本次移动全部完成后，将该次触摸抬起之间的最后一次偏移
                             //   设置到偏移量变量中，以便下次从此位置开始移动
-                            offset = offsetLast;
+                            if (!cryptoTimeframeControlGesture) {
+                                offset = offsetLast;
+                            }
                             break;
                     }
                 }
@@ -1249,7 +1288,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     // 由Activity处理双击,滑动事件
                     ges.onTouchEvent(event);
                     // 由View处理滑动事件
-                    stickView.onTouchEvent(event);
+                    if (!cryptoTimeframeControlGesture) {
+                        stickView.onTouchEvent(event);
+                    }
+                }
+                if (event.getAction() == MotionEvent.ACTION_UP
+                        || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                    cryptoTimeframeControlGesture = false;
                 }
             }
         } else {
@@ -1306,6 +1351,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 快速滑动：用于切换周期和銘柄 */
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
         if (isLongPress || isEidtMode) {
+            return true;
+        }
+        if (cryptoTimeframeControlGesture) {
             return true;
         }
         if (e1 == null || e2 == null) {
@@ -1388,25 +1436,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
         int nextIndex = swipeUp
                 ? (currentIndex == 0 ? timeframes.length - 1 : currentIndex - 1)
                 : (currentIndex + 1) % timeframes.length;
-        String nextTimeframe = timeframes[nextIndex];
-        if ("5m".equals(nextTimeframe) || "15m".equals(nextTimeframe)
-                || "1h".equals(nextTimeframe)
-                || "4h".equals(nextTimeframe)) {
-            intradayInterval = nextTimeframe;
-            resetIntradayRecords();
-        } else {
-            clearIntradaySelection();
-            timeFrame = nextTimeframe;
-        }
-
-        setOffset(0);
-        showUI();
-        requestMarketData();
+        selectCryptoTimeframe(timeframes[nextIndex]);
     }
 
     @Override
     /* 滑动：K线移动 */
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        if (cryptoTimeframeControlGesture) {
+            macdView.handleCryptoTimeframeScroll(e1, distanceX);
+        }
         return true;
     }
 
@@ -1414,6 +1452,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean onSingleTapConfirmed(MotionEvent e) {
         Point point = this.ajustPoint(e);
         if (isLongPress || isEidtMode) {
+            return true;
+        }
+        if (macdView.handleSymbolTitleTap(e)) {
             return true;
         }
         if (macdView.handleIntradayControlTap(e)) {
@@ -1497,7 +1538,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         int buttonWidth = Math.round(58 * density);
         int buttonHeight = Math.round(34 * density);
         editButton.setLayoutParams(new LinearLayout.LayoutParams(buttonWidth, buttonHeight));
-        editButtonContainer.setX(60);
+        editButtonContainer.setX(20);
         editButtonContainer.setY(comnInfo.getScreenHeight() - comnInfo.getDateHeight()
                 - buttonHeight - 7 * density);
         setupTrendTools(buttonWidth, buttonHeight, density);
