@@ -76,8 +76,14 @@ public class StickView extends View {
     // 正在调整宽度的通道线及当前偏移（像素）
     private TrendLine channelLine;
     private float channelOffsetPx;
+    private boolean channelMove;
+    private boolean tapOnLine;
+    // 已有线附近此范围内的点击不新画线，双击删除也用此范围
+    private static final int NEAR_LINE_PX = 100;
+    // 点击时手指的自然抖动范围，小于此距离不当作拖动
+    private static final int TAP_SLOP_PX = 30;
+    private float channelStartOffsetPx;
     private static final float[] FIB_LEVELS = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
-    private static final int CHANNEL_DEFAULT_OFFSET_PX = 80;
     private static final float FNG_AXIS_MAX = 100f;
     private static final float FNG_AXIS_MIN = 0f;
     private List<TrendLine> trendLines = new ArrayList<>();
@@ -237,17 +243,27 @@ public class StickView extends View {
                 this.editLine = this.getEditLine(point);
                 this.channelLine = editLine == null ? this.getChannelLine(point) : null;
                 this.channelOffsetPx = channelLine == null ? 0 : this.getChannelOffsetPx(channelLine);
+                this.channelStartOffsetPx = channelOffsetPx;
+                this.channelMove = channelLine != null && this.isOnChannelBase(channelLine, point);
                 this.currentPoint = null;
+                this.tapOnLine = editLine == null && channelLine == null
+                        && this.isNearAnyLine(point);
                 this.downPoint = editLine == null && channelLine == null
                         ? this.snap(point) : point;
                 break;
             case MotionEvent.ACTION_MOVE:
                 if (this.channelLine != null) {
-                    this.channelOffsetPx = this.getChannelDragOffsetPx(channelLine, point);
+                    if (!channelMove) {
+                        // 以按下时的间距为起点按位移调整，避免线跳到手指位置
+                        boolean moved = this.getDistance(downPoint, point) >= TAP_SLOP_PX;
+                        this.channelOffsetPx = moved
+                                ? channelStartOffsetPx + (point.y - downPoint.y)
+                                : channelStartOffsetPx;
+                    }
                     this.currentPoint = point;
                     break;
                 }
-                if (this.editLine != null) {
+                if (this.editLine != null && editLine.getType() != TrendLine.TYPE_HORIZONTAL) {
                     Point fixed = editLine.getEidtPoint() == 1
                             ? this.getVirtualPoint(editLine.getDate2(), editLine.getPrice2())
                             : this.getVirtualPoint(editLine.getDate1(), editLine.getPrice1());
@@ -260,18 +276,32 @@ public class StickView extends View {
             case MotionEvent.ACTION_UP:
                 if (channelLine != null) {
                     if (currentPoint != null) {
-                        this.saveChannelOffset();
+                        if (channelMove) {
+                            this.saveChannelMove();
+                        } else {
+                            this.saveChannelOffset();
+                        }
                     }
+                    channelMove = false;
                     channelLine = null;
                     downPoint = null;
                     currentPoint = null;
                     editLine = null;
                     break;
                 }
-                if (downPoint != null && currentPoint != null) {
+                if (downPoint != null && editLine == null && !tapOnLine
+                        && activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL
+                        && (currentPoint == null
+                        || this.getDistance(downPoint, currentPoint) < TAP_SLOP_PX)) {
+                    // 水平线：点击即画
+                    currentPoint = downPoint;
+                    this.saveTrendLine();
+                } else if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
-                    // 低于一定长度,不画线（编辑时保留原线）
-                    if (length > 120) {
+                    // 低于一定长度,不画线（编辑时保留原线；水平线只需上下移动）
+                    if (length > 120 || (editLine != null
+                            && editLine.getType() == TrendLine.TYPE_HORIZONTAL
+                            && length >= TAP_SLOP_PX)) {
                         if (editLine != null) {
                             activity.deleteTrendLine(editLine.getId());
                         }
@@ -285,6 +315,15 @@ public class StickView extends View {
         }
     }
 
+    private boolean isNearAnyLine(Point point) {
+        for (TrendLine trendLine : trendLines) {
+            if (this.getLineDistance(trendLine, point) <= NEAR_LINE_PX) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /* 双击：删除线 */
     public void onDoubleTap(Point point) {
         TrendLine nearest = null;
@@ -296,7 +335,7 @@ public class StickView extends View {
                 nearest = trendLine;
             }
         }
-        if (nearest != null && nearestDistance <= Const.EDIT_DISTANCE) {
+        if (nearest != null && nearestDistance <= NEAR_LINE_PX) {
             int index = this.getTrendLineIndex(nearest);
             if (index != -1) {
                 trendLines.remove(index);
@@ -385,9 +424,56 @@ public class StickView extends View {
         return point.y - baseY;
     }
 
+    /* 已有平行线时，按在基准线上才整体移动；尚无平行线时拖动用于拉出平行线 */
+    private boolean isOnChannelBase(TrendLine trendLine, Point point) {
+        float offsetPx = this.getChannelOffsetPx(trendLine);
+        if (Math.abs(offsetPx) < 10) {
+            return false;
+        }
+        Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
+        Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+        if (p1 == null || p2 == null) {
+            return false;
+        }
+        double base = this.pointToLine(p1.x, p1.y, p2.x, p2.y, point.x, point.y);
+        double parallel = this.pointToLine(p1.x, p1.y + Math.round(offsetPx),
+                p2.x, p2.y + Math.round(offsetPx), point.x, point.y);
+        return base <= parallel;
+    }
+
+    /* 整体平移通道线（基准线和平行线一起） */
+    private void saveChannelMove() {
+        Point p1 = this.getVirtualPoint(channelLine.getDate1(), channelLine.getPrice1());
+        Point p2 = this.getVirtualPoint(channelLine.getDate2(), channelLine.getPrice2());
+        if (p1 == null || p2 == null || downPoint == null) {
+            return;
+        }
+        int dx = currentPoint.x - downPoint.x;
+        int dy = currentPoint.y - downPoint.y;
+        if (this.getDistance(downPoint, currentPoint) < TAP_SLOP_PX) {
+            return;
+        }
+        Point n1 = new Point(p1.x + dx, p1.y + dy);
+        Point n2 = new Point(p2.x + dx, p2.y + dy);
+        TrendLine trendLine = new TrendLine();
+        trendLine.setSymbol(channelLine.getSymbol());
+        trendLine.setTimeFrame(channelLine.getTimeFrame());
+        trendLine.setType(channelLine.getType());
+        trendLine.setColor(channelLine.getColor());
+        trendLine.setDate1(this.getDate(n1));
+        trendLine.setPrice1(this.getPrice(n1));
+        trendLine.setDate2(this.getDate(n2));
+        trendLine.setPrice2(this.getPrice(n2));
+        trendLine.setOffset(channelLine.getOffset());
+        activity.deleteTrendLine(channelLine.getId());
+        activity.saveTrendLine(trendLine);
+    }
+
     private void saveChannelOffset() {
         Point p1 = this.getVirtualPoint(channelLine.getDate1(), channelLine.getPrice1());
-        if (p1 == null || Math.abs(channelOffsetPx) < 10) {
+        if (p1 == null || Math.abs(channelOffsetPx) < 10
+                || (downPoint != null && currentPoint != null
+                && this.getDistance(downPoint, currentPoint) < TAP_SLOP_PX)) {
             return;
         }
         TrendLine trendLine = new TrendLine();
@@ -419,6 +505,16 @@ public class StickView extends View {
         for (TrendLine trendLine : trendLines) {
             Point startPoint = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
             Point endPoint = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+            if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL && startPoint != null) {
+                // 水平线横跨整个画面，线上任意位置都可抓取
+                int distance = Math.abs(point.y - startPoint.y);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = trendLine;
+                    bestPoint = 1;
+                }
+                continue;
+            }
             if (startPoint != null) {
                 int distance = this.getDistance(point, startPoint);
                 if (distance < bestDistance) {
@@ -827,8 +923,8 @@ public class StickView extends View {
         trendLine.setDate2(date2);
         trendLine.setPrice2(price2);
         if (trendLine.getType() == TrendLine.TYPE_CHANNEL) {
-            trendLine.setOffset(editLine != null ? editLine.getOffset()
-                    : this.getPrice(new Point(0, downPoint.y - CHANNEL_DEFAULT_OFFSET_PX)) - price1);
+            // 新通道线先只画基准线，平行线之后从线中间拖出
+            trendLine.setOffset(editLine != null ? editLine.getOffset() : 0f);
         }
         activity.saveTrendLine(trendLine);
     }
@@ -844,7 +940,37 @@ public class StickView extends View {
                 return stick.getDate();
             }
         }
-        return stickList.get(0).getDate();
+        return extrapolateDate(point.x, maxStickCount);
+    }
+
+    /* 画面外（右侧空白、左侧屏幕外）的X坐标换算成日期，与getX互为逆运算 */
+    private String extrapolateDate(int x, int maxStickCount) {
+        int visible = Math.min(maxStickCount, stickList.size());
+        StickInfo newest = stickList.get(0);
+        if (visible < 2) {
+            return newest.getDate();
+        }
+        int x0 = newest.getLineRect().centerX();
+        int xN = stickList.get(visible - 1).getLineRect().centerX();
+        if (x0 == xN) {
+            return newest.getDate();
+        }
+        float index = (x0 - x) * (float) (visible - 1) / (x0 - xN);
+        int rounded = Math.round(index);
+        if (rounded >= 0 && rounded < stickList.size()) {
+            return stickList.get(rounded).getDate();
+        }
+        long t0 = parseTime(newest.getDate());
+        long tN = parseTime(stickList.get(visible - 1).getDate());
+        if (t0 == NO_TIME || tN == NO_TIME || t0 == tN) {
+            return newest.getDate();
+        }
+        long t = Math.round(t0 - index * (double) (t0 - tN) / (visible - 1));
+        boolean daily = newest.getDate().length() == 8;
+        SimpleDateFormat format = new SimpleDateFormat(
+                daily ? "yyyyMMdd" : "yyyy-MM-dd HH:mm", Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return format.format(new java.util.Date(t));
     }
 
     private float getPrice(Point point) {
@@ -870,7 +996,14 @@ public class StickView extends View {
             if (p1 == null || p2 == null) {
                 continue;
             }
-            float offsetPx = dragging ? channelOffsetPx : this.getChannelOffsetPx(trendLine);
+            float offsetPx = dragging && !channelMove
+                    ? channelOffsetPx : this.getChannelOffsetPx(trendLine);
+            if (dragging && channelMove && downPoint != null) {
+                int dx = currentPoint.x - downPoint.x;
+                int dy = currentPoint.y - downPoint.y;
+                p1 = new Point(p1.x + dx, p1.y + dy);
+                p2 = new Point(p2.x + dx, p2.y + dy);
+            }
             paint.setColor(trendLine.getColor());
             this.drawLineShape(canvas, paint, p1.x, p1.y, p2.x, p2.y,
                     trendLine.getType(), offsetPx);
@@ -884,8 +1017,7 @@ public class StickView extends View {
         float y1 = type == TrendLine.TYPE_HORIZONTAL
                 ? (editLine != null ? currentPoint.y : downPoint.y) : downPoint.y;
         float y2 = type == TrendLine.TYPE_HORIZONTAL ? y1 : currentPoint.y;
-        float offsetPx = editLine != null ? this.getChannelOffsetPx(editLine)
-                : -CHANNEL_DEFAULT_OFFSET_PX;
+        float offsetPx = editLine != null ? this.getChannelOffsetPx(editLine) : 0;
         this.drawLineShape(canvas, paint, downPoint.x, y1, currentPoint.x, y2, type, offsetPx);
     }
 
