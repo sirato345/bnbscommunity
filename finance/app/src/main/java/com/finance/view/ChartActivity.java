@@ -1477,7 +1477,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (isLongPress || isEidtMode) {
             return true;
         }
-        if (macdView.handleSymbolTitleTap(e)) {
+        if (macdView.isSymbolTitleHit(e)) {
             return true;
         }
         if (macdView.handleIntradayControlTap(e)) {
@@ -1512,6 +1512,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
+        // 标题点击不等待双击判定，立即弹出菜单
+        if (!isLongPress && !isEidtMode && macdView.handleSymbolTitleTap(e)) {
+            return true;
+        }
         return false;
     }
 

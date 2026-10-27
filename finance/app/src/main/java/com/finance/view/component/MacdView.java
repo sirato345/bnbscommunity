@@ -1321,6 +1321,14 @@ public class MacdView  extends View {
     }
 
     public boolean handleSymbolTitleTap(MotionEvent event) {
+        if (!isSymbolTitleHit(event)) {
+            return false;
+        }
+        showSymbolPicker();
+        return true;
+    }
+
+    public boolean isSymbolTitleHit(MotionEvent event) {
         if (!(Const.Symbol.btc.toString().equals(symbol)
                 || Const.Symbol.eth.toString().equals(symbol)
                 || Const.Symbol.trump.toString().equals(symbol)
@@ -1345,7 +1353,6 @@ public class MacdView  extends View {
                 || y > getTitleBaseline() + symbolBounds.bottom + padding) {
             return false;
         }
-        showSymbolPicker();
         return true;
     }
 
@@ -1374,7 +1381,7 @@ public class MacdView  extends View {
                     getSymbolLabel(optionSymbol))));
         }
         width += (int) (8 * density);
-        int itemSpacing = 40;
+        final int itemSpacing = 40;
         final String[] labels = new String[otherSymbols.size()];
         final Rect[] labelBounds = new Rect[otherSymbols.size()];
         final int[] labelTops = new int[otherSymbols.size()];
@@ -1404,11 +1411,13 @@ public class MacdView  extends View {
             @Override
             public boolean onTouchEvent(MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_UP) {
+                    // 每个选项的可点区域延伸到相邻选项间隔的中线，整行宽度都有效
                     for (int i = 0; i < labels.length; i++) {
-                        Rect bounds = labelBounds[i];
-                        if (event.getX() >= 0 && event.getX() <= bounds.width()
-                                && event.getY() >= labelTops[i]
-                                && event.getY() <= labelTops[i] + bounds.height()) {
+                        float top = i == 0 ? Float.NEGATIVE_INFINITY
+                                : labelTops[i] - itemSpacing / 2f;
+                        float bottom = i == labels.length - 1 ? Float.POSITIVE_INFINITY
+                                : labelTops[i] + labelBounds[i].height() + itemSpacing / 2f;
+                        if (event.getY() >= top && event.getY() <= bottom) {
                             symbolPopupWindow.dismiss();
                             activity.selectSymbol(otherSymbols.get(i));
                             return true;

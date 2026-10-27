@@ -594,6 +594,49 @@ public class StickView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        this.drawContent(canvas);
+        this.drawLoupe(canvas);
+    }
+
+    /* 拖动画线端点时，在手指上方显示放大镜，便于对准 */
+    private void drawLoupe(Canvas canvas) {
+        if (currentPoint == null || channelLine != null || downPoint == null
+                || stickList == null || stickList.isEmpty()) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float radius = 60 * density;
+        float gap = 40 * density;
+        float scale = 2.5f;
+        float fx = currentPoint.x;
+        float fy = currentPoint.y;
+        float cx = Math.max(radius, Math.min(fx, comnInfo.getScreenWidth() - radius));
+        float cy = fy - radius - gap;
+        if (cy < radius) {
+            cy = fy + radius + gap;
+        }
+        canvas.save();
+        Path circle = new Path();
+        circle.addCircle(cx, cy, radius, Path.Direction.CW);
+        canvas.clipPath(circle);
+        canvas.drawColor(Color.BLACK);
+        canvas.translate(cx, cy);
+        canvas.scale(scale, scale);
+        canvas.translate(-fx, -fy);
+        this.drawContent(canvas);
+        canvas.restore();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3);
+        paint.setColor(Color.DKGRAY);
+        canvas.drawCircle(cx, cy, radius, paint);
+        paint.setStrokeWidth(1);
+        paint.setColor(Color.RED);
+        canvas.drawLine(cx - radius, cy, cx + radius, cy, paint);
+        canvas.drawLine(cx, cy - radius, cx, cy + radius, paint);
+    }
+
+    private void drawContent(Canvas canvas) {
         if (activity.isFearGreedSymbol()) {
             this.drawFearGreedBands(canvas);
             this.drawFearGreedLine(canvas);
