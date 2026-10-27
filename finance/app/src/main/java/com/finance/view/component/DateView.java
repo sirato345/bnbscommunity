@@ -85,42 +85,39 @@ public class DateView extends View {
         paint.setAntiAlias(true);
         paint.setTextSize(Const.FONT_SIZE);
 
-        // 画面表示最大のローソクの数
-        int maxStickCount = comnInfo.getMaxStickCount(stickList.size());
-        // 实际K线数量少于最小表示数量，从第一根K线开始表示日期
-        if (maxStickCount < comnInfo.getMinDispCount()) {
-            offset = 0;
-        } else {
-            // 偏移超过右侧空白数量，将偏移固定为空白数量，因为超过空白部分的数据没有检索
-            if (offset > Const.DEFAULT_OFFSET) {
-                offset = Const.DEFAULT_OFFSET;
-            }
+        // 日期刻度固定在画面的5个等分位置，不随K线缩放移动；日期取该位置的K线
+        int maxStickCount = Math.min(comnInfo.getMaxStickCount(stickList.size()),
+                stickList.size());
+        if (maxStickCount == 0) {
+            drawTouchedDate(canvas);
+            return;
         }
-        // 日付の間隔を設定
-        interval = Math.max(1, Math.round(220f / activity.getStickWidth()));
-        // 画面右側（４）、ローソク間（11）の間隔を取る
-        for (int i = offset; i < maxStickCount; i += interval) {
-            StickInfo stickInfo = stickList.get(i);
-            String date = formatDateForDisplay(stickInfo.getDate(),
-                    activity.getIntradayInterval() != null);
-            Rect lineRect = new Rect();
-            lineRect.right = stickInfo.getStickRect().centerX();
-            lineRect.left = lineRect.right;
-            lineRect.top = 0;
-            lineRect.bottom = comnInfo.getDateTickHeight();
-            Point datePoint = new Point();
-            datePoint.x = lineRect.right - 92;
-            if (activity.getIntradayInterval() != null) {
-                datePoint.x = lineRect.right - (int)(paint.measureText(date) / 2) - 4;
+        int tickCount = 5;
+        int width = getWidth();
+        boolean intraday = activity.getIntradayInterval() != null;
+        for (int t = 0; t < tickCount; t++) {
+            int tickX = Math.round(width * (2 * t + 1) / (2f * tickCount));
+            StickInfo stickInfo = stickList.get(0);
+            int bestGap = Integer.MAX_VALUE;
+            for (int i = 0; i < maxStickCount; i++) {
+                int gap = Math.abs(stickList.get(i).getStickRect().centerX() - tickX);
+                if (gap < bestGap) {
+                    bestGap = gap;
+                    stickInfo = stickList.get(i);
+                }
             }
+            String date = formatDateForDisplay(stickInfo.getDate(), intraday);
+            float textWidth = paint.measureText(date);
+            Point datePoint = new Point();
+            datePoint.x = Math.round(Math.max(0, Math.min(width - textWidth,
+                    tickX - textWidth / 2)));
             // 竖屏
             if (this.orientation == Configuration.ORIENTATION_PORTRAIT) {
-                datePoint.y = lineRect.bottom + 40;
+                datePoint.y = comnInfo.getDateTickHeight() + 40;
             } else {
-                datePoint.y = lineRect.bottom + 30;
+                datePoint.y = comnInfo.getDateTickHeight() + 30;
             }
-            canvas.drawLine(lineRect.right, lineRect.top, lineRect.left,
-                    lineRect.bottom, paint);
+            canvas.drawLine(tickX, 0, tickX, comnInfo.getDateTickHeight(), paint);
             canvas.drawText(date, datePoint.x, datePoint.y, paint);
         }
         drawTouchedDate(canvas);
