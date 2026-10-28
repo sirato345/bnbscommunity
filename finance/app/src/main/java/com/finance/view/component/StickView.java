@@ -1049,7 +1049,8 @@ public class StickView extends View {
             }
             paint.setColor(trendLine.getColor());
             this.drawLineShape(canvas, paint, p1.x, p1.y, p2.x, p2.y,
-                    trendLine.getType(), offsetPx);
+                    trendLine.getType(), offsetPx,
+                    dragging && channelMove ? null : Float.valueOf(trendLine.getPrice1()));
         }
         // 描画当前正在画的线
         if (downPoint == null || currentPoint == null || channelLine != null) {
@@ -1067,6 +1068,11 @@ public class StickView extends View {
     /* 按线型绘制：通道线带平行线，斐波那契线为水平回撤线（0在第二点，1在第一点） */
     private void drawLineShape(Canvas canvas, Paint paint, float x1, float y1,
                                float x2, float y2, int type, float offsetPx) {
+        this.drawLineShape(canvas, paint, x1, y1, x2, y2, type, offsetPx, null);
+    }
+
+    private void drawLineShape(Canvas canvas, Paint paint, float x1, float y1,
+                               float x2, float y2, int type, float offsetPx, Float fixedPrice) {
         if (type == TrendLine.TYPE_FIBONACCI) {
             this.drawFibonacci(canvas, paint, x1, y1, x2, y2);
             return;
@@ -1074,7 +1080,7 @@ public class StickView extends View {
         float[] ends = this.getLineEnds(x1, y1, x2, y2, type);
         canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
         if (type == TrendLine.TYPE_HORIZONTAL) {
-            this.drawHorizontalPrice(canvas, paint, y1);
+            this.drawHorizontalPrice(canvas, paint, y1, fixedPrice);
         }
         if (type == TrendLine.TYPE_CHANNEL) {
             canvas.drawLine(x1, y1 + offsetPx, x2, y2 + offsetPx, paint);
@@ -1082,19 +1088,21 @@ public class StickView extends View {
     }
 
     /* 水平线的价格：显示在线上方，上方放不下（超出上边沿）时显示在线下方 */
-    private void drawHorizontalPrice(Canvas canvas, Paint linePaint, float y) {
-        String text = getLimitDigit(this.getPrice(new Point(0, Math.round(y))));
+    private void drawHorizontalPrice(Canvas canvas, Paint linePaint, float y, Float fixedPrice) {
+        float price = fixedPrice != null ? fixedPrice
+                : this.getPrice(new Point(0, Math.round(y)));
+        String text = getLimitDigit(price);
         Paint textPaint = new Paint(linePaint);
         textPaint.setStyle(Paint.Style.FILL);
         textPaint.setTextSize(Const.FONT_SIZE_MIDDLE);
         textPaint.setFakeBoldText(true);
         Paint.FontMetrics fm = textPaint.getFontMetrics();
-        float margin = 6;
+        float margin = 2;
         float baseline = y - margin - fm.descent;
         if (baseline + fm.ascent < 0) {
             baseline = y + margin - fm.ascent;
         }
-        canvas.drawText(text, 8, baseline, textPaint);
+        canvas.drawText(text, 0, baseline, textPaint);
     }
 
     private void drawFibonacci(Canvas canvas, Paint paint, float x1, float y1,
