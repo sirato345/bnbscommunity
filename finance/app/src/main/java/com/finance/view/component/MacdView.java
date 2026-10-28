@@ -623,10 +623,10 @@ public class MacdView  extends View {
         float top = Const.MACD_CHART_VERTICAL_INSET;
         float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        guidePaint.setColor(Color.rgb(128, 128, 128));
-        guidePaint.setStrokeWidth(3);
+        guidePaint.setColor(Color.DKGRAY);
+        guidePaint.setStrokeWidth(2);
         guidePaint.setStyle(Paint.Style.STROKE);
-        guidePaint.setPathEffect(null);
+        guidePaint.setPathEffect(new DashPathEffect(new float[] {10, 8}, 0));
         for (float level : new float[] {20f, 80f}) {
             float y = getKdjY(level, top, bottom);
             Path guide = new Path();

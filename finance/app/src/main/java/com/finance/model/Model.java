@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 public class Model {
 
     private static final ExecutorService BINANCE_REALTIME_EXECUTOR =
-            Executors.newSingleThreadExecutor();
+            Executors.newCachedThreadPool();
 
     // DB操作オブジェクト
     private DBOperator dbOperator;

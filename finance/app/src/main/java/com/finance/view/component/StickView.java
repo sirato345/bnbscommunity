@@ -682,7 +682,7 @@ public class StickView extends View {
         canvas.drawLine(0, latest.getYPoint(100), width, latest.getYPoint(100), paint);
         canvas.drawLine(0, latest.getYPoint(0), width, latest.getYPoint(0), paint);
         Paint dash = new Paint(paint);
-        dash.setStrokeWidth(1);
+        dash.setStrokeWidth(2);
         dash.setStyle(Paint.Style.STROKE);
         dash.setPathEffect(new DashPathEffect(new float[] {10, 8}, 0));
         for (int v = 20; v <= 80; v += 20) {

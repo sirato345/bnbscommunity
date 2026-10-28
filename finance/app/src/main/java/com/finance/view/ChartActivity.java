@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.view.Gravity;
 import android.widget.LinearLayout.LayoutParams;
 import android.os.Handler;
+import android.os.SystemClock;
 
 import com.finance.R;
 import com.finance.common.Const;
@@ -53,6 +54,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private static final long BINANCE_REFRESH_INTERVAL_MS = 2000L;
+    // 请求超过该时间仍无响应，视为卡住，允许发起新请求
+    private static final long BINANCE_REQUEST_STUCK_MS = 8000L;
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
     private static final int MIN_STICK_WIDTH = 4;
     private static final int MAX_STICK_WIDTH = 60;
@@ -84,6 +87,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
     private boolean activityResumed;
     private boolean binanceRealtimeLoading;
+    private long binanceRealtimeRequestedAt;
+    private int binanceRealtimeRequestId;
     private boolean cryptoTimeframeControlGesture;
     private String realtimeCandle;
     private LinearLayout editButtonContainer;
@@ -94,7 +99,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
             if (!activityResumed) {
                 return;
             }
-            if (isBinanceRealtimeEligible() && !binanceRealtimeLoading) {
+            boolean stuck = binanceRealtimeLoading && SystemClock.elapsedRealtime()
+                    - binanceRealtimeRequestedAt > BINANCE_REQUEST_STUCK_MS;
+            if (isBinanceRealtimeEligible() && (!binanceRealtimeLoading || stuck)) {
                 requestBinanceRealtimeCandle();
             }
             handler.postDelayed(this, BINANCE_REFRESH_INTERVAL_MS);
@@ -560,11 +567,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private void requestBinanceRealtimeCandle() {
         binanceRealtimeLoading = true;
+        binanceRealtimeRequestedAt = SystemClock.elapsedRealtime();
+        final int requestId = ++binanceRealtimeRequestId;
         String requestedSymbol = symbol;
         String requestedInterval = intradayInterval == null ? "1d" : intradayInterval;
         long requestGeneration = intradayGeneration;
         controller.loadBinanceRealtime(requestedSymbol, requestedInterval,
                 (responseSymbol, record, error) -> {
+            // 已被更新的请求取代（旧请求卡住后才返回）时不再处理
+            if (requestId != binanceRealtimeRequestId) {
+                return;
+            }
             binanceRealtimeLoading = false;
             if (!activityResumed || !requestedSymbol.equals(symbol)
                     || !responseSymbol.equals(symbol)
@@ -1022,6 +1035,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         showUI();
         if (isBinanceRealtimeEligible()) {
             requestBinanceRealtimeCandle();
+            // 从恐慌指数等非加密货币画面切换过来时，确保定时刷新在运行
+            handler.removeCallbacks(binanceRefreshRunnable);
+            handler.postDelayed(binanceRefreshRunnable, BINANCE_REFRESH_INTERVAL_MS);
         }
         requestMarketData();
     }
