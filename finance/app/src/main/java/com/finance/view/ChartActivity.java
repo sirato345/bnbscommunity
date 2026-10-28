@@ -1630,7 +1630,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         TextView button = new TextView(this);
         button.setGravity(Gravity.CENTER);
         button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
-                14 * getResources().getDisplayMetrics().density);
+                16 * getResources().getDisplayMetrics().density);
         button.setTextColor(Color.WHITE);
         button.setBackgroundColor(Color.TRANSPARENT);
         return button;

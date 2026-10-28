@@ -668,7 +668,7 @@ public class StickView extends View {
         if (stickList == null || stickList.isEmpty()) {
             return;
         }
-        canvas.drawColor(Color.WHITE);
+        canvas.drawColor(Const.FEAR_GREED_BACKGROUND);
         StickInfo latest = stickList.get(0);
         int width = comnInfo.getScreenWidth();
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1073,9 +1073,28 @@ public class StickView extends View {
         }
         float[] ends = this.getLineEnds(x1, y1, x2, y2, type);
         canvas.drawLine(ends[0], ends[1], ends[2], ends[3], paint);
+        if (type == TrendLine.TYPE_HORIZONTAL) {
+            this.drawHorizontalPrice(canvas, paint, y1);
+        }
         if (type == TrendLine.TYPE_CHANNEL) {
             canvas.drawLine(x1, y1 + offsetPx, x2, y2 + offsetPx, paint);
         }
+    }
+
+    /* 水平线的价格：显示在线上方，上方放不下（超出上边沿）时显示在线下方 */
+    private void drawHorizontalPrice(Canvas canvas, Paint linePaint, float y) {
+        String text = getLimitDigit(this.getPrice(new Point(0, Math.round(y))));
+        Paint textPaint = new Paint(linePaint);
+        textPaint.setStyle(Paint.Style.FILL);
+        textPaint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        textPaint.setFakeBoldText(true);
+        Paint.FontMetrics fm = textPaint.getFontMetrics();
+        float margin = 6;
+        float baseline = y - margin - fm.descent;
+        if (baseline + fm.ascent < 0) {
+            baseline = y + margin - fm.ascent;
+        }
+        canvas.drawText(text, 8, baseline, textPaint);
     }
 
     private void drawFibonacci(Canvas canvas, Paint paint, float x1, float y1,

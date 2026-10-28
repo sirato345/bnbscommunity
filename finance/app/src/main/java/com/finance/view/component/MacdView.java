@@ -119,6 +119,7 @@ public class MacdView  extends View {
     private final Paint intervalButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private PopupWindow symbolPopupWindow;
     private int firstVisibleCryptoTimeframe = 2;
+    private String lastSelectedCryptoTimeframe;
     private float cryptoTimeframeScrollDistance;
     private final DecimalFormat cryptoPriceFormat = new DecimalFormat(
             "0.00", DecimalFormatSymbols.getInstance(Locale.US));
@@ -356,7 +357,7 @@ public class MacdView  extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         if (activity.isFearGreedSymbol()) {
-            canvas.drawColor(Color.WHITE);
+            canvas.drawColor(Const.FEAR_GREED_BACKGROUND);
         }
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdj(canvas);
@@ -531,7 +532,7 @@ public class MacdView  extends View {
     /* 标题字号与右侧价格一致；没有价格时用默认大字号 */
     private float getTitleTextSize() {
         return (getCurrentPriceText() == null ? Const.FONT_SIZE_ARROW : getPriceTextSize())
-                - 8 * getResources().getDisplayMetrics().density;
+                - 1.6f * getResources().getDisplayMetrics().density;
     }
 
     private float getBtcTitleTextSize() {
@@ -622,10 +623,10 @@ public class MacdView  extends View {
         float top = Const.MACD_CHART_VERTICAL_INSET;
         float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        guidePaint.setColor(Color.rgb(90, 90, 90));
-        guidePaint.setStrokeWidth(1);
+        guidePaint.setColor(Color.rgb(128, 128, 128));
+        guidePaint.setStrokeWidth(3);
         guidePaint.setStyle(Paint.Style.STROKE);
-        guidePaint.setPathEffect(new DashPathEffect(new float[] {10, 8}, 0));
+        guidePaint.setPathEffect(null);
         for (float level : new float[] {20f, 80f}) {
             float y = getKdjY(level, top, bottom);
             Path guide = new Path();
@@ -704,11 +705,13 @@ public class MacdView  extends View {
                 - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
                 - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
         float bottom = getHeight() - 7 * density;
-        float textSize = 14 * density * 0.88f;
+        float textSize = 16 * density * 0.88f;
         intervalButtonPaint.setTextSize(textSize);
         intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
+        ensureSelectedTimeframeVisible();
         int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
-        for (int i = firstVisibleCryptoTimeframe; i <= lastVisible; i++) {
+        for (int k = firstVisibleCryptoTimeframe; k <= lastVisible; k++) {
+            int i = k % CRYPTO_TIMEFRAMES.length;
             float left = controlsLeft;
             float right = left + buttonWidth;
             float top = bottom - buttonHeight;
@@ -752,7 +755,8 @@ public class MacdView  extends View {
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
         int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
-        for (int i = firstVisibleCryptoTimeframe; i <= lastVisible; i++) {
+        for (int k = firstVisibleCryptoTimeframe; k <= lastVisible; k++) {
+            int i = k % CRYPTO_TIMEFRAMES.length;
             float left = controlsLeft;
             float right = left + buttonWidth;
             if (x >= left && x <= right && y >= top && y <= bottom) {
@@ -786,21 +790,14 @@ public class MacdView  extends View {
 
         cryptoTimeframeScrollDistance += distanceX;
         float scrollStep = buttonWidth + gap;
-        int maxFirstVisible = CRYPTO_TIMEFRAMES.length - VISIBLE_CRYPTO_TIMEFRAMES;
-        while (cryptoTimeframeScrollDistance >= scrollStep
-                && firstVisibleCryptoTimeframe < maxFirstVisible) {
-            firstVisibleCryptoTimeframe++;
+        int count = CRYPTO_TIMEFRAMES.length;
+        while (cryptoTimeframeScrollDistance >= scrollStep) {
+            firstVisibleCryptoTimeframe = (firstVisibleCryptoTimeframe + 1) % count;
             cryptoTimeframeScrollDistance -= scrollStep;
         }
-        while (cryptoTimeframeScrollDistance <= -scrollStep
-                && firstVisibleCryptoTimeframe > 0) {
-            firstVisibleCryptoTimeframe--;
+        while (cryptoTimeframeScrollDistance <= -scrollStep) {
+            firstVisibleCryptoTimeframe = (firstVisibleCryptoTimeframe + count - 1) % count;
             cryptoTimeframeScrollDistance += scrollStep;
-        }
-        if ((firstVisibleCryptoTimeframe == 0 && cryptoTimeframeScrollDistance < 0)
-                || (firstVisibleCryptoTimeframe == maxFirstVisible
-                && cryptoTimeframeScrollDistance > 0)) {
-            cryptoTimeframeScrollDistance = 0;
         }
         invalidate();
         return true;
@@ -823,6 +820,37 @@ public class MacdView  extends View {
         float bottom = getHeight() - 7 * density;
         float top = bottom - 34 * density * 0.88f;
         return x >= left && x <= right && y >= top && y <= bottom;
+    }
+
+    /* 选中的周期不在显示范围内时（如上下滑动切换），自动滑动周期栏使其可见 */
+    private void ensureSelectedTimeframeVisible() {
+        String lastSelected = lastSelectedCryptoTimeframe;
+        int selectedIndex = -1;
+        for (int i = 0; i < CRYPTO_TIMEFRAMES.length; i++) {
+            if (isCryptoTimeframeSelected(CRYPTO_TIMEFRAMES[i])) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        if (selectedIndex < 0) {
+            return;
+        }
+        lastSelectedCryptoTimeframe = CRYPTO_TIMEFRAMES[selectedIndex];
+        // 只在选中的周期发生变化时调整，不干扰用户手动滑动周期栏
+        if (CRYPTO_TIMEFRAMES[selectedIndex].equals(lastSelected)) {
+            return;
+        }
+        int count = CRYPTO_TIMEFRAMES.length;
+        int offset = ((selectedIndex - firstVisibleCryptoTimeframe) % count + count) % count;
+        if (offset >= VISIBLE_CRYPTO_TIMEFRAMES) {
+            // 取较近的方向滑动：向右滑到选中项成为最右，或向左滑到选中项成为最左
+            if (offset - VISIBLE_CRYPTO_TIMEFRAMES + 1 <= count - offset) {
+                firstVisibleCryptoTimeframe = (firstVisibleCryptoTimeframe
+                        + offset - VISIBLE_CRYPTO_TIMEFRAMES + 1) % count;
+            } else {
+                firstVisibleCryptoTimeframe = selectedIndex;
+            }
+        }
     }
 
     private float getCryptoTimeframeButtonWidth(float density, float gap) {
@@ -1381,7 +1409,7 @@ public class MacdView  extends View {
                     getSymbolLabel(optionSymbol))));
         }
         width += (int) (8 * density);
-        final int itemSpacing = 40;
+        final int itemSpacing = 50;
         final String[] labels = new String[otherSymbols.size()];
         final Rect[] labelBounds = new Rect[otherSymbols.size()];
         final int[] labelTops = new int[otherSymbols.size()];
