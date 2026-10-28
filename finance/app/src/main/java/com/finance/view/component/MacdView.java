@@ -45,6 +45,7 @@ public class MacdView  extends View {
     private static final String[] CRYPTO_TIMEFRAMES = {
             "5m", "15m", "1h", "4h", "d", "3d", "w", "m", "q", "y"
     };
+    private static final String[] STOCK_TIMEFRAMES = {"d", "w", "m", "q", "y"};
     private static final int VISIBLE_CRYPTO_TIMEFRAMES = 5;
     private static final float CHART_TITLE_BASELINE = 45;
     private static final String DIVERGENCE_PREFS = "divergence_lines";
@@ -693,10 +694,19 @@ public class MacdView  extends View {
         canvas.drawText(jValue, nextX, baseline, paint);
     }
 
+    private boolean showsTimeframeControls() {
+        return !activity.isFearGreedSymbol();
+    }
+
+    private String[] getTimeframes() {
+        return activity.isCryptoSymbol() ? CRYPTO_TIMEFRAMES : STOCK_TIMEFRAMES;
+    }
+
     private void drawIntradayControls(Canvas canvas) {
-        if (!activity.isCryptoSymbol()) {
+        if (!showsTimeframeControls()) {
             return;
         }
+        final String[] timeframes = getTimeframes();
         float density = getResources().getDisplayMetrics().density;
         float gap = 6 * density;
         float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
@@ -709,13 +719,14 @@ public class MacdView  extends View {
         intervalButtonPaint.setTextSize(textSize);
         intervalButtonPaint.setTextAlign(Paint.Align.CENTER);
         ensureSelectedTimeframeVisible();
-        int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
-        for (int k = firstVisibleCryptoTimeframe; k <= lastVisible; k++) {
-            int i = k % CRYPTO_TIMEFRAMES.length;
+        int first = activity.isCryptoSymbol() ? firstVisibleCryptoTimeframe : 0;
+        int lastVisible = first + VISIBLE_CRYPTO_TIMEFRAMES - 1;
+        for (int k = first; k <= lastVisible; k++) {
+            int i = k % timeframes.length;
             float left = controlsLeft;
             float right = left + buttonWidth;
             float top = bottom - buttonHeight;
-            String timeframe = CRYPTO_TIMEFRAMES[i];
+            String timeframe = timeframes[i];
             boolean selected = isCryptoTimeframeSelected(timeframe);
             intervalButtonPaint.setStyle(Paint.Style.FILL);
             intervalButtonPaint.setColor(Color.TRANSPARENT);
@@ -742,9 +753,10 @@ public class MacdView  extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        if (!activity.isCryptoSymbol()) {
+        if (!showsTimeframeControls()) {
             return false;
         }
+        final String[] timeframes = getTimeframes();
         float density = getResources().getDisplayMetrics().density;
         float gap = 6 * density;
         float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
@@ -754,13 +766,14 @@ public class MacdView  extends View {
                 - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
-        int lastVisible = firstVisibleCryptoTimeframe + VISIBLE_CRYPTO_TIMEFRAMES - 1;
-        for (int k = firstVisibleCryptoTimeframe; k <= lastVisible; k++) {
-            int i = k % CRYPTO_TIMEFRAMES.length;
+        int first = activity.isCryptoSymbol() ? firstVisibleCryptoTimeframe : 0;
+        int lastVisible = first + VISIBLE_CRYPTO_TIMEFRAMES - 1;
+        for (int k = first; k <= lastVisible; k++) {
+            int i = k % timeframes.length;
             float left = controlsLeft;
             float right = left + buttonWidth;
             if (x >= left && x <= right && y >= top && y <= bottom) {
-                activity.selectCryptoTimeframe(CRYPTO_TIMEFRAMES[i]);
+                activity.selectCryptoTimeframe(timeframes[i]);
                 return true;
             }
             controlsLeft = right + gap;
@@ -804,7 +817,7 @@ public class MacdView  extends View {
     }
 
     public boolean isCryptoTimeframeControlTouch(MotionEvent event) {
-        if (!activity.isCryptoSymbol()) {
+        if (!showsTimeframeControls()) {
             return false;
         }
         int[] location = new int[2];
@@ -824,6 +837,9 @@ public class MacdView  extends View {
 
     /* 选中的周期不在显示范围内时（如上下滑动切换），自动滑动周期栏使其可见 */
     private void ensureSelectedTimeframeVisible() {
+        if (!activity.isCryptoSymbol()) {
+            return;
+        }
         String lastSelected = lastSelectedCryptoTimeframe;
         int selectedIndex = -1;
         for (int i = 0; i < CRYPTO_TIMEFRAMES.length; i++) {
@@ -1357,12 +1373,6 @@ public class MacdView  extends View {
     }
 
     public boolean isSymbolTitleHit(MotionEvent event) {
-        if (!(Const.Symbol.btc.toString().equals(symbol)
-                || Const.Symbol.eth.toString().equals(symbol)
-                || Const.Symbol.trump.toString().equals(symbol)
-                || Const.Symbol.fng.toString().equals(symbol))) {
-            return false;
-        }
         Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setTextSize(Const.Symbol.btc.toString().equals(symbol)
                 ? getBtcTitleTextSize() : getTitleTextSize());
@@ -1390,10 +1400,13 @@ public class MacdView  extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        Const.Symbol[] symbols = {
-                Const.Symbol.btc, Const.Symbol.eth, Const.Symbol.trump, Const.Symbol.fng
-        };
         Const.Symbol selectedSymbol = Const.Symbol.valueOf(symbol);
+        boolean cryptoMenu = isCryptoMenuSymbol(selectedSymbol);
+        Const.Symbol[] symbols = cryptoMenu
+                ? new Const.Symbol[] {Const.Symbol.btc, Const.Symbol.eth,
+                        Const.Symbol.trump, Const.Symbol.fng}
+                : new Const.Symbol[] {Const.Symbol.dow, Const.Symbol.sp500,
+                        Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond};
         List<Const.Symbol> otherSymbols = new ArrayList<>();
         for (Const.Symbol optionSymbol : symbols) {
             if (optionSymbol != selectedSymbol) {
@@ -1478,9 +1491,30 @@ public class MacdView  extends View {
                 return getResources().getString(R.string.symbol_trump);
             case fng:
                 return getResources().getString(R.string.symbol_fng);
+            case dow:
+                return replace(getResources().getString(R.string.symbol_dow));
+            case sp500:
+                return replace(getResources().getString(R.string.symbol_sp500));
+            case nasdaq:
+                return replace(getResources().getString(R.string.symbol_nasdaq));
+            case nikkei:
+                return replace(getResources().getString(R.string.symbol_nikkei));
+            case usdx:
+                return replace(getResources().getString(R.string.symbol_dollor));
+            case usbond:
+                return replace(getResources().getString(R.string.symbol_usbond));
+            case xauusd:
+                return replace(getResources().getString(R.string.symbol_gold));
+            case xagusd:
+                return replace(getResources().getString(R.string.symbol_silver));
             default:
                 throw new IllegalArgumentException("Unsupported symbol: " + optionSymbol);
         }
+    }
+
+    private boolean isCryptoMenuSymbol(Const.Symbol target) {
+        return target == Const.Symbol.btc || target == Const.Symbol.eth
+                || target == Const.Symbol.trump || target == Const.Symbol.fng;
     }
 
     /* 单击事件，由Activity转发事件 */

@@ -855,10 +855,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             selectBinanceInterval(selectedTimeframe);
             return;
         }
-        if (!isCryptoSymbol()
+        if (isFearGreedSymbol()
                 || !("d".equals(selectedTimeframe) || "3d".equals(selectedTimeframe)
                 || "w".equals(selectedTimeframe) || "m".equals(selectedTimeframe)
-                || "q".equals(selectedTimeframe) || "y".equals(selectedTimeframe))) {
+                || "q".equals(selectedTimeframe) || "y".equals(selectedTimeframe))
+                || ("3d".equals(selectedTimeframe) && !isCryptoSymbol())) {
             return;
         }
         clearIntradaySelection();
