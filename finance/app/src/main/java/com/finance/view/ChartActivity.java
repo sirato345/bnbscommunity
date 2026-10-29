@@ -90,6 +90,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private long binanceRealtimeRequestedAt;
     private int binanceRealtimeRequestId;
     private boolean cryptoTimeframeControlGesture;
+    private boolean titleTapCandidate;
     private String realtimeCandle;
     private LinearLayout editButtonContainer;
     private ImageView editButton;
@@ -1181,6 +1182,20 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     /* 触摸 */
     public boolean onTouchEvent(MotionEvent event) {
+        if (titleTapCandidate) {
+            // 标题点击已在按下时处理，本次触摸的后续事件不再作为滑动
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                titleTapCandidate = false;
+            }
+            return true;
+        }
+        if (!isLongPress && !isEidtMode && event.getPointerCount() == 1
+                && event.getAction() == MotionEvent.ACTION_DOWN
+                && macdView.handleSymbolTitleTap(event)) {
+            titleTapCandidate = true;
+            return true;
+        }
         if (!isLongPress) {
             boolean isDispOperate = false;
             // 自定义长按事件处理
@@ -1309,6 +1324,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             break;
                     }
                 }
+                // 标题点击：手指按下的瞬间就弹出菜单
                 if(!isDispOperate) {
                     // 由Activity处理双击,滑动事件
                     ges.onTouchEvent(event);
@@ -1532,9 +1548,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
         // 标题点击不等待双击判定，立即弹出菜单
-        if (!isLongPress && !isEidtMode && macdView.handleSymbolTitleTap(e)) {
-            return true;
-        }
         return false;
     }
 
