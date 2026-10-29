@@ -293,18 +293,17 @@ public class StickView extends View {
                     break;
                 }
                 if (downPoint != null && editLine == null && !tapOnLine
-                        && activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL
-                        && (currentPoint == null
-                        || this.getDistance(downPoint, currentPoint) < TAP_SLOP_PX)) {
-                    // 水平线：点击即画
-                    currentPoint = downPoint;
+                        && activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL) {
+                    // 水平线：点击或拖动后松手，画在手指停下的位置
+                    if (currentPoint == null) {
+                        currentPoint = downPoint;
+                    }
                     this.saveTrendLine();
                 } else if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
                     // 低于一定长度,不画线（编辑时保留原线；水平线只需上下移动）
                     if (length > 120 || (editLine != null
-                            && editLine.getType() == TrendLine.TYPE_HORIZONTAL
-                            && length >= TAP_SLOP_PX)) {
+                            && editLine.getType() == TrendLine.TYPE_HORIZONTAL)) {
                         if (editLine != null) {
                             activity.deleteTrendLine(editLine.getId());
                         }
@@ -544,7 +543,12 @@ public class StickView extends View {
 
     /* 吸附到触摸位置K线的开高低收价 */
     private Point snap(Point point) {
-        if (!activity.isTrendSnapEnabled() || stickList == null || stickList.isEmpty()) {
+        boolean horizontal = editLine != null
+                ? editLine.getType() == TrendLine.TYPE_HORIZONTAL
+                : activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL;
+        // 水平线需要设置到任意价格，不吸附到K线价格
+        if (horizontal || !activity.isTrendSnapEnabled()
+                || stickList == null || stickList.isEmpty()) {
             return point;
         }
         StickInfo stick = this.getRelatedStick(point.x);
@@ -973,7 +977,7 @@ public class StickView extends View {
             }
         }
         if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL) {
-            float price = editLine == null ? price1 : this.getPrice(currentPoint);
+            float price = this.getPrice(currentPoint);
             price1 = price;
             price2 = price;
         }
@@ -1074,8 +1078,7 @@ public class StickView extends View {
         }
         int type = editLine != null ? editLine.getType() : activity.getTrendLineType();
         paint.setColor(editLine != null ? editLine.getColor() : activity.getTrendLineColor());
-        float y1 = type == TrendLine.TYPE_HORIZONTAL
-                ? (editLine != null ? currentPoint.y : downPoint.y) : downPoint.y;
+        float y1 = type == TrendLine.TYPE_HORIZONTAL ? currentPoint.y : downPoint.y;
         float y2 = type == TrendLine.TYPE_HORIZONTAL ? y1 : currentPoint.y;
         float offsetPx = editLine != null ? this.getChannelOffsetPx(editLine) : 0;
         if (editLine != null && type == TrendLine.TYPE_RAY && editLine.getEidtPoint() == 1) {
