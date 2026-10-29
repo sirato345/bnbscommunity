@@ -278,7 +278,8 @@ public class DBOperator {
     private boolean isCryptoSymbol(String symbol) {
         return Const.Symbol.btc.toString().equals(symbol)
                 || Const.Symbol.eth.toString().equals(symbol)
-                || Const.Symbol.trump.toString().equals(symbol);
+                || Const.Symbol.trump.toString().equals(symbol)
+                || Const.Symbol.fng.toString().equals(symbol);
     }
 
     private void calculateThreeDay(String symbol) {
@@ -334,10 +335,10 @@ public class DBOperator {
         String tableDaily = symbol + "_d";
         String tableWeek = symbol + "_w";
         normalizeWeekDates(symbol, tableWeek);
-        String query = "select * from " + tableDaily + " where DATE >= "
+        String query = "select * from " + tableDaily + " where DATE >= coalesce("
                 + "(select strftime('%Y%m%d', date(substr(max(DATE),1,4) || '-' "
                 + "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2),"
-                + "'-6 day')) from " + tableWeek + ") order by DATE";
+                + "'-6 day')) from " + tableWeek + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> weekMap = new TreeMap<>();
@@ -412,9 +413,9 @@ public class DBOperator {
     private void calculateMonth(String symbol) {
         String tableDaily = symbol + "_d";
         String tableMonth = symbol + "_m";
-        String query = "select * from " + tableDaily + " where DATE >= " +
+        String query = "select * from " + tableDaily + " where DATE >= coalesce(" +
                 "(select substr(max(DATE),1,4) || substr(max(DATE),5,2) from "
-                + tableMonth + ") order by DATE";
+                + tableMonth + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> monthMap = new TreeMap<>();
@@ -446,13 +447,13 @@ public class DBOperator {
     private void calculateQuarter(String symbol) {
         String tableMonthly = symbol + "_m";
         String tableQuarter = symbol + "_q";
-        String query = "select * from " + tableMonthly + " where DATE >= " +
+        String query = "select * from " + tableMonthly + " where DATE >= coalesce(" +
                 " (select substr(max(DATE),1,4) || CASE " +
                 " WHEN cast(substr(max(DATE),5,2) as integer) BETWEEN 1 AND 3 THEN '01'" +
                 " WHEN cast(substr(max(DATE),5,2) as integer) BETWEEN 4 and 6 THEN '04'" +
                 " WHEN cast(substr(max(DATE),5,2) as integer) BETWEEN 7 and 9 THEN '07'" +
                 " ELSE '10' END from "
-                + tableQuarter + ") order by DATE";
+                + tableQuarter + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> quarterMap = new TreeMap<>();
@@ -484,9 +485,9 @@ public class DBOperator {
     private void calculateYear(String symbol) {
         String tableDaily = symbol + "_d";
         String tableYear = symbol + "_y";
-        String query = "select * from " + tableDaily + " where DATE >= " +
+        String query = "select * from " + tableDaily + " where DATE >= coalesce(" +
                 "(select substr(max(DATE),1,4) from "
-                + tableYear + ") order by DATE";
+                + tableYear + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
         List<Object[]> dataList = new ArrayList<>();
         Map<String, Object[]> yearMap = new TreeMap<>();

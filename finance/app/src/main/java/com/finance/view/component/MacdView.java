@@ -47,6 +47,7 @@ public class MacdView  extends View {
             "5m", "15m", "1h", "4h", "d", "3d", "w", "m", "q", "y"
     };
     private static final String[] STOCK_TIMEFRAMES = {"d", "w", "m", "q", "y"};
+    private static final String[] FNG_TIMEFRAMES = {"d", "3d", "w", "m", "y"};
     private static final int VISIBLE_CRYPTO_TIMEFRAMES = 5;
     private static final float CHART_TITLE_BASELINE = 45;
     private static final String DIVERGENCE_PREFS = "divergence_lines";
@@ -754,10 +755,13 @@ public class MacdView  extends View {
     }
 
     private boolean showsTimeframeControls() {
-        return !activity.isFearGreedSymbol();
+        return true;
     }
 
     private String[] getTimeframes() {
+        if (activity.isFearGreedSymbol()) {
+            return FNG_TIMEFRAMES;
+        }
         return activity.isCryptoSymbol() ? CRYPTO_TIMEFRAMES : STOCK_TIMEFRAMES;
     }
 

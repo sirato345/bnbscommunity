@@ -15,7 +15,7 @@ public class Const {
 
     public static final String ERR_FILE = "finance_err_";
 
-    public static final int DB_VERSION = 9;
+    public static final int DB_VERSION = 10;
 
     public static String[] timeFrames = new String[] { "d", "w", "m", "q", "y" };
 

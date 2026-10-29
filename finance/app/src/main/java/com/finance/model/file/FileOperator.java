@@ -86,7 +86,8 @@ public class FileOperator {
             }
             if (Const.Symbol.btc.toString().equals(symbol)
                     || Const.Symbol.eth.toString().equals(symbol)
-                    || Const.Symbol.trump.toString().equals(symbol)) {
+                    || Const.Symbol.trump.toString().equals(symbol)
+                    || Const.Symbol.fng.toString().equals(symbol)) {
                 tableList.add(symbol + "_3d");
             }
         }

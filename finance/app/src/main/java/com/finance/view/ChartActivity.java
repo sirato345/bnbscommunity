@@ -857,10 +857,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return;
         }
         if (isFearGreedSymbol()
-                || !("d".equals(selectedTimeframe) || "3d".equals(selectedTimeframe)
+                ? "q".equals(selectedTimeframe)
+                : (!("d".equals(selectedTimeframe) || "3d".equals(selectedTimeframe)
                 || "w".equals(selectedTimeframe) || "m".equals(selectedTimeframe)
                 || "q".equals(selectedTimeframe) || "y".equals(selectedTimeframe))
-                || ("3d".equals(selectedTimeframe) && !isCryptoSymbol())) {
+                || ("3d".equals(selectedTimeframe) && !isCryptoSymbol()))) {
             return;
         }
         clearIntradaySelection();
@@ -1057,9 +1058,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
             intradayInterval = null;
             resetIntradayRecords();
         }
-        if ((!isCryptoSymbol(newSymbol)
-                && Const.TimeFrame.d3.toString().equals(timeFrame))
-                || Const.Symbol.fng.toString().equals(newSymbol)) {
+        if (!isCryptoSymbol(newSymbol)
+                && Const.TimeFrame.d3.toString().equals(timeFrame)
+                && !Const.Symbol.fng.toString().equals(newSymbol)) {
+            timeFrame = Const.TimeFrame.d.toString();
+        }
+        if (Const.Symbol.fng.toString().equals(newSymbol)
+                && Const.TimeFrame.q.toString().equals(timeFrame)) {
             timeFrame = Const.TimeFrame.d.toString();
         }
         symbol = newSymbol;

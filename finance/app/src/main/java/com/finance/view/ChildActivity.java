@@ -157,16 +157,14 @@ public class ChildActivity extends Activity {
             drawable= getResources().getDrawable(R.drawable.button_timeframe_select);
             button.setBackground(drawable);
         }
-        setCryptoTimeframeEnabled(R.id.button_timeframe_3day, isCrypto);
+        setCryptoTimeframeEnabled(R.id.button_timeframe_3day,
+                isCrypto || Const.Symbol.fng.toString().equals(symbol));
         setCryptoTimeframeEnabled(R.id.button_timeframe_4h, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_1h, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_15m, isCrypto);
         setCryptoTimeframeEnabled(R.id.button_timeframe_5m, isCrypto);
         if (Const.Symbol.fng.toString().equals(symbol)) {
-            setCryptoTimeframeEnabled(R.id.button_timeframe_week, false);
-            setCryptoTimeframeEnabled(R.id.button_timeframe_month, false);
             setCryptoTimeframeEnabled(R.id.button_timeframe_quarter, false);
-            setCryptoTimeframeEnabled(R.id.button_timeframe_year, false);
         }
     }
 
