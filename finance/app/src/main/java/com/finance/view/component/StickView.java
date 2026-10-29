@@ -1,6 +1,7 @@
 package com.finance.view.component;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -73,6 +74,8 @@ public class StickView extends View {
     private Float currentValue;
     // 编辑中趋势线
     private TrendLine editLine;
+    private Bitmap loupeBitmap;
+    private Canvas loupeCanvas;
     // 正在调整宽度的通道线及当前偏移（像素）
     private TrendLine channelLine;
     private float channelOffsetPx;
@@ -615,15 +618,28 @@ public class StickView extends View {
         if (cy < radius) {
             cy = fy + radius + gap;
         }
+        // 放大镜必须完整留在画面内，不被K线区域的上下边沿截断
+        if (getHeight() > 2 * radius) {
+            cy = Math.max(radius, Math.min(cy, getHeight() - radius));
+        }
+        // 先把手指周围的内容画到独立位图，不受K线区域边沿裁剪，再贴进圆形放大镜
+        int size = Math.max(1, Math.round(radius * 2));
+        if (loupeBitmap == null || loupeBitmap.getWidth() != size) {
+            loupeBitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            loupeCanvas = new Canvas(loupeBitmap);
+        }
+        loupeBitmap.eraseColor(Color.BLACK);
+        loupeCanvas.save();
+        loupeCanvas.translate(radius, radius);
+        loupeCanvas.scale(scale, scale);
+        loupeCanvas.translate(-fx, -fy);
+        this.drawContent(loupeCanvas);
+        loupeCanvas.restore();
         canvas.save();
         Path circle = new Path();
         circle.addCircle(cx, cy, radius, Path.Direction.CW);
         canvas.clipPath(circle);
-        canvas.drawColor(Color.BLACK);
-        canvas.translate(cx, cy);
-        canvas.scale(scale, scale);
-        canvas.translate(-fx, -fy);
-        this.drawContent(canvas);
+        canvas.drawBitmap(loupeBitmap, cx - radius, cy - radius, null);
         canvas.restore();
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setStyle(Paint.Style.STROKE);
@@ -1062,6 +1078,11 @@ public class StickView extends View {
                 ? (editLine != null ? currentPoint.y : downPoint.y) : downPoint.y;
         float y2 = type == TrendLine.TYPE_HORIZONTAL ? y1 : currentPoint.y;
         float offsetPx = editLine != null ? this.getChannelOffsetPx(editLine) : 0;
+        if (editLine != null && type == TrendLine.TYPE_RAY && editLine.getEidtPoint() == 1) {
+            // 编辑射线起点：起点跟随手指，方向仍指向固定的第二点
+            this.drawLineShape(canvas, paint, currentPoint.x, y2, downPoint.x, y1, type, offsetPx);
+            return;
+        }
         this.drawLineShape(canvas, paint, downPoint.x, y1, currentPoint.x, y2, type, offsetPx);
     }
 

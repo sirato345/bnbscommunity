@@ -2,6 +2,7 @@ package com.finance.view.component;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -69,6 +70,8 @@ public class MacdView  extends View {
     private String draggingDivergenceKey;
     private boolean draggingDivergenceStart;
     private Point draggingDivergencePoint;
+    private Bitmap loupeBitmap;
+    private Canvas loupeCanvas;
 
     private static final class DivergenceLine {
         String key;
@@ -357,6 +360,60 @@ public class MacdView  extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        drawContent(canvas);
+        drawLoupe(canvas);
+    }
+
+    /* 拖动背离线端点时，在手指上方显示放大镜（允许画到本视图上方的K线区域） */
+    private void drawLoupe(Canvas canvas) {
+        if (draggingDivergencePoint == null || draggingDivergenceKey == null) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float radius = 60 * density;
+        float gap = 40 * density;
+        float scale = 2.5f;
+        float fx = draggingDivergencePoint.x;
+        float fy = draggingDivergencePoint.y;
+        float cx = Math.max(radius, Math.min(fx, getWidth() - radius));
+        float cy = fy - radius - gap;
+        int size = Math.max(1, Math.round(radius * 2));
+        if (loupeBitmap == null || loupeBitmap.getWidth() != size) {
+            loupeBitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            loupeCanvas = new Canvas(loupeBitmap);
+        }
+        loupeBitmap.eraseColor(Color.BLACK);
+        loupeCanvas.save();
+        loupeCanvas.translate(radius, radius);
+        loupeCanvas.scale(scale, scale);
+        loupeCanvas.translate(-fx, -fy);
+        drawContent(loupeCanvas);
+        loupeCanvas.restore();
+        canvas.save();
+        Path circle = new Path();
+        circle.addCircle(cx, cy, radius, Path.Direction.CW);
+        canvas.clipPath(circle);
+        canvas.drawBitmap(loupeBitmap, cx - radius, cy - radius, null);
+        canvas.restore();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3);
+        paint.setColor(Color.DKGRAY);
+        canvas.drawCircle(cx, cy, radius, paint);
+        paint.setStrokeWidth(1);
+        paint.setColor(Color.RED);
+        canvas.drawLine(cx - radius, cy, cx + radius, cy, paint);
+        canvas.drawLine(cx, cy - radius, cx, cy + radius, paint);
+    }
+
+    private void invalidateWithLoupe() {
+        invalidate();
+        if (getParent() instanceof View) {
+            ((View) getParent()).invalidate();
+        }
+    }
+
+    private void drawContent(Canvas canvas) {
         if (activity.isFearGreedSymbol()) {
             canvas.drawColor(Const.FEAR_GREED_BACKGROUND);
         }
@@ -1098,7 +1155,7 @@ public class MacdView  extends View {
                 return false;
             }
             draggingDivergencePoint = new Point((int) x, (int) y);
-            invalidate();
+            invalidateWithLoupe();
             return true;
         }
         if (draggingDivergenceKey == null) {
@@ -1112,7 +1169,7 @@ public class MacdView  extends View {
             draggingDivergenceKey = null;
             draggingDivergencePoint = null;
         }
-        invalidate();
+        invalidateWithLoupe();
         return true;
     }
 

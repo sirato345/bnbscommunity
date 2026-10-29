@@ -968,6 +968,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // レイアウト設定
         LinearLayout linearLayout = new LinearLayout(this);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
+        // 允许MACD区域的放大镜画到上方的K线区域
+        linearLayout.setClipChildren(false);
         addContentView(linearLayout, new ViewGroup.LayoutParams(-1, -1));
         boolean isPortrait = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_PORTRAIT;
