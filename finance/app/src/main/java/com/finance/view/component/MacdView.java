@@ -415,7 +415,9 @@ public class MacdView  extends View {
 
     private void drawContent(Canvas canvas) {
         if (activity.isFearGreedSymbol()) {
-            canvas.drawColor(Const.FEAR_GREED_BACKGROUND);
+            Paint background = new Paint();
+            background.setColor(Const.FEAR_GREED_BACKGROUND);
+            canvas.drawRect(0, 0, getWidth(), getHeight(), background);
         }
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdj(canvas);

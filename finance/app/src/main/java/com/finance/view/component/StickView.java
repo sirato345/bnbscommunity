@@ -688,7 +688,9 @@ public class StickView extends View {
         if (stickList == null || stickList.isEmpty()) {
             return;
         }
-        canvas.drawColor(Const.FEAR_GREED_BACKGROUND);
+        Paint background = new Paint();
+        background.setColor(Const.FEAR_GREED_BACKGROUND);
+        canvas.drawRect(0, 0, getWidth(), getHeight(), background);
         StickInfo latest = stickList.get(0);
         int width = comnInfo.getScreenWidth();
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
