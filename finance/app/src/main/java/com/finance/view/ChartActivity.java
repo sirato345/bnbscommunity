@@ -1,6 +1,7 @@
 package com.finance.view;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
@@ -71,6 +72,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private MacdView macdView;
     // 日付のView
     private DateView dateView;
+    private LinearLayout chartLayout;
     // タッチイベント処理オブジェクト
     private GestureDetector ges;
     // 全局对象
@@ -441,7 +443,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         // 最小表示件数
         int minDisplayCount = comnInfo.getMaxStickCount();
-        List<Object[]> dataList = controller.getData(symbol, timeFrame, 400, offset, minDisplayCount);
+        List<Object[]> dataList = controller.getData(symbol, timeFrame,
+                getChartDataCount(minDisplayCount, false), offset, minDisplayCount);
         applyRealtimeCandle(dataList, timeFrame);
         List<StickInfo> stickList = new ArrayList<>();
         for (Object[] stickData : dataList) {
@@ -478,7 +481,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             setOffset(maxOffset);
         }
         int start = Math.max(0, offset - Const.DEFAULT_OFFSET);
-        int end = Math.min(intradayRecords.size(), start + 400);
+        int dataCount = getChartDataCount(minDisplayCount, true);
+        int end = Math.min(intradayRecords.size(), start + dataCount);
         List<Object[]> records = new ArrayList<>();
         for (int i = start; i < end; i++) {
             String[] fields = intradayRecords.get(i).split(",", -1);
@@ -494,6 +498,14 @@ public class ChartActivity extends FragmentActivity implements Observer,
             });
         }
         return records;
+    }
+
+    private int getChartDataCount(int visibleCount, boolean averageKLine) {
+        int requiredCount = visibleCount;
+        if (averageKLine) {
+            requiredCount += Const.SMOOTHED;
+        }
+        return Math.max(400, requiredCount);
     }
 
     private void maybeLoadMoreIntraday() {
@@ -896,7 +908,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // 最小表示件数
         int minDisplayCount = comnInfo.getMaxStickCount();
         // ＤＢ数据
-        List<Object[]> recordList = controller.getData(symbol, timeFrame, 400, this.offset, minDisplayCount);
+        List<Object[]> recordList = controller.getData(symbol, timeFrame,
+                getChartDataCount(minDisplayCount, true), this.offset, minDisplayCount);
         applyRealtimeCandle(recordList, timeFrame);
         // 四本値に対して平均値を求めた平均データリスト
         List<Object[]> averageList = this.getSimpleAverage(recordList);
@@ -973,34 +986,64 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // タイトル非表示
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         // レイアウト設定
-        LinearLayout linearLayout = new LinearLayout(this);
-        linearLayout.setOrientation(LinearLayout.VERTICAL);
+        chartLayout = new LinearLayout(this);
+        chartLayout.setOrientation(LinearLayout.VERTICAL);
         // 允许MACD区域的放大镜画到上方的K线区域
-        linearLayout.setClipChildren(false);
-        addContentView(linearLayout, new ViewGroup.LayoutParams(-1, -1));
+        chartLayout.setClipChildren(false);
+        addContentView(chartLayout, new ViewGroup.LayoutParams(-1, -1));
+        float[] weights = getChartAreaWeights();
+        // ローソク線のView設定
+        this.stickView = new StickView(this);
+        chartLayout.addView(stickView, new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                weights[0]));
+        // MACD線のView設定
+        this.macdView = new MacdView(this);
+        chartLayout.addView(macdView, new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                weights[1]));
+        // 日付のView設定
+        this.dateView = new DateView(this);
+        chartLayout.addView(dateView, new LayoutParams(LayoutParams.MATCH_PARENT, 0,
+                weights[2]));
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (chartLayout == null) {
+            return;
+        }
+        updateChartLayoutWeights();
+        if (controller != null) {
+            handler.removeCallbacks(zoomRefreshRunnable);
+            zoomRefreshPending = false;
+            showUI();
+        }
+    }
+
+    private float[] getChartAreaWeights() {
         boolean isPortrait = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+                == Configuration.ORIENTATION_PORTRAIT;
         float dateWeightAdjustment = isPortrait ? Const.WEIGHT_DATE / 6f : 0f;
         DisplayMetrics displayMetrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         int screenHeight = displayMetrics.heightPixels - (isPortrait ? 30 : 100);
         float areaWeightShift = Const.MACD_AREA_HEIGHT_SHIFT
                 * (float) Const.WEIGHT_ALL / screenHeight;
-        // ローソク線のView設定
-        this.stickView = new StickView(this);
-        linearLayout.addView(stickView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
-                        Const.WEIGHT_STICK - areaWeightShift));
-        // MACD線のView設定
-        this.macdView = new MacdView(this);
-        linearLayout.addView(macdView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
-                        Const.WEIGHT_MACD + dateWeightAdjustment + areaWeightShift));
-        // 日付のView設定
-        this.dateView = new DateView(this);
-        linearLayout.addView(dateView,
-                new LayoutParams(LayoutParams.MATCH_PARENT, 0,
-                        Const.WEIGHT_DATE - dateWeightAdjustment));
+        return new float[] {
+                Const.WEIGHT_STICK - areaWeightShift,
+                Const.WEIGHT_MACD + dateWeightAdjustment + areaWeightShift,
+                Const.WEIGHT_DATE - dateWeightAdjustment
+        };
+    }
+
+    private void updateChartLayoutWeights() {
+        float[] weights = getChartAreaWeights();
+        for (int i = 0; i < chartLayout.getChildCount(); i++) {
+            View child = chartLayout.getChildAt(i);
+            LayoutParams params = (LayoutParams) child.getLayoutParams();
+            params.weight = weights[i];
+            child.setLayoutParams(params);
+        }
     }
 
     @Override

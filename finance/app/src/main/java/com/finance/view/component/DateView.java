@@ -94,7 +94,7 @@ public class DateView extends View {
             drawTouchedDate(canvas);
             return;
         }
-        int tickCount = 5;
+        int tickCount = this.orientation == Configuration.ORIENTATION_LANDSCAPE ? 8 : 5;
         int width = getWidth();
         boolean intraday = activity.getIntradayInterval() != null;
         for (int t = 0; t < tickCount; t++) {
