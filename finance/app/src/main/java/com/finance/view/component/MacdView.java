@@ -29,9 +29,12 @@ import com.finance.view.component.macd.SignalLight;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.StickInfo;
+import com.finance.view.component.trendline.TrendLine;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -73,6 +76,15 @@ public class MacdView  extends View {
     private Point draggingDivergencePoint;
     private Bitmap loupeBitmap;
     private Canvas loupeCanvas;
+    private static final String KDJ_LINE_SUFFIX = "@kdj";
+    private static final int KDJ_NEAR_LINE_PX = 100;
+    private static final int KDJ_MIN_LENGTH_PX = 120;
+    private List<TrendLine> kdjLines = new ArrayList<>();
+    private TrendLine kdjEditLine;
+    private Point kdjDownPoint;
+    private Point kdjCurrentPoint;
+    private boolean kdjTouchActive;
+    private boolean kdjTapOnLine;
 
     private static final class DivergenceLine {
         String key;
@@ -134,6 +146,8 @@ public class MacdView  extends View {
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight macdKdjSignal = SignalLight.RED;
     private SignalLight sarAverageKdjSignal = SignalLight.RED;
+    private SignalLight fngTurnDownSignal = SignalLight.GREEN;
+    private SignalLight fngDeadCrossSignal = SignalLight.GREEN;
 
     public MacdView(Context context) {
         super(context);
@@ -367,15 +381,17 @@ public class MacdView  extends View {
 
     /* 拖动背离线端点时，在手指上方显示放大镜（允许画到本视图上方的K线区域） */
     private void drawLoupe(Canvas canvas) {
-        if (draggingDivergencePoint == null || draggingDivergenceKey == null) {
+        Point loupePoint = draggingDivergencePoint != null && draggingDivergenceKey != null
+                ? draggingDivergencePoint : getKdjLoupePoint();
+        if (loupePoint == null) {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
         float radius = 60 * density;
         float gap = 40 * density;
         float scale = 2.5f;
-        float fx = draggingDivergencePoint.x;
-        float fy = draggingDivergencePoint.y;
+        float fx = loupePoint.x;
+        float fy = loupePoint.y;
         float cx = Math.max(radius, Math.min(fx, getWidth() - radius));
         float cy = fy - radius - gap;
         int size = Math.max(1, Math.round(radius * 2));
@@ -422,6 +438,7 @@ public class MacdView  extends View {
         }
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdj(canvas);
+            drawKdjLines(canvas);
         } else if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
             this.drawMacdOsci(canvas);
             this.drawMacdLine(canvas, Color.parseColor("#FFFF00"));
@@ -441,21 +458,32 @@ public class MacdView  extends View {
     }
 
     private void calculateSignals() {
-        boolean macdIncreasing = false;
-        if (sizeOfStick >= EMA_SLOW + 1) {
-            float latestMacd = macdList.get(0).getMacd();
-            float previousMacd = macdList.get(1).getMacd();
-            macdIncreasing = latestMacd > previousMacd;
-        }
-        boolean kAboveD = isKAboveD();
-        macdKdjSignal = SignalLight.fromConditions(macdIncreasing, kAboveD);
+        calculateFearGreedSignals();
+        macdKdjSignal = fngTurnDownSignal;
+        sarAverageKdjSignal = fngDeadCrossSignal;
+    }
 
-        boolean sarBullish = !stickList.isEmpty()
-                && ParabolicSarCalculator.calculate(stickList).get(0) < stickList.get(0).getClose();
-        boolean priceAboveTenPeriodAverage = isPriceAboveTenPeriodAverage();
-        boolean macdBullish = isMacdAboveSignal();
-        sarAverageKdjSignal = SignalLight.fromConditions(
-                sarBullish, macdBullish, priceAboveTenPeriodAverage);
+    /* 恐慌指数画面：两个都成立为危险色，与加密货币的指标方向相反 */
+    private void calculateFearGreedSignals() {
+        fngTurnDownSignal = SignalLight.GREEN;
+        fngDeadCrossSignal = SignalLight.GREEN;
+        if (sizeOfStick < 2) {
+            return;
+        }
+        boolean kdjTurnDown = !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjK[1])
+                && kdjK[0] < kdjK[1];
+        boolean indexDown = sizeOfStick >= EMA_SLOW + 1
+                && macdList.get(0).getMacd() < macdList.get(1).getMacd();
+        int turnDown = (kdjTurnDown ? 1 : 0) + (indexDown ? 1 : 0);
+        fngTurnDownSignal = turnDown == 2 ? SignalLight.RED
+                : turnDown == 1 ? SignalLight.YELLOW : SignalLight.GREEN;
+        boolean kdjDead = !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjD[0])
+                && kdjK[0] < kdjD[0];
+        boolean macdDead = sizeOfStick >= EMA_SLOW + SIGNAL - 1
+                && macdList.get(0).getMacd() < macdList.get(0).getSignal();
+        int dead = (kdjDead ? 1 : 0) + (macdDead ? 1 : 0);
+        fngDeadCrossSignal = dead == 2 ? SignalLight.RED
+                : dead == 1 ? SignalLight.YELLOW : SignalLight.GREEN;
     }
 
     private boolean isMacdAboveSignal() {
@@ -491,7 +519,11 @@ public class MacdView  extends View {
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
         float top = getSignalControlsTop(buttonHeight, markerSize);
         if (Const.Symbol.fng.toString().equals(symbol)) {
-            drawFearGreedGauge(canvas, getWidth() - 8 * density,
+            drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
+                    buttonWidth, buttonHeight, markerSize, fngTurnDownSignal);
+            drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
+                    buttonWidth, buttonHeight, markerSize, fngDeadCrossSignal);
+            drawFearGreedGauge(canvas, firstSignalCenter - markerSize / 2 - markerGap,
                     top + buttonHeight / 2, markerSize, density);
             return;
         }
@@ -1209,6 +1241,382 @@ public class MacdView  extends View {
                 .edit().putString(hit.key, DIVERGENCE_DELETED).apply();
         invalidate();
         return true;
+    }
+
+    public void setKdjLines(List<TrendLine> lines) {
+        this.kdjLines = lines == null ? new ArrayList<>() : lines;
+    }
+
+    private boolean isKdjEditable() {
+        return Const.Macd.KDJ.toString().equals(macdType) && stickList != null
+                && !stickList.isEmpty() && comnInfo != null && maxStickCount > 0
+                && getHeight() > 0;
+    }
+
+    private float kdjTop() {
+        return Const.MACD_CHART_VERTICAL_INSET;
+    }
+
+    private float kdjBottom() {
+        return getHeight() - Const.MACD_CHART_VERTICAL_INSET;
+    }
+
+    private float kdjValueAt(float y) {
+        float value = (kdjBottom() - y) / (kdjBottom() - kdjTop()) * 140f - 20f;
+        return Math.max(-20f, Math.min(120f, value));
+    }
+
+    private long parseKdjTime(String date) {
+        try {
+            SimpleDateFormat format = new SimpleDateFormat(
+                    date.length() == 8 ? "yyyyMMdd" : "yyyy-MM-dd HH:mm", Locale.US);
+            format.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return format.parse(date).getTime();
+        } catch (Exception e) {
+            return Long.MIN_VALUE;
+        }
+    }
+
+    /* 日期对应的X坐标：画面内取K线中心；画面外按K线间距或时间比例外推 */
+    private int kdjXOf(String date) {
+        if (date == null) {
+            return Integer.MIN_VALUE;
+        }
+        int visible = Math.min(maxStickCount, stickList.size());
+        for (int i = 0; i < visible; i++) {
+            if (date.equals(stickList.get(i).getDate())) {
+                return stickList.get(i).getLineRect().centerX();
+            }
+        }
+        if (visible < 2) {
+            return Integer.MIN_VALUE;
+        }
+        int x0 = stickList.get(0).getLineRect().centerX();
+        int xN = stickList.get(visible - 1).getLineRect().centerX();
+        for (int i = visible; i < stickList.size(); i++) {
+            if (date.equals(stickList.get(i).getDate())) {
+                return Math.round(x0 - i * (float) (x0 - xN) / (visible - 1));
+            }
+        }
+        long t = parseKdjTime(date);
+        long t0 = parseKdjTime(stickList.get(0).getDate());
+        long tN = parseKdjTime(stickList.get(visible - 1).getDate());
+        if (t == Long.MIN_VALUE || t0 == Long.MIN_VALUE || tN == Long.MIN_VALUE || t0 == tN) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) Math.round(xN + (double) (t - tN) * (x0 - xN) / (t0 - tN));
+    }
+
+    /* X坐标对应的日期，与kdjXOf互为逆运算 */
+    private String kdjDateAt(int x) {
+        int visible = Math.min(maxStickCount, stickList.size());
+        StickInfo newest = stickList.get(0);
+        if (visible < 2) {
+            return newest.getDate();
+        }
+        int x0 = newest.getLineRect().centerX();
+        int xN = stickList.get(visible - 1).getLineRect().centerX();
+        if (x0 == xN) {
+            return newest.getDate();
+        }
+        float index = (x0 - x) * (float) (visible - 1) / (x0 - xN);
+        int rounded = Math.round(index);
+        if (rounded >= 0 && rounded < stickList.size()) {
+            return stickList.get(rounded).getDate();
+        }
+        long t0 = parseKdjTime(newest.getDate());
+        long tN = parseKdjTime(stickList.get(visible - 1).getDate());
+        if (t0 == Long.MIN_VALUE || tN == Long.MIN_VALUE || t0 == tN) {
+            return newest.getDate();
+        }
+        long t = Math.round(t0 - index * (double) (t0 - tN) / (visible - 1));
+        SimpleDateFormat format = new SimpleDateFormat(
+                newest.getDate().length() == 8 ? "yyyyMMdd" : "yyyy-MM-dd HH:mm", Locale.US);
+        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return format.format(new java.util.Date(t));
+    }
+
+    private Point kdjPoint(String date, float value) {
+        int x = kdjXOf(date);
+        if (x == Integer.MIN_VALUE) {
+            return null;
+        }
+        return new Point(x, Math.round(getKdjY(value, kdjTop(), kdjBottom())));
+    }
+
+    private double kdjLineDistance(TrendLine line, float x, float y) {
+        Point p1 = kdjPoint(line.getDate1(), line.getPrice1());
+        Point p2 = kdjPoint(line.getDate2(), line.getPrice2());
+        if (p1 == null || p2 == null) {
+            return Double.MAX_VALUE;
+        }
+        if (line.getType() == TrendLine.TYPE_HORIZONTAL) {
+            return Math.abs(y - p1.y);
+        }
+        Point end = line.getType() == TrendLine.TYPE_RAY ? rayEnd(p1, p2) : p2;
+        return distanceToSegment(x, y, p1.x, p1.y, end.x, end.y);
+    }
+
+    /* 射线从起点经过第二点延伸到很远处（超出部分由画布裁剪） */
+    private Point rayEnd(Point p1, Point p2) {
+        double dx = p2.x - p1.x;
+        double dy = p2.y - p1.y;
+        double length = Math.hypot(dx, dy);
+        if (length == 0) {
+            return p2;
+        }
+        double scale = 20000 / length;
+        return new Point((int) (p1.x + dx * scale), (int) (p1.y + dy * scale));
+    }
+
+    private TrendLine findKdjEditLine(float x, float y) {
+        TrendLine best = null;
+        float bestDistance = Const.EDIT_DISTANCE;
+        for (TrendLine line : kdjLines) {
+            Point p1 = kdjPoint(line.getDate1(), line.getPrice1());
+            Point p2 = kdjPoint(line.getDate2(), line.getPrice2());
+            if (p1 == null || p2 == null) {
+                continue;
+            }
+            if (line.getType() == TrendLine.TYPE_HORIZONTAL) {
+                float distance = Math.abs(y - p1.y);
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = line;
+                    line.setEidtPoint(1);
+                }
+                continue;
+            }
+            float d1 = (float) Math.hypot(p1.x - x, p1.y - y);
+            float d2 = (float) Math.hypot(p2.x - x, p2.y - y);
+            if (d1 <= bestDistance) {
+                bestDistance = d1;
+                best = line;
+                line.setEidtPoint(1);
+            }
+            if (d2 < bestDistance) {
+                bestDistance = d2;
+                best = line;
+                line.setEidtPoint(2);
+            }
+        }
+        return best;
+    }
+
+    private boolean isNearAnyKdjLine(float x, float y) {
+        for (TrendLine line : kdjLines) {
+            if (kdjLineDistance(line, x, y) <= KDJ_NEAR_LINE_PX) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* 编辑模式：在KDJ区域画水平线、射线、线段，并可拖动端点。返回true表示事件已处理 */
+    public boolean handleKdjLineEdit(int action, Point point) {
+        if (!isKdjEditable()) {
+            return false;
+        }
+        float x = point.x;
+        float y = point.y - comnInfo.getStickHeight();
+        if (action == MotionEvent.ACTION_DOWN) {
+            kdjTouchActive = y >= 0;
+            if (!kdjTouchActive) {
+                return false;
+            }
+            kdjEditLine = findKdjEditLine(x, y);
+            kdjTapOnLine = kdjEditLine == null && isNearAnyKdjLine(x, y);
+            kdjDownPoint = new Point((int) x, (int) y);
+            kdjCurrentPoint = null;
+            invalidateWithLoupe();
+            return true;
+        }
+        if (!kdjTouchActive) {
+            return false;
+        }
+        if (action == MotionEvent.ACTION_MOVE) {
+            if (kdjEditLine != null && kdjEditLine.getType() != TrendLine.TYPE_HORIZONTAL) {
+                Point fixed = kdjEditLine.getEidtPoint() == 1
+                        ? kdjPoint(kdjEditLine.getDate2(), kdjEditLine.getPrice2())
+                        : kdjPoint(kdjEditLine.getDate1(), kdjEditLine.getPrice1());
+                if (fixed != null) {
+                    kdjDownPoint = fixed;
+                }
+            }
+            kdjCurrentPoint = new Point((int) x, (int) y);
+        } else {
+            if (action == MotionEvent.ACTION_UP) {
+                kdjCurrentPoint = new Point((int) x, (int) y);
+                finishKdjLine();
+            }
+            kdjTouchActive = false;
+            kdjEditLine = null;
+            kdjDownPoint = null;
+            kdjCurrentPoint = null;
+        }
+        invalidateWithLoupe();
+        return true;
+    }
+
+    private void finishKdjLine() {
+        if (kdjDownPoint == null || kdjCurrentPoint == null && !isHorizontalDraft()) {
+            return;
+        }
+        Point current = kdjCurrentPoint != null ? kdjCurrentPoint : kdjDownPoint;
+        if (kdjEditLine != null) {
+            TrendLine edit = kdjEditLine;
+            if (edit.getType() == TrendLine.TYPE_HORIZONTAL) {
+                float value = kdjValueAt(current.y);
+                activity.deleteTrendLine(edit.getId());
+                saveKdjLine(edit.getType(), edit.getColor(),
+                        edit.getDate1(), value, edit.getDate2(), value);
+            } else if (distance(kdjDownPoint, current) > KDJ_MIN_LENGTH_PX) {
+                activity.deleteTrendLine(edit.getId());
+                if (edit.getEidtPoint() == 1) {
+                    saveKdjLine(edit.getType(), edit.getColor(),
+                            kdjDateAt(current.x), kdjValueAt(current.y),
+                            edit.getDate2(), edit.getPrice2());
+                } else {
+                    saveKdjLine(edit.getType(), edit.getColor(),
+                            edit.getDate1(), edit.getPrice1(),
+                            kdjDateAt(current.x), kdjValueAt(current.y));
+                }
+            }
+            return;
+        }
+        int type = activity.getTrendLineType();
+        if (!isKdjSupportedType(type)) {
+            return;
+        }
+        if (type == TrendLine.TYPE_HORIZONTAL && !kdjTapOnLine) {
+            float value = kdjValueAt(current.y);
+            String date = kdjDateAt(current.x);
+            saveKdjLine(type, activity.getTrendLineColor(), date, value, date, value);
+        } else if (type != TrendLine.TYPE_HORIZONTAL
+                && distance(kdjDownPoint, current) > KDJ_MIN_LENGTH_PX) {
+            if (type != TrendLine.TYPE_RAY) {
+                type = TrendLine.TYPE_SEGMENT;
+            }
+            saveKdjLine(type, activity.getTrendLineColor(),
+                    kdjDateAt(kdjDownPoint.x), kdjValueAt(kdjDownPoint.y),
+                    kdjDateAt(current.x), kdjValueAt(current.y));
+        }
+    }
+
+    private static boolean isKdjSupportedType(int type) {
+        return type == TrendLine.TYPE_SEGMENT || type == TrendLine.TYPE_RAY
+                || type == TrendLine.TYPE_HORIZONTAL;
+    }
+
+    private boolean isHorizontalDraft() {
+        return kdjEditLine != null ? kdjEditLine.getType() == TrendLine.TYPE_HORIZONTAL
+                : activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL;
+    }
+
+    private static double distance(Point a, Point b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    private void saveKdjLine(int type, int color, String date1, float value1,
+                             String date2, float value2) {
+        TrendLine line = new TrendLine();
+        line.setSymbol(activity.getSymbol());
+        line.setTimeFrame(activity.getTrendLineTimeFrame() + KDJ_LINE_SUFFIX);
+        line.setType(type);
+        line.setColor(color);
+        line.setDate1(date1);
+        line.setPrice1(value1);
+        line.setDate2(date2);
+        line.setPrice2(value2);
+        activity.saveTrendLine(line);
+    }
+
+    /* 编辑模式：双击KDJ区域的线删除。返回true表示命中并已删除 */
+    public boolean deleteKdjLineAt(Point point) {
+        if (!isKdjEditable()) {
+            return false;
+        }
+        float x = point.x;
+        float y = point.y - comnInfo.getStickHeight();
+        if (y < 0) {
+            return false;
+        }
+        TrendLine hit = null;
+        double best = KDJ_NEAR_LINE_PX;
+        for (TrendLine line : kdjLines) {
+            double distance = kdjLineDistance(line, x, y);
+            if (distance <= best) {
+                best = distance;
+                hit = line;
+            }
+        }
+        if (hit == null) {
+            return false;
+        }
+        // 双击的第二次按下已选中该线，清除以免抬起时又被重新保存
+        kdjTouchActive = false;
+        kdjEditLine = null;
+        kdjDownPoint = null;
+        kdjCurrentPoint = null;
+        kdjLines.remove(hit);
+        activity.deleteTrendLine(hit.getId());
+        invalidate();
+        return true;
+    }
+
+    private Point getKdjLoupePoint() {
+        return kdjTouchActive && kdjCurrentPoint != null ? kdjCurrentPoint : null;
+    }
+
+    private void drawKdjLines(Canvas canvas) {
+        if (!isKdjEditable()) {
+            return;
+        }
+        canvas.save();
+        canvas.clipRect(0, 0, getWidth(), getHeight());
+        boolean dragging = kdjTouchActive && kdjCurrentPoint != null;
+        for (TrendLine line : kdjLines) {
+            if (dragging && line == kdjEditLine) {
+                continue;
+            }
+            Point p1 = kdjPoint(line.getDate1(), line.getPrice1());
+            Point p2 = kdjPoint(line.getDate2(), line.getPrice2());
+            if (p1 != null && p2 != null) {
+                drawKdjShape(canvas, line.getType(), line.getColor(), p1, p2, line.getPrice1());
+            }
+        }
+        if (dragging && kdjDownPoint != null
+                && (kdjEditLine != null || isKdjSupportedType(activity.getTrendLineType()))) {
+            int type = kdjEditLine != null ? kdjEditLine.getType() : activity.getTrendLineType();
+            int color = kdjEditLine != null ? kdjEditLine.getColor() : activity.getTrendLineColor();
+            if (type == TrendLine.TYPE_HORIZONTAL) {
+                Point p = new Point(0, kdjCurrentPoint.y);
+                drawKdjShape(canvas, type, color, p, p, kdjValueAt(kdjCurrentPoint.y));
+            } else {
+                drawKdjShape(canvas, type == TrendLine.TYPE_RAY ? type : TrendLine.TYPE_SEGMENT,
+                        color, kdjDownPoint, kdjCurrentPoint, 0f);
+            }
+        }
+        canvas.restore();
+    }
+
+    private void drawKdjShape(Canvas canvas, int type, int color, Point p1, Point p2,
+                              float value) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(color);
+        paint.setStrokeWidth(3);
+        paint.setStyle(Paint.Style.STROKE);
+        if (type == TrendLine.TYPE_HORIZONTAL) {
+            canvas.drawLine(0, p1.y, getWidth(), p1.y, paint);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+            canvas.drawText(String.format(Locale.US, "%.1f", value), 2, p1.y - 4, paint);
+        } else if (type == TrendLine.TYPE_RAY) {
+            Point end = rayEnd(p1, p2);
+            canvas.drawLine(p1.x, p1.y, end.x, end.y, paint);
+        } else {
+            canvas.drawLine(p1.x, p1.y, p2.x, p2.y, paint);
+        }
     }
 
     private static float distanceToSegment(float px, float py,

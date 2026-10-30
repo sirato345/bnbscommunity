@@ -399,6 +399,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         stickView.setData(comnInfo, stickList, trendLines);
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
+        macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
         setImageView();
         int dateOffset = intradayInterval == null
                 ? offset : Math.min(offset, Const.DEFAULT_OFFSET);
@@ -410,7 +411,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private List<TrendLine> loadTrendLines() {
-        List<Object[]> datas = controller.loadTrendLines(symbol, getTrendLineTimeFrame());
+        return loadTrendLines(getTrendLineTimeFrame());
+    }
+
+    private List<TrendLine> loadTrendLines(String lineTimeFrame) {
+        List<Object[]> datas = controller.loadTrendLines(symbol, lineTimeFrame);
         List<TrendLine> trendLines = new ArrayList<>();
         for (Object[] data : datas) {
             TrendLine trendLine = new TrendLine();
@@ -1211,7 +1216,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 // 单手指操作
                 if (event.getPointerCount() == 1) {
                     Point point = this.ajustPoint(event);
-                    if (!macdView.handleDivergenceEdit(event.getAction(), point)) {
+                    if (macdView.handleKdjLineEdit(event.getAction(), point)) {
+                        if (event.getAction() == MotionEvent.ACTION_UP) {
+                            this.showUI();
+                        }
+                    } else if (!macdView.handleDivergenceEdit(event.getAction(), point)) {
                         stickView.onTouchEvent(event.getAction(), point);
                         this.showUI();
                     }
@@ -1389,7 +1398,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         if(isEidtMode) {
             Point point = this.ajustPoint(e);
-            if (!macdView.deleteDivergenceAt(point)) {
+            if (macdView.deleteKdjLineAt(point)) {
+                this.showUI();
+            } else if (!macdView.deleteDivergenceAt(point)) {
                 stickView.onDoubleTap(point);
             }
             return true;
@@ -1610,11 +1621,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void updateEditButtonImage() {
-        boolean fng = isFearGreedSymbol();
-        if (fng && isEidtMode) {
-            isEidtMode = false;
-        }
-        editButtonContainer.setVisibility(fng ? View.GONE : View.VISIBLE);
+        editButtonContainer.setVisibility(View.VISIBLE);
         editButton.setImageResource(R.drawable.ic_chart_edit);
         editButton.setColorFilter(isEidtMode
                 ? Color.rgb(66, 165, 245) : Color.rgb(207, 216, 220));
