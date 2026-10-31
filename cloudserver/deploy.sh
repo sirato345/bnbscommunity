@@ -71,11 +71,12 @@ gcloud run deploy "${SERVICE}" \
   --platform managed \
   --region "${REGION}" \
   --port 8080 \
-  --memory 2Gi \
+  --memory 512Mi \
   --cpu 1 \
   --concurrency 12 \
   --min-instances 0 \
   --max-instances 1 \
+  --cpu-throttling \
   --timeout 300 \
   --set-env-vars "DJANGO_SETTINGS_MODULE=config.settings" \
   --allow-unauthenticated \
