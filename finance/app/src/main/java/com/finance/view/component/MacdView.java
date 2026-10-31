@@ -1617,7 +1617,18 @@ public class MacdView  extends View {
             canvas.drawLine(0, p1.y, getWidth(), p1.y, paint);
             paint.setStyle(Paint.Style.FILL);
             paint.setTextSize(Const.FONT_SIZE_MIDDLE);
-            canvas.drawText(String.format(Locale.US, "%.1f", value), 2, p1.y - 4, paint);
+            Paint.FontMetrics fm = paint.getFontMetrics();
+            String text = String.format(Locale.US, "%.1f", value);
+            Rect textBounds = new Rect();
+            paint.getTextBounds(text, 0, text.length(), textBounds);
+            // 以数字实际字形为准，线上方与线下方的间距保持一致
+            float gap = 4 + (textBounds.top - fm.ascent);
+            float baseline = p1.y - gap;
+            // 上方会碰到标题文字时，价格改显示在线下方
+            if (baseline + fm.ascent < getTitleBaseline() + 6) {
+                baseline = p1.y + gap - textBounds.top;
+            }
+            canvas.drawText(text, 2, baseline, paint);
         } else if (type == TrendLine.TYPE_RAY) {
             Point end = rayEnd(p1, p2);
             canvas.drawLine(p1.x, p1.y, end.x, end.y, paint);
