@@ -13,6 +13,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -84,7 +85,8 @@ public class MacdView  extends View {
     private Point kdjDownPoint;
     private Point kdjCurrentPoint;
     private boolean kdjTouchActive;
-    private boolean kdjTapOnLine;
+    private long kdjTapCreatedTime;
+    private int kdjTapCreatedLineCount = -1;
 
     private static final class DivergenceLine {
         String key;
@@ -1403,15 +1405,6 @@ public class MacdView  extends View {
         return best;
     }
 
-    private boolean isNearAnyKdjLine(float x, float y) {
-        for (TrendLine line : kdjLines) {
-            if (kdjLineDistance(line, x, y) <= KDJ_NEAR_LINE_PX) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /* 编辑模式：在KDJ区域画水平线、射线、线段，并可拖动端点。返回true表示事件已处理 */
     public boolean handleKdjLineEdit(int action, Point point) {
         if (!isKdjEditable()) {
@@ -1425,7 +1418,6 @@ public class MacdView  extends View {
                 return false;
             }
             kdjEditLine = findKdjEditLine(x, y);
-            kdjTapOnLine = kdjEditLine == null && isNearAnyKdjLine(x, y);
             kdjDownPoint = new Point((int) x, (int) y);
             kdjCurrentPoint = null;
             invalidateWithLoupe();
@@ -1488,10 +1480,14 @@ public class MacdView  extends View {
         if (!isKdjSupportedType(type)) {
             return;
         }
-        if (type == TrendLine.TYPE_HORIZONTAL && !kdjTapOnLine) {
+        if (type == TrendLine.TYPE_HORIZONTAL) {
             float value = kdjValueAt(current.y);
             String date = kdjDateAt(current.x);
             saveKdjLine(type, activity.getTrendLineColor(), date, value, date, value);
+            if (distance(kdjDownPoint, current) <= KDJ_MIN_LENGTH_PX) {
+                kdjTapCreatedTime = SystemClock.uptimeMillis();
+                kdjTapCreatedLineCount = kdjLines.size();
+            }
         } else if (type != TrendLine.TYPE_HORIZONTAL
                 && distance(kdjDownPoint, current) > KDJ_MIN_LENGTH_PX) {
             if (type != TrendLine.TYPE_RAY) {
@@ -1541,6 +1537,20 @@ public class MacdView  extends View {
         if (y < 0) {
             return false;
         }
+        // 取消第二下按下后正在进行的画线/编辑，避免抬起时又保存
+        kdjTouchActive = false;
+        kdjEditLine = null;
+        kdjDownPoint = null;
+        kdjCurrentPoint = null;
+        // 双击的第一下点击可能刚画出一条水平线，先撤销它
+        boolean undone = false;
+        if (SystemClock.uptimeMillis() - kdjTapCreatedTime <= 500
+                && kdjTapCreatedLineCount >= 0 && kdjLines.size() > kdjTapCreatedLineCount) {
+            TrendLine created = kdjLines.remove(kdjLines.size() - 1);
+            activity.deleteTrendLine(created.getId());
+            undone = true;
+        }
+        kdjTapCreatedLineCount = -1;
         TrendLine hit = null;
         double best = KDJ_NEAR_LINE_PX;
         for (TrendLine line : kdjLines) {
@@ -1551,13 +1561,9 @@ public class MacdView  extends View {
             }
         }
         if (hit == null) {
-            return false;
+            invalidate();
+            return undone;
         }
-        // 双击的第二次按下已选中该线，清除以免抬起时又被重新保存
-        kdjTouchActive = false;
-        kdjEditLine = null;
-        kdjDownPoint = null;
-        kdjCurrentPoint = null;
         kdjLines.remove(hit);
         activity.deleteTrendLine(hit.getId());
         invalidate();
@@ -1576,7 +1582,8 @@ public class MacdView  extends View {
         canvas.clipRect(0, 0, getWidth(), getHeight());
         boolean dragging = kdjTouchActive && kdjCurrentPoint != null;
         for (TrendLine line : kdjLines) {
-            if (dragging && line == kdjEditLine) {
+            // 刷新会重新加载线对象，所以按id比较
+            if (dragging && kdjEditLine != null && line.getId() == kdjEditLine.getId()) {
                 continue;
             }
             Point p1 = kdjPoint(line.getDate1(), line.getPrice1());

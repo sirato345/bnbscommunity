@@ -93,6 +93,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private int binanceRealtimeRequestId;
     private boolean cryptoTimeframeControlGesture;
     private boolean titleTapCandidate;
+    private boolean editTouchBlocked;
     private String realtimeCandle;
     private LinearLayout editButtonContainer;
     private ImageView editButton;
@@ -1256,6 +1257,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
             int y = (int) event.getY();
             // 編集モード
             if(isEidtMode) {
+                if (isEditTouchBlocked(event)) {
+                    return true;
+                }
                 // 单手指操作
                 if (event.getPointerCount() == 1) {
                     Point point = this.ajustPoint(event);
@@ -1661,6 +1665,38 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 - buttonHeight - 7 * density);
         setupTrendTools(buttonWidth, buttonHeight, density);
         updateEditButtonImage();
+    }
+
+    /*
+     * 编辑模式下，工具栏周围和图表下方（日期区域）的触摸不用于画线，防止点工具按钮时误画。
+     * 在按下时判定，整个手势（直到抬起）都忽略。
+     */
+    private boolean isEditTouchBlocked(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            editTouchBlocked = isInEditDeadZone(event.getX(), event.getY());
+        }
+        boolean blocked = editTouchBlocked;
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            editTouchBlocked = false;
+        }
+        return blocked;
+    }
+
+    private boolean isInEditDeadZone(float x, float y) {
+        float density = getResources().getDisplayMetrics().density;
+        int[] dateLocation = new int[2];
+        dateView.getLocationInWindow(dateLocation);
+        if (y >= dateLocation[1]) {
+            return true;
+        }
+        if (editButtonContainer != null && trendToolContainer != null) {
+            float margin = 12 * density;
+            float right = editButtonContainer.getX() + editButton.getLayoutParams().width + margin;
+            float top = trendToolContainer.getY() - margin;
+            return x <= right && y >= top;
+        }
+        return false;
     }
 
     private void updateEditButtonImage() {

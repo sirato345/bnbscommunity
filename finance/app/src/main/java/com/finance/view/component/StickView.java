@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -80,8 +81,11 @@ public class StickView extends View {
     private TrendLine channelLine;
     private float channelOffsetPx;
     private boolean channelMove;
-    private boolean tapOnLine;
-    // 已有线附近此范围内的点击不新画线，双击删除也用此范围
+    // 最近一次点击新建水平线的时间与当时的线条数，用于双击时撤销这条新线
+    private long tapCreatedTime;
+    private int tapCreatedLineCount = -1;
+    private static final int TAP_CREATE_UNDO_MS = 500;
+    // 双击删除线的判定范围
     private static final int NEAR_LINE_PX = 100;
     // 点击时手指的自然抖动范围，小于此距离不当作拖动
     private static final int TAP_SLOP_PX = 30;
@@ -249,8 +253,6 @@ public class StickView extends View {
                 this.channelStartOffsetPx = channelOffsetPx;
                 this.channelMove = channelLine != null && this.isOnChannelBase(channelLine, point);
                 this.currentPoint = null;
-                this.tapOnLine = editLine == null && channelLine == null
-                        && this.isNearAnyLine(point);
                 this.downPoint = editLine == null && channelLine == null
                         ? this.snap(point) : point;
                 break;
@@ -292,13 +294,18 @@ public class StickView extends View {
                     editLine = null;
                     break;
                 }
-                if (downPoint != null && editLine == null && !tapOnLine
+                if (downPoint != null && editLine == null
                         && activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL) {
                     // 水平线：点击或拖动后松手，画在手指停下的位置
-                    if (currentPoint == null) {
+                    boolean tap = currentPoint == null;
+                    if (tap) {
                         currentPoint = downPoint;
                     }
                     this.saveTrendLine();
+                    if (tap) {
+                        tapCreatedTime = SystemClock.uptimeMillis();
+                        tapCreatedLineCount = trendLines.size();
+                    }
                 } else if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
                     // 低于一定长度,不画线（编辑时保留原线；水平线只需上下移动）
@@ -317,17 +324,20 @@ public class StickView extends View {
         }
     }
 
-    private boolean isNearAnyLine(Point point) {
-        for (TrendLine trendLine : trendLines) {
-            if (this.getLineDistance(trendLine, point) <= NEAR_LINE_PX) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /* 双击：删除线 */
+    /* 双击：删除线。双击的第一下点击可能刚画出一条水平线，先撤销它，再删除原有的线 */
     public void onDoubleTap(Point point) {
+        // 取消第二下按下后正在进行的画线/编辑，避免抬起时又保存
+        downPoint = null;
+        currentPoint = null;
+        editLine = null;
+        channelLine = null;
+        channelMove = false;
+        if (SystemClock.uptimeMillis() - tapCreatedTime <= TAP_CREATE_UNDO_MS
+                && trendLines.size() > tapCreatedLineCount && tapCreatedLineCount >= 0) {
+            TrendLine created = trendLines.remove(trendLines.size() - 1);
+            activity.deleteTrendLine(created.getId());
+        }
+        tapCreatedLineCount = -1;
         TrendLine nearest = null;
         double nearestDistance = Double.MAX_VALUE;
         for (TrendLine trendLine : trendLines) {
