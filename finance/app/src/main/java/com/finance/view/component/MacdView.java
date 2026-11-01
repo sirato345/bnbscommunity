@@ -28,7 +28,6 @@ import com.finance.view.component.macd.KdjCalculator;
 import com.finance.view.component.macd.MacdInfo;
 import com.finance.view.component.macd.SignalLight;
 import com.finance.view.component.stick.ComnInfo;
-import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
@@ -146,10 +145,8 @@ public class MacdView  extends View {
             "0.000", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat marketPriceFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
-    private SignalLight macdKdjSignal = SignalLight.RED;
-    private SignalLight sarAverageKdjSignal = SignalLight.RED;
-    private SignalLight fngTurnDownSignal = SignalLight.GREEN;
-    private SignalLight fngDeadCrossSignal = SignalLight.GREEN;
+    private SignalLight firstIndicatorSignal = SignalLight.RED;
+    private SignalLight secondIndicatorSignal = SignalLight.RED;
 
     public MacdView(Context context) {
         super(context);
@@ -460,55 +457,27 @@ public class MacdView  extends View {
     }
 
     private void calculateSignals() {
-        calculateFearGreedSignals();
-        macdKdjSignal = fngTurnDownSignal;
-        sarAverageKdjSignal = fngDeadCrossSignal;
-    }
-
-    /* 恐慌指数画面：两个都成立为危险色，与加密货币的指标方向相反 */
-    private void calculateFearGreedSignals() {
-        fngTurnDownSignal = SignalLight.GREEN;
-        fngDeadCrossSignal = SignalLight.GREEN;
-        if (sizeOfStick < 2) {
-            return;
+        if (sizeOfStick >= EMA_SLOW + 1 && !Float.isNaN(kdjJ[0])
+                && !Float.isNaN(kdjJ[1])) {
+            float currentMacd = macdList.get(0).getMacd();
+            float previousMacd = macdList.get(1).getMacd();
+            float currentJ = kdjJ[0];
+            float previousJ = kdjJ[1];
+            firstIndicatorSignal = SignalLight.fromDirections(
+                    currentJ > previousJ, currentJ < previousJ,
+                    currentMacd > previousMacd, currentMacd < previousMacd);
+        } else {
+            firstIndicatorSignal = SignalLight.RED;
         }
-        boolean kdjTurnDown = !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjK[1])
-                && kdjK[0] < kdjK[1];
-        boolean indexDown = sizeOfStick >= EMA_SLOW + 1
-                && macdList.get(0).getMacd() < macdList.get(1).getMacd();
-        int turnDown = (kdjTurnDown ? 1 : 0) + (indexDown ? 1 : 0);
-        fngTurnDownSignal = turnDown == 2 ? SignalLight.RED
-                : turnDown == 1 ? SignalLight.YELLOW : SignalLight.GREEN;
-        boolean kdjDead = !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjD[0])
-                && kdjK[0] < kdjD[0];
-        boolean macdDead = sizeOfStick >= EMA_SLOW + SIGNAL - 1
-                && macdList.get(0).getMacd() < macdList.get(0).getSignal();
-        int dead = (kdjDead ? 1 : 0) + (macdDead ? 1 : 0);
-        fngDeadCrossSignal = dead == 2 ? SignalLight.RED
-                : dead == 1 ? SignalLight.YELLOW : SignalLight.GREEN;
-    }
 
-    private boolean isMacdAboveSignal() {
-        return sizeOfStick >= EMA_SLOW + SIGNAL - 1
-                && macdList.get(0).getMacd() > macdList.get(0).getSignal();
-    }
-
-    private boolean isKAboveD() {
-        return sizeOfStick > 0
-                && !Float.isNaN(kdjK[0])
-                && !Float.isNaN(kdjD[0])
-                && kdjK[0] > kdjD[0];
-    }
-
-    private boolean isPriceAboveTenPeriodAverage() {
-        if (sizeOfStick < 10) {
-            return false;
+        if (sizeOfStick >= EMA_SLOW + SIGNAL - 1
+                && !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjD[0])) {
+            boolean kdjDead = kdjK[0] < kdjD[0];
+            boolean macdDead = macdList.get(0).getMacd() < macdList.get(0).getSignal();
+            secondIndicatorSignal = SignalLight.fromBearishConditions(kdjDead, macdDead);
+        } else {
+            secondIndicatorSignal = SignalLight.RED;
         }
-        float closeSum = 0f;
-        for (int i = 0; i < 10; i++) {
-            closeSum += stickList.get(i).getClose();
-        }
-        return stickList.get(0).getClose() > closeSum / 10f;
     }
 
     private void drawSignals(Canvas canvas) {
@@ -520,20 +489,11 @@ public class MacdView  extends View {
         float secondSignalCenter = getSignalRightCenter(density, markerSize, markerGap);
         float firstSignalCenter = secondSignalCenter - markerSize - markerGap;
         float top = getSignalControlsTop(buttonHeight, markerSize);
-        if (Const.Symbol.fng.toString().equals(symbol)) {
-            drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
-                    buttonWidth, buttonHeight, markerSize, fngTurnDownSignal);
-            drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
-                    buttonWidth, buttonHeight, markerSize, fngDeadCrossSignal);
-            drawFearGreedGauge(canvas, firstSignalCenter - markerSize / 2 - markerGap,
-                    top + buttonHeight / 2, markerSize, density);
-            return;
-        }
         drawSignalMarker(canvas, firstSignalCenter - buttonWidth / 2, top,
-                buttonWidth, buttonHeight, markerSize, macdKdjSignal);
+                buttonWidth, buttonHeight, markerSize, firstIndicatorSignal);
         drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight,
-                markerSize, sarAverageKdjSignal);
+                markerSize, secondIndicatorSignal);
         drawFearGreedGauge(canvas, firstSignalCenter - markerSize / 2 - markerGap,
                 top + buttonHeight / 2, markerSize, density);
     }

@@ -399,7 +399,14 @@ public class ChartActivity extends FragmentActivity implements Observer,
             stickList = getSticksOfAvgKLine(this.timeFrame);
         }
         List<TrendLine> trendLines = this.loadTrendLines();
+        List<StickInfo> fearGreedSarHistory = null;
+        if (isFearGreedSymbol()) {
+            fearGreedSarHistory = getFearGreedSarHistory(timeFrame);
+        }
         stickView.setData(comnInfo, stickList, trendLines);
+        if (fearGreedSarHistory != null) {
+            stickView.setSarHistory(fearGreedSarHistory);
+        }
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
         macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
@@ -411,6 +418,22 @@ public class ChartActivity extends FragmentActivity implements Observer,
         macdView.invalidate();
         dateView.invalidate();
         maybeLoadMoreIntraday();
+    }
+
+    private List<StickInfo> getFearGreedSarHistory(String timeFrame) {
+        int dataCount = controller.getDataCount(symbol, timeFrame);
+        List<Object[]> records = controller.getData(symbol, timeFrame, dataCount);
+        List<StickInfo> history = new ArrayList<>(records.size());
+        for (Object[] record : records) {
+            StickInfo stick = new StickInfo(comnInfo);
+            stick.setDate((String) record[0]);
+            stick.setOpen((float) record[1]);
+            stick.setHigh((float) record[2]);
+            stick.setLow((float) record[3]);
+            stick.setClose((float) record[4]);
+            history.add(stick);
+        }
+        return history;
     }
 
     private List<TrendLine> loadTrendLines() {

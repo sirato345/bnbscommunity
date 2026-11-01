@@ -66,6 +66,13 @@ public class Controller {
         return Collections.emptyList();
     }
 
+    public int getDataCount(@NonNull String symbol, @NonNull String timeFrame) {
+        if (model != null) {
+            return model.getDataCount(symbol, timeFrame);
+        }
+        return 0;
+    }
+
     public void updateFearGreedHistory(@NonNull String symbol, @NonNull List<String> records,
                                       @NonNull Runnable onDone) {
         if (model != null) {

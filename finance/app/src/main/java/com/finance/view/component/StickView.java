@@ -49,7 +49,7 @@ public class StickView extends View {
     // 50日移動平均線
     private List<Point> average50;
     // Parabolic SAR values aligned with the candle list
-    private List<Float> sarValues;
+    private Map<String, Float> sarValuesByDate = new HashMap<>();
     // 画面表示最大のローソクの数
     private int maxStickCount;
     // 当前10均线价格
@@ -123,7 +123,18 @@ public class StickView extends View {
     }
 
     private void calculateSar(List<StickInfo> sticks) {
-        sarValues = ParabolicSarCalculator.calculate(sticks);
+        List<Float> sarValues = ParabolicSarCalculator.calculate(sticks);
+        sarValuesByDate = new HashMap<>();
+        for (int i = 0; i < sticks.size(); i++) {
+            String date = sticks.get(i).getDate();
+            if (date != null) {
+                sarValuesByDate.put(date, sarValues.get(i));
+            }
+        }
+    }
+
+    public void setSarHistory(List<StickInfo> sticks) {
+        calculateSar(sticks);
     }
 
     /* ローソク足の自身情報を計算 */
@@ -670,6 +681,9 @@ public class StickView extends View {
         if (activity.isFearGreedSymbol()) {
             this.drawFearGreedBands(canvas);
             this.drawFearGreedLine(canvas);
+            if (activity.isSarDisp) {
+                this.drawSar(canvas, true);
+            }
             this.drawTouchedLine(canvas);
             this.drawTrandLine(canvas);
             return;
@@ -786,16 +800,31 @@ public class StickView extends View {
     }
 
     private void drawSar(Canvas canvas) {
+        drawSar(canvas, false);
+    }
+
+    private void drawSar(Canvas canvas, boolean outlined) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        float radius = 3 * getResources().getDisplayMetrics().density;
-        for (int i = 0; i < maxStickCount && i < sarValues.size(); i++) {
-            float sar = sarValues.get(i);
-            if (Float.isNaN(sar)) {
+        float density = getResources().getDisplayMetrics().density;
+        float radius = 3 * density;
+        float outlineWidth = 1.5f * density;
+        for (int i = 0; i < maxStickCount; i++) {
+            StickInfo stick = stickList.get(i);
+            Float sar = sarValuesByDate.get(stick.getDate());
+            if (sar == null || Float.isNaN(sar)) {
                 continue;
             }
-            StickInfo stick = stickList.get(i);
-            paint.setColor(sar < stick.getClose()
-                    ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
+            int color = sar < stick.getClose()
+                    ? Color.parseColor("#00E676") : Color.parseColor("#FF5252");
+            if (outlined) {
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(outlineWidth);
+                paint.setColor(Color.WHITE);
+                canvas.drawCircle(stick.getLineRect().centerX(), stick.getYPoint(sar),
+                        radius + outlineWidth / 2, paint);
+            }
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(color);
             canvas.drawCircle(stick.getLineRect().centerX(), stick.getYPoint(sar),
                     radius, paint);
         }
@@ -880,11 +909,11 @@ public class StickView extends View {
                     // 50平均線設定
                     canvas.drawText("(50) " + getLimitDigit(current50), 0, Const.FONT_SIZE_MIDDLE * 4, paint);
                 }
-                if (activity.isSarDisp && !sarValues.isEmpty()
-                        && !Float.isNaN(sarValues.get(0))) {
-                    paint.setColor(sarValues.get(0) < stickInfo.getClose()
+                Float sar = sarValuesByDate.get(stickInfo.getDate());
+                if (activity.isSarDisp && sar != null && !Float.isNaN(sar)) {
+                    paint.setColor(sar < stickInfo.getClose()
                             ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
-                    canvas.drawText("(SAR) " + getLimitDigit(sarValues.get(0)), 0,
+                    canvas.drawText("(SAR) " + getLimitDigit(sar), 0,
                             Const.FONT_SIZE_MIDDLE * 5, paint);
                 }
             }

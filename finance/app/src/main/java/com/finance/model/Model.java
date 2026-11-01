@@ -143,6 +143,13 @@ public class Model {
         return Collections.emptyList();
     }
 
+    public int getDataCount(@NonNull String symbol, @NonNull String timeFrame) {
+        if (dbOperator != null) {
+            return dbOperator.getDataCount(symbol, timeFrame);
+        }
+        return 0;
+    }
+
     /* 取得小于指定日期的数据数量作为偏移量 */
     @NonNull
     public int[] getOffset(@NonNull String symbol, @NonNull String timeFrame, @NonNull String date) {

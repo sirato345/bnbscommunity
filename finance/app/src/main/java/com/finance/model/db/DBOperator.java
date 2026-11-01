@@ -330,6 +330,10 @@ public class DBOperator {
         return count;
     }
 
+    public int getDataCount(String symbol, String timeFrame) {
+        return getCount(symbol + "_" + timeFrame);
+    }
+
     // 周线计算
     private void calculateWeek(String symbol) {
         String tableDaily = symbol + "_d";
