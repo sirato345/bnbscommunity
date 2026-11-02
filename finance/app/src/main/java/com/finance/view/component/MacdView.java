@@ -147,6 +147,7 @@ public class MacdView  extends View {
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight firstIndicatorSignal = SignalLight.RED;
     private SignalLight secondIndicatorSignal = SignalLight.RED;
+    private Float fearGreedSarValue;
 
     public MacdView(Context context) {
         super(context);
@@ -188,6 +189,11 @@ public class MacdView  extends View {
         this.calculateMacdDivergences();
         this.calculateKdj();
         this.calculateSignals();
+    }
+
+    public void setFearGreedSarValue(Float sarValue) {
+        fearGreedSarValue = sarValue;
+        invalidate();
     }
 
     private void calculateMacdDivergences() {
@@ -448,6 +454,7 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         }
         this.drawText(canvas);
+        drawFearGreedSarControl(canvas);
         drawSignals(canvas);
         if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdjValues(canvas);
@@ -623,6 +630,13 @@ public class MacdView  extends View {
     }
 
     private float getSignalRightCenter(float density, float markerSize, float markerGap) {
+        if (activity.isFearGreedSymbol()) {
+            Paint sarPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            sarPaint.setTextSize(getTitleTextSize());
+            sarPaint.setFakeBoldText(true);
+            float sarLeft = getWidth() - 8 * density - sarPaint.measureText("SAR");
+            return sarLeft - markerGap - markerSize / 2;
+        }
         String price = getCurrentPriceText();
         if (price == null) {
             return getWidth() - 8 * density - 29 * density;
@@ -1748,6 +1762,51 @@ public class MacdView  extends View {
         Rect priceBounds = getPriceTextBounds();
         float priceBaseline = getTitleBaseline() + getTitleBounds().top - priceBounds.top;
         canvas.drawText(price, getWidth() - 8 * density, priceBaseline, paint);
+    }
+
+    private void drawFearGreedSarControl(Canvas canvas) {
+        if (!activity.isFearGreedSymbol()) {
+            return;
+        }
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(getTitleTextSize());
+        paint.setFakeBoldText(true);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        paint.setColor(fearGreedSarValue == null || Float.isNaN(fearGreedSarValue)
+                || stickList == null || stickList.isEmpty()
+                ? Color.GRAY
+                : fearGreedSarValue < stickList.get(0).getClose()
+                        ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
+        float right = getWidth() - 8 * getResources().getDisplayMetrics().density;
+        canvas.drawText("SAR", right, getTitleBaseline(), paint);
+    }
+
+    public boolean handleFearGreedSarTap(MotionEvent event) {
+        if (!activity.isFearGreedSymbol()) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(getTitleTextSize());
+        paint.setFakeBoldText(true);
+        Rect bounds = new Rect();
+        paint.getTextBounds("SAR", 0, 3, bounds);
+        float density = getResources().getDisplayMetrics().density;
+        float right = getWidth() - 8 * density;
+        float left = right - paint.measureText("SAR");
+        float top = getTitleBaseline() + bounds.top - 8 * density;
+        float bottom = getTitleBaseline() + bounds.bottom + 8 * density;
+        if (x < left - 8 * density || x > right + 8 * density
+                || y < top || y > bottom) {
+            return false;
+        }
+        activity.isFearGreedSarDisp = !activity.isFearGreedSarDisp;
+        invalidate();
+        activity.refreshFearGreedSarDisplay();
+        return true;
     }
 
     private String getCurrentPriceText() {

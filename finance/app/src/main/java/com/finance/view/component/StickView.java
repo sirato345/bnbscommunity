@@ -48,6 +48,8 @@ public class StickView extends View {
     private List<Point> average20;
     // 50日移動平均線
     private List<Point> average50;
+    // 200日移動平均線
+    private List<Point> average200;
     // Parabolic SAR values aligned with the candle list
     private Map<String, Float> sarValuesByDate = new HashMap<>();
     // 画面表示最大のローソクの数
@@ -58,6 +60,8 @@ public class StickView extends View {
     private float current20;
     // 当前50均线价格
     private float current50;
+    // 当前200均线价格
+    private float current200;
     // 对小数四舍五入
     private final DecimalFormat digitFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
@@ -111,13 +115,16 @@ public class StickView extends View {
         this.average10 = new ArrayList<>();
         this.average20 = new ArrayList<>();
         this.average50 = new ArrayList<>();
+        this.average200 = new ArrayList<>();
         this.current10 = 0;
         this.current20 = 0;
         this.current50 = 0;
+        this.current200 = 0;
         this.calculate(this.stickList);
         this.calAverageLine(this.stickList, average10, 10);
         this.calAverageLine(this.stickList, average20, 20);
         this.calAverageLine(this.stickList, average50, 50);
+        this.calAverageLine(this.stickList, average200, 200);
         this.calculateSar(this.stickList);
         this.calTDtdSequential();
     }
@@ -135,6 +142,10 @@ public class StickView extends View {
 
     public void setSarHistory(List<StickInfo> sticks) {
         calculateSar(sticks);
+    }
+
+    public Float getSarValue(String date) {
+        return sarValuesByDate.get(date);
     }
 
     /* ローソク足の自身情報を計算 */
@@ -211,7 +222,8 @@ public class StickView extends View {
                     current20 = averageValue;
                 } else if (average == 50) {
                     current50 = averageValue;
-                }else {
+                } else if (average == 200) {
+                    current200 = averageValue;
                 }
             }
             point.y = stickInfo.getYPoint(averageValue);
@@ -681,7 +693,7 @@ public class StickView extends View {
         if (activity.isFearGreedSymbol()) {
             this.drawFearGreedBands(canvas);
             this.drawFearGreedLine(canvas);
-            if (activity.isSarDisp) {
+            if (activity.isFearGreedSarDisp) {
                 this.drawSar(canvas, true);
             }
             this.drawTouchedLine(canvas);
@@ -697,6 +709,9 @@ public class StickView extends View {
         }
         if(activity.isAvg50Disp) {
             this.drawAverageLine(canvas, average50, Color.parseColor("#00FFFF"));
+        }
+        if (activity.isAvg200Disp) {
+            this.drawAverageLine(canvas, average200, Color.MAGENTA);
         }
         if (activity.isSarDisp) {
             this.drawSar(canvas);
@@ -909,12 +924,17 @@ public class StickView extends View {
                     // 50平均線設定
                     canvas.drawText("(50) " + getLimitDigit(current50), 0, Const.FONT_SIZE_MIDDLE * 4, paint);
                 }
+                paint.setColor(Color.MAGENTA);
+                if (current200 != 0) {
+                    canvas.drawText("(200) " + getLimitDigit(current200), 0,
+                            Const.FONT_SIZE_MIDDLE * 5, paint);
+                }
                 Float sar = sarValuesByDate.get(stickInfo.getDate());
-                if (activity.isSarDisp && sar != null && !Float.isNaN(sar)) {
+                if (sar != null && !Float.isNaN(sar)) {
                     paint.setColor(sar < stickInfo.getClose()
                             ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
                     canvas.drawText("(SAR) " + getLimitDigit(sar), 0,
-                            Const.FONT_SIZE_MIDDLE * 5, paint);
+                            Const.FONT_SIZE_MIDDLE * 6, paint);
                 }
             }
             // 最大値の線

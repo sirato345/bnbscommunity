@@ -167,12 +167,14 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private final List<TextView> trendTypeButtons = new ArrayList<>();
     private TextView trendColorButton;
     // 平均K線１０日表示フラグ
-    public boolean isAvg10Disp = true;
+    public boolean isAvg10Disp;
     // 平均K線２０日表示フラグ
-    public boolean isAvg20Disp = true;
+    public boolean isAvg20Disp;
     // 平均K線５０日表示フラグ
-    public boolean isAvg50Disp = true;
-    public boolean isSarDisp = true;
+    public boolean isAvg50Disp;
+    public boolean isAvg200Disp;
+    public boolean isSarDisp;
+    public boolean isFearGreedSarDisp;
 
     @Override
     /* 画面初期生成の場合呼び出される */
@@ -409,6 +411,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
+        if (fearGreedSarHistory != null && !stickList.isEmpty()) {
+            macdView.setFearGreedSarValue(stickView.getSarValue(
+                    stickList.get(0).getDate()));
+        } else {
+            macdView.setFearGreedSarValue(null);
+        }
         macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
         setImageView();
         int dateOffset = intradayInterval == null
@@ -591,6 +599,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public boolean isFearGreedSymbol() {
         return Const.Symbol.fng.toString().equals(symbol);
+    }
+
+    public void refreshFearGreedSarDisplay() {
+        stickView.invalidate();
+        macdView.invalidate();
     }
 
     public boolean isCryptoSymbol() {
@@ -1157,7 +1170,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean(Const.KEY_AVG_10_DISP, this.isAvg10Disp);
         outState.putBoolean(Const.KEY_AVG_20_DISP, this.isAvg20Disp);
         outState.putBoolean(Const.KEY_AVG_50_DISP, this.isAvg50Disp);
+        outState.putBoolean("Avg200Disp", this.isAvg200Disp);
         outState.putBoolean("SarDisp", this.isSarDisp);
+        outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
     }
 
     @Override
@@ -1173,7 +1188,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isAvg10Disp = savedInstanceState.getBoolean(Const.KEY_AVG_10_DISP);
         this.isAvg20Disp = savedInstanceState.getBoolean(Const.KEY_AVG_20_DISP);
         this.isAvg50Disp = savedInstanceState.getBoolean(Const.KEY_AVG_50_DISP);
-        this.isSarDisp = savedInstanceState.getBoolean("SarDisp", true);
+        this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp");
+        this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
+        this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
     }
 
     /* 当面選択された銘柄 */
@@ -1329,9 +1346,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                     isDispOperate = true;
                                     this.showUI();
                                 } else if(y >= (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT)) {
-                                    this.isSarDisp = !this.isSarDisp;
+                                    this.isAvg200Disp = !this.isAvg200Disp;
                                     isDispOperate = true;
                                     this.showUI();
+                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 6 + Const.STATUS_BAR_HEIGHT)) {
+                                    if (isFearGreedSymbol()) {
+                                        isDispOperate = true;
+                                    } else {
+                                        this.isSarDisp = !this.isSarDisp;
+                                        isDispOperate = true;
+                                        this.showUI();
+                                    }
                                 }
                             }
                             break;
@@ -1602,6 +1627,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return true;
         }
         if (macdView.handleIntradayControlTap(e)) {
+            return true;
+        }
+        if (macdView.handleFearGreedSarTap(e)) {
             return true;
         }
         // 按下位置判断
