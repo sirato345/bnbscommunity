@@ -1709,6 +1709,10 @@ public class StickView extends View {
         return null;
     }
 
+    public List<StickInfo> getStickList() {
+        return stickList;
+    }
+
     public void setCurrentValue(Float currentValue) {
         this.currentValue = currentValue;
     }

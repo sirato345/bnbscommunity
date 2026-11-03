@@ -1261,7 +1261,28 @@ public class ChartActivity extends FragmentActivity implements Observer,
             StickInfo stickInfo = stickView.getRelatedStick(point.x);
             Point touchPoint = new Point();
             touchPoint.y = point.y;
-            if (stickInfo == null) {
+            List<StickInfo> list = stickView.getStickList();
+            StickInfo newest = list == null || list.size() < 2 ? null : list.get(0);
+            float sw = comnInfo.getStickWidth();
+            if (stickInfo == null && newest != null && sw > 0
+                    && point.x > newest.getStickRect().right) {
+                // 超出最新K线：吸附到右侧未来K线位置，日期按周期推算
+                int steps = Math.max(1, Math.round(
+                        (point.x - newest.getStickRect().centerX()) / sw));
+                String future = com.finance.view.component.DateView.futureDate(
+                        newest.getDate(), list.get(1).getDate(), steps);
+                touchPoint.x = Math.round(newest.getStickRect().centerX() + steps * sw);
+                if (future != null) {
+                    stickView.setTouchedDate(future);
+                    macdView.setTouchedDate(future);
+                    dateView.setTouchedDate(future, touchPoint.x);
+                } else {
+                    stickView.setTouchedDate(null);
+                    macdView.setTouchedDate(null);
+                    dateView.setTouchedDate(null, touchPoint.x);
+                }
+                stickView.setCurrentValue(newest.getYValue(touchPoint.y));
+            } else if (stickInfo == null) {
                 touchPoint.x = point.x;
                 stickView.setTouchedDate(null);
                 macdView.setTouchedDate(null);
@@ -1383,8 +1404,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             if (!cryptoTimeframeControlGesture) {
                                 offset = offset - (int) Math.floor(
                                         (mLastMotionX - x) / (float) Math.max(1, stickWidth));
-                                if (offset < 0) {
-                                    offset = 0;
+                                // 允许向右拖出未来空白，至少保留2根K线在画面内
+                                int minOffset = Const.DEFAULT_OFFSET
+                                        - Math.max(0, comnInfo.getMaxDispCount() - 2);
+                                if (offset < minOffset) {
+                                    offset = minOffset;
                                 }
                                 // ②对最后一次偏移进行备份，以便在抬起时设置到偏移量中
                                 offsetLast = offset;

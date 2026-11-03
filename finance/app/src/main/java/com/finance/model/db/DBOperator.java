@@ -219,9 +219,12 @@ public class DBOperator {
             // 实际滑动可能距离设置
             ((ChartActivity)context).setOffset(offset);
         } else {
+            int requested = offset;
             offset = count - ((ChartActivity)context).getComnInfo().getMinDispCount();
-            // 实际取得数据数量少于最少表示数量时，偏移量设为0
-            if (offset < 0) {
+            // 实际取得数据数量少于最少表示数量时，偏移量设为0；保留向右拖出的未来空白
+            if (requested < 0) {
+                offset = requested;
+            } else if (offset < 0) {
                 offset = 0;
             }
             ((ChartActivity)context).setOffset(offset);

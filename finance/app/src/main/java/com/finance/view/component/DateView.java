@@ -108,7 +108,18 @@ public class DateView extends View {
                     stickInfo = stickList.get(i);
                 }
             }
-            String date = formatDateForDisplay(stickInfo.getDate(), intraday);
+            String rawDate = stickInfo.getDate();
+            StickInfo newest = stickList.get(0);
+            float sw = comnInfo.getStickWidth();
+            if (stickList.size() > 1 && sw > 0
+                    && tickX > newest.getStickRect().centerX() + sw / 2) {
+                String future = futureDate(newest.getDate(), stickList.get(1).getDate(),
+                        Math.round((tickX - newest.getStickRect().centerX()) / sw));
+                if (future != null) {
+                    rawDate = future;
+                }
+            }
+            String date = formatDateForDisplay(rawDate, intraday);
             float textWidth = paint.measureText(date);
             Point datePoint = new Point();
             datePoint.x = Math.round(Math.max(0, Math.min(width - textWidth,
@@ -123,6 +134,36 @@ public class DateView extends View {
             canvas.drawText(date, datePoint.x, datePoint.y, paint);
         }
         drawTouchedDate(canvas);
+    }
+
+    /* 按最近两根K线的时间间隔，推算最新K线之后steps根的时间 */
+    public static String futureDate(String newest, String previous, int steps) {
+        try {
+            boolean daily = newest.length() == 8;
+            java.text.SimpleDateFormat format = new java.text.SimpleDateFormat(
+                    daily ? "yyyyMMdd" : "yyyy-MM-dd HH:mm", java.util.Locale.US);
+            format.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            long t0 = format.parse(newest).getTime();
+            long interval = t0 - format.parse(previous).getTime();
+            if (interval <= 0) {
+                return null;
+            }
+            // 月线：月份长度不同，按月份递增
+            if (daily && interval >= 27L * 86400000L && interval <= 32L * 86400000L) {
+                java.util.Calendar cal = java.util.Calendar.getInstance(
+                        java.util.TimeZone.getTimeZone("UTC"));
+                cal.setTime(new java.util.Date(t0));
+                int day = cal.get(java.util.Calendar.DAY_OF_MONTH);
+                cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+                cal.add(java.util.Calendar.MONTH, steps);
+                cal.set(java.util.Calendar.DAY_OF_MONTH,
+                        Math.min(day, cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)));
+                return format.format(cal.getTime());
+            }
+            return format.format(new java.util.Date(t0 + interval * steps));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void drawTouchedDate(Canvas canvas) {

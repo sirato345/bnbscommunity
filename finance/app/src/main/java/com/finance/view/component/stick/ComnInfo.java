@@ -94,7 +94,7 @@ public class ComnInfo {
         if (space_right < 0) {
             space_right = 0;
         }
-        return getMaxDispCount() - space_right;
+        return Math.max(1, getMaxDispCount() - space_right);
     }
 
     // 画面表示可能最大k线数量
