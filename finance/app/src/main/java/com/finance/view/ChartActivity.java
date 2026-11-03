@@ -157,9 +157,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 編集モード
     private boolean isEidtMode;
     // 画线工具：线型、颜色、吸附
-    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平", "通道", "斐波"};
+    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平", "通道", "斐波", "箱体"};
     private static final int[] TREND_COLORS = {
-            Color.WHITE, Color.YELLOW, Color.CYAN, Color.rgb(255, 165, 0),
+            Color.WHITE, Color.YELLOW, Color.rgb(255, 165, 0), Color.CYAN,
             Color.MAGENTA, Color.GREEN};
     private int trendLineType;
     private int trendColorIndex;
@@ -1773,7 +1773,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     updateTrendToolButtons();
                 });
                 trendTypeButtons.add(button);
-                // 后加入的在上方：从上到下为 斐波、通道、水平、射线、线段
+                // 后加入的在上方：从上到下为 箱体、斐波、通道、水平、射线、线段
                 trendToolContainer.addView(button, 0);
             }
             trendColorButton = createToolButton();
@@ -1785,7 +1785,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             addContentView(trendToolContainer, new ViewGroup.LayoutParams(-2, -2));
         }
         int toolGap = 0;
-        int toolButtonHeight = Math.round(buttonHeight * 0.85f);
+        int toolButtonHeight = Math.round(buttonHeight * 0.85f * 0.9f);
         List<TextView> buttons = new ArrayList<>(trendTypeButtons);
         buttons.add(trendColorButton);
         for (TextView button : buttons) {

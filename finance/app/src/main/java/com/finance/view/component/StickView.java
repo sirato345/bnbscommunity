@@ -403,6 +403,15 @@ public class StickView extends View {
             }
             return best;
         }
+        if (trendLine.getType() == TrendLine.TYPE_BOX) {
+            int l = Math.min(p1.x, p2.x), r = Math.max(p1.x, p2.x);
+            int t = Math.min(p1.y, p2.y), b = Math.max(p1.y, p2.y);
+            return Math.min(Math.min(
+                    this.pointToLine(l, t, r, t, point.x, point.y),
+                    this.pointToLine(l, b, r, b, point.x, point.y)),
+                    Math.min(this.pointToLine(l, t, l, b, point.x, point.y),
+                            this.pointToLine(r, t, r, b, point.x, point.y)));
+        }
         double distance = this.pointToLine(p1.x, p1.y, p2.x, p2.y, point.x, point.y);
         if (trendLine.getType() == TrendLine.TYPE_CHANNEL) {
             int offsetPx = Math.round(this.getChannelOffsetPx(trendLine));
@@ -1160,6 +1169,14 @@ public class StickView extends View {
                                float x2, float y2, int type, float offsetPx, Float fixedPrice) {
         if (type == TrendLine.TYPE_FIBONACCI) {
             this.drawFibonacci(canvas, paint, x1, y1, x2, y2);
+            return;
+        }
+        if (type == TrendLine.TYPE_BOX) {
+            Paint.Style style = paint.getStyle();
+            paint.setStyle(Paint.Style.STROKE);
+            canvas.drawRect(Math.min(x1, x2), Math.min(y1, y2),
+                    Math.max(x1, x2), Math.max(y1, y2), paint);
+            paint.setStyle(style);
             return;
         }
         float[] ends = this.getLineEnds(x1, y1, x2, y2, type);

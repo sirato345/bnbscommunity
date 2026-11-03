@@ -26,6 +26,7 @@ public class TrendLine {
     public static final int TYPE_HORIZONTAL = 2;
     public static final int TYPE_CHANNEL = 3;
     public static final int TYPE_FIBONACCI = 4;
+    public static final int TYPE_BOX = 5;
 
     private int type = TYPE_SEGMENT;
 
