@@ -186,6 +186,16 @@ public class StickView extends View {
             maxValue = FNG_AXIS_MAX;
             minValue = FNG_AXIS_MIN;
         }
+        float dataMax = maxValue;
+        float dataMin = minValue;
+        // 上下缩放：以价格区间中点为中心扩大显示范围，K线随之缩小
+        float zoom = activity.getPriceZoom();
+        if (zoom > 1f && !activity.isFearGreedSymbol() && maxValue > minValue) {
+            float mid = (maxValue + minValue) / 2f;
+            float half = (maxValue - minValue) / 2f * zoom;
+            maxValue = mid + half;
+            minValue = mid - half;
+        }
         // ローソク足に計算値を設定し、ローソク自身情報も計算
         for (int i = 0; i < maxStickCount; i++) {
             // ローソク足
@@ -197,11 +207,11 @@ public class StickView extends View {
             // 最小下限値
             stickInfo.setMinValue(minValue);
             // 最大値ローソク足のフラグを設定
-            if (stickInfo.getHigh() == maxValue) {
+            if (stickInfo.getHigh() == dataMax) {
                 stickInfo.setIsMaxValueStick(true);
             }
             // 最小値ローソク足のフラグを設定
-            if (stickInfo.getLow() == minValue) {
+            if (stickInfo.getLow() == dataMin) {
                 stickInfo.setIsMinValueStick(true);
             }
             // ローソク足自身情報を計算
@@ -1203,6 +1213,12 @@ public class StickView extends View {
                             Const.FONT_SIZE_MIDDLE * 6, paint);
                 }
             }
+            // 缩放后最高最低价线仍在原位置（区域上下沿），显示缩放后的价格
+            boolean zoomed = activity.getPriceZoom() > 1f && !activity.isFearGreedSymbol();
+            float topY = zoomed ? 0 : lineRect.top;
+            float bottomY = zoomed ? comnInfo.getStickHeight() : lineRect.bottom;
+            float topValue = zoomed ? stickInfo.getMaxValue() : stickInfo.getHigh();
+            float bottomValue = zoomed ? stickInfo.getMinValue() : stickInfo.getLow();
             // 最大値の線
             if (stickInfo.isMaxValueStick()) {
                 // 白色
@@ -1210,11 +1226,11 @@ public class StickView extends View {
                 // 不设置粗体
                 paint.setFakeBoldText(false);
                 // 最大値の線
-                canvas.drawLine(0, lineRect.top, comnInfo.getScreenWidth(), lineRect.top, paint);
+                canvas.drawLine(0, topY, comnInfo.getScreenWidth(), topY, paint);
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
-                canvas.drawText(getLimitDigit(stickInfo.getMaxValue()), 0, lineRect.top + Const.FONT_SIZE_MIDDLE, paint);
+                canvas.drawText(getLimitDigit(topValue), 0, topY + Const.FONT_SIZE_MIDDLE, paint);
             }
             // 最小値の線
             if (stickInfo.isMinValueStick()) {
@@ -1223,11 +1239,11 @@ public class StickView extends View {
                 // 不设置粗体
                 paint.setFakeBoldText(false);
                 // 最小値の線
-                canvas.drawLine(0, lineRect.bottom, comnInfo.getScreenWidth(), lineRect.bottom, paint);
+                canvas.drawLine(0, bottomY, comnInfo.getScreenWidth(), bottomY, paint);
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
-                canvas.drawText(getLimitDigit(stickInfo.getMinValue()), 0, lineRect.bottom - 8, paint);
+                canvas.drawText(getLimitDigit(bottomValue), 0, bottomY - 8, paint);
             }
         }
     }

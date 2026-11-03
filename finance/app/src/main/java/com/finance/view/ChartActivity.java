@@ -144,6 +144,14 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private int mCurrentMotionY;
     // 双指按下时，双指间的距离
     private float fingerDistance;
+    private float fingerSepY;
+    /* 价格范围缩放倍数：1为自动适配，越大K线越小 */
+    private float priceZoom = 1f;
+    private static final float MAX_PRICE_ZOOM = 4f;
+
+    public float getPriceZoom() {
+        return priceZoom;
+    }
     private float pinchStickWidth;
     // 蝋燭の幅
     private int stickWidth;
@@ -1403,6 +1411,23 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     switch (event.getAction() & MotionEvent.ACTION_MASK) {
                         case MotionEvent.ACTION_MOVE:
                             float currentFingerDistance = getDistance(event);
+                            float currentSepY = Math.abs(event.getY(1) - event.getY(0));
+                            float currentSepX = Math.abs(event.getX(1) - event.getX(0));
+                            if (currentSepY > currentSepX) {
+                                // 双指上下方向捏合：缩放价格范围（捏合缩小K线，张开恢复）
+                                if (fingerSepY > 0 && currentSepY > 0) {
+                                    float zoom = Math.max(1f, Math.min(MAX_PRICE_ZOOM,
+                                            priceZoom * fingerSepY / currentSepY));
+                                    if (Math.abs(zoom - priceZoom) > 0.005f) {
+                                        priceZoom = zoom;
+                                        scheduleZoomRefresh();
+                                    }
+                                }
+                                fingerSepY = currentSepY;
+                                fingerDistance = currentFingerDistance;
+                                break;
+                            }
+                            fingerSepY = currentSepY;
                             if (fingerDistance > 0 && currentFingerDistance > 0) {
                                 pinchStickWidth = Math.max(MIN_STICK_WIDTH,
                                         Math.min(MAX_STICK_WIDTH, pinchStickWidth
@@ -1421,6 +1446,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                         case MotionEvent.ACTION_POINTER_DOWN:      // 第二指押下触发
                             if (event.getPointerCount() == 2) {
                                 fingerDistance = getDistance(event);
+                                fingerSepY = Math.abs(event.getY(1) - event.getY(0));
                                 pinchStickWidth = stickWidth;
                             }
                             break;
@@ -1524,77 +1550,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     @Override
-    /* 快速滑动：用于切换周期和銘柄 */
+    /* 快速滑动：不再切换周期（避免缩放时误触），周期请用标题或周期控件切换 */
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-        if (isLongPress || isEidtMode) {
-            return true;
-        }
-        if (cryptoTimeframeControlGesture) {
-            return true;
-        }
-        if (e1 == null || e2 == null) {
-            return true;
-        }
-        if (isFearGreedSymbol()) {
-            float dx = e2.getX() - e1.getX();
-            float dy = e2.getY() - e1.getY();
-            if (Math.abs(dy) > 180 && Math.abs(dy / dx) > 2) {
-                this.timeFrame = "d";
-                this.setOffset(0);
-                this.showUI();
-            }
-            return true;
-        }
-        float x_move = e2.getX() - e1.getX();
-        float y_move = e2.getY() - e1.getY();
-        if (isCryptoSymbol()
-                && (y_move > 180 || y_move < -180)
-                && Math.abs(y_move / x_move) > 2) {
-            changeCryptoTimeframe(y_move > 180);
-            return true;
-        }
-        // タイムフレーム
-        int length = Const.timeFrames.length;
-        // 上下移動判定
-        if (y_move > 180 && (Math.abs(y_move / x_move) > 2)) {// 向上
-            clearIntradaySelection();
-            // 前のタイムフレームを特定
-            for (int i = 0; i < length; i ++) {
-                if (Const.timeFrames[i].equals(timeFrame)) {
-                    if (i == 0) {
-                        // 一番目の場合、最後のタイムフレームに移動
-                        this.timeFrame = Const.timeFrames[length - 1];
-                    } else {
-                        // 前のタイムフレームに移動
-                        this.timeFrame = Const.timeFrames[i - 1];
-                    }
-                    break;
-                }
-            }
-            // 銘柄切替によりスクロールをリセット
-            this.setOffset(0);
-            this.showUI();
-            requestMarketData();
-        } else if (y_move < -180 && (Math.abs(y_move / x_move) > 2)) {// 向下
-            clearIntradaySelection();
-            // 次のタイムフレームを特定
-            for (int i = 0; i < length; i ++) {
-                if (Const.timeFrames[i].equals(timeFrame)) {
-                    if (i + 1 == length) {
-                        // 最後の場合、次のサイクルに移動
-                        this.timeFrame = Const.timeFrames[0];
-                    } else {
-                        // 次のタイムフレームに移動
-                        this.timeFrame = Const.timeFrames[i + 1];
-                    }
-                    break;
-                }
-            }
-            // 銘柄切替によりスクロールをリセット
-            this.setOffset(0);
-            this.showUI();
-            requestMarketData();
-        }
         return true;
     }
 
