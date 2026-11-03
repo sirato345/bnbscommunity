@@ -9,6 +9,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
@@ -87,6 +89,13 @@ public class StickView extends View {
     private boolean channelMove;
     // 最近一次点击新建水平线的时间与当时的线条数，用于双击时撤销这条新线
     private long tapCreatedTime;
+    private long waveAddedTime;
+    private static final int WAVE_POINT_COUNT = 6;
+    private static final int WAVE_HOLD_MS = 1000;
+    private boolean waveGesture;
+    private TrendLine waveEditLine;
+    private int waveEditIndex;
+    private Point waveHoldAnchor;
     private int tapCreatedLineCount = -1;
     private static final int TAP_CREATE_UNDO_MS = 500;
     // 双击删除线的判定范围
@@ -268,6 +277,18 @@ public class StickView extends View {
     }
 
     public void onTouchEvent(int action, Point point) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            waveGesture = this.hitWavePoint(point)
+                    || isWaveType(activity.getTrendLineType());
+        }
+        if (waveGesture) {
+            this.onWaveTouch(action, point);
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                waveGesture = false;
+            }
+            return;
+        }
+        activity.getWaveDraft().clear();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 this.editLine = this.getEditLine(point);
@@ -347,8 +368,232 @@ public class StickView extends View {
         }
     }
 
+    /*
+     * 五浪：按下后拖动画折线，手指停顿1秒固定当前端点并继续拖动画下一段；
+     * 松手即结束，不足五浪（6点）也保存，末端加箭头。
+     * 保存后的折线可拖动任一端点编辑。
+     */
+    private void onWaveTouch(int action, Point point) {
+        List<Object[]> draft = activity.getWaveDraft();
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                editLine = null;
+                channelLine = null;
+                downPoint = point;
+                // 按下即显示放大镜，便于对准起点（尤其在图表边缘）
+                currentPoint = waveEditLine != null ? null : this.snap(point);
+                waveHoldAnchor = null;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (downPoint == null) {
+                    break;
+                }
+                currentPoint = this.snap(point);
+                if (waveEditLine == null && (waveHoldAnchor == null
+                        || this.getDistance(waveHoldAnchor, point) > TAP_SLOP_PX)) {
+                    waveHoldAnchor = point;
+                    waveHandler.removeCallbacks(waveHoldTask);
+                    waveHandler.postDelayed(waveHoldTask, WAVE_HOLD_MS);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                waveHandler.removeCallbacks(waveHoldTask);
+                waveHoldAnchor = null;
+                if (downPoint != null) {
+                    if (waveEditLine != null) {
+                        this.saveWaveEdit();
+                    } else {
+                        boolean moved = currentPoint != null
+                                && this.getDistance(downPoint, currentPoint) > TAP_SLOP_PX;
+                        Point target = currentPoint != null ? currentPoint : this.snap(downPoint);
+                        if (draft.isEmpty() && moved) {
+                            this.commitWavePoint(this.snap(downPoint));
+                        }
+                        if (!draft.isEmpty() && this.isFarFromLastWavePoint(target)) {
+                            this.commitWavePoint(target);
+                        }
+                        // 松手即结束：不足五浪也保存，末端加箭头
+                        this.finishWave();
+                    }
+                }
+                waveEditLine = null;
+                downPoint = null;
+                currentPoint = null;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private final Handler waveHandler = new Handler(Looper.getMainLooper());
+    private final Runnable waveHoldTask = new Runnable() {
+        @Override
+        public void run() {
+            if (waveEditLine != null || downPoint == null || currentPoint == null) {
+                return;
+            }
+            List<Object[]> draft = activity.getWaveDraft();
+            if (draft.isEmpty()) {
+                if (getDistance(downPoint, currentPoint) <= TAP_SLOP_PX) {
+                    return;
+                }
+                commitWavePoint(snap(downPoint));
+            }
+            if (isFarFromLastWavePoint(currentPoint)) {
+                commitWavePoint(currentPoint);
+                activity.showUI();
+            }
+        }
+    };
+
+    private boolean isFarFromLastWavePoint(Point p) {
+        List<Object[]> draft = activity.getWaveDraft();
+        if (draft.isEmpty()) {
+            return true;
+        }
+        Object[] last = draft.get(draft.size() - 1);
+        Point lastPixel = this.getVirtualPoint((String) last[0], (Float) last[1]);
+        return lastPixel == null || this.getDistance(lastPixel, p) > TAP_SLOP_PX;
+    }
+
+    private static boolean isWaveType(int type) {
+        return type == TrendLine.TYPE_WAVE;
+    }
+
+    private void commitWavePoint(Point p) {
+        List<Object[]> draft = activity.getWaveDraft();
+        draft.add(new Object[] {this.getDate(p), this.getPrice(p)});
+        waveAddedTime = SystemClock.uptimeMillis();
+        if (draft.size() >= WAVE_POINT_COUNT) {
+            this.finishWave();
+        }
+    }
+
+    /* 保存当前折线（不足五浪时也保存，末端带箭头） */
+    private void finishWave() {
+        List<Object[]> draft = activity.getWaveDraft();
+        if (draft.size() >= 2) {
+            TrendLine trendLine = new TrendLine();
+            trendLine.setSymbol(activity.getSymbol());
+            trendLine.setTimeFrame(activity.getTrendLineTimeFrame());
+            trendLine.setType(TrendLine.TYPE_WAVE);
+            trendLine.setColor(activity.getTrendLineColor());
+            trendLine.setWavePoints(draft);
+            draft.clear();
+            activity.saveTrendLine(trendLine);
+            tapCreatedTime = waveAddedTime;
+            tapCreatedLineCount = trendLines.size();
+        }
+        draft.clear();
+        // 结束本次手势的后续取点
+        downPoint = null;
+        currentPoint = null;
+    }
+
+    private void saveWaveEdit() {
+        if (currentPoint == null) {
+            return;
+        }
+        List<Object[]> points = waveEditLine.getWavePoints();
+        points.set(waveEditIndex,
+                new Object[] {this.getDate(currentPoint), this.getPrice(currentPoint)});
+        TrendLine trendLine = new TrendLine();
+        trendLine.setSymbol(waveEditLine.getSymbol());
+        trendLine.setTimeFrame(waveEditLine.getTimeFrame());
+        trendLine.setType(waveEditLine.getType());
+        trendLine.setColor(waveEditLine.getColor());
+        trendLine.setWavePoints(points);
+        activity.deleteTrendLine(waveEditLine.getId());
+        activity.saveTrendLine(trendLine);
+    }
+
+    /* 触摸点是否落在已保存五浪线的端点上，命中则记录线和端点序号 */
+    private boolean hitWavePoint(Point point) {
+        double best = Const.EDIT_DISTANCE;
+        waveEditLine = null;
+        for (TrendLine trendLine : trendLines) {
+            if (!isWaveType(trendLine.getType())) {
+                continue;
+            }
+            List<Point> pixels = this.getWavePixels(trendLine.getWavePoints());
+            for (int i = 0; pixels != null && i < pixels.size(); i++) {
+                double d = this.getDistance(pixels.get(i), point);
+                if (d <= best) {
+                    best = d;
+                    waveEditLine = trendLine;
+                    waveEditIndex = i;
+                }
+            }
+        }
+        return waveEditLine != null;
+    }
+
+    private List<Point> getWavePixels(List<Object[]> points) {
+        List<Point> pixels = new ArrayList<>();
+        for (Object[] item : points) {
+            Point p = this.getVirtualPoint((String) item[0], (Float) item[1]);
+            if (p == null) {
+                return null;
+            }
+            pixels.add(p);
+        }
+        return pixels;
+    }
+
+    /* 折线 + 1~n浪数字；arrow为true时在末端加箭头 */
+    private void drawWave(Canvas canvas, Paint paint, List<Point> pixels, boolean arrow) {
+        float textSize = paint.getTextSize();
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setFakeBoldText(true);
+        for (int i = 1; i < pixels.size(); i++) {
+            canvas.drawLine(pixels.get(i - 1).x, pixels.get(i - 1).y,
+                    pixels.get(i).x, pixels.get(i).y, paint);
+        }
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        // 箭头尖始终画在末端K线价格点上，该点可拖动编辑
+        float head = 36;
+        float labelGap = 30;
+        Point tip = pixels.get(pixels.size() - 1);
+        float tipX = tip.x;
+        float tipY = tip.y;
+        for (int i = 1; i < pixels.size(); i++) {
+            Point p = pixels.get(i);
+            boolean peak = pixels.get(i - 1).y > p.y
+                    && (i + 1 >= pixels.size() || pixels.get(i + 1).y > p.y);
+            String label = String.valueOf(i);
+            float x = p.x - paint.measureText(label) / 2;
+            float y = peak ? p.y - 8 - fm.descent : p.y + 8 - fm.ascent;
+            if (arrow && i == pixels.size() - 1) {
+                // 末端数字写在箭头左侧：向上时不高于箭头尖，向下时不低于箭头尖
+                float width = paint.measureText(label);
+                x = tipX - labelGap - width >= 0 ? tipX - labelGap - width : tipX + labelGap;
+                y = pixels.get(i - 1).y > p.y ? tipY - fm.ascent : tipY - fm.descent;
+            }
+            canvas.drawText(label, x, y, paint);
+        }
+        if (arrow && pixels.size() >= 2) {
+            Point from = pixels.get(pixels.size() - 2);
+            double angle = Math.atan2(tip.y - from.y, tip.x - from.x);
+            for (double side : new double[] {Math.PI / 7, -Math.PI / 7}) {
+                canvas.drawLine(tipX, tipY,
+                        (float) (tipX - head * Math.cos(angle + side)),
+                        (float) (tipY - head * Math.sin(angle + side)), paint);
+            }
+        }
+        paint.setFakeBoldText(false);
+        paint.setTextSize(textSize);
+    }
+
     /* 双击：删除线。双击的第一下点击可能刚画出一条水平线，先撤销它，再删除原有的线 */
     public void onDoubleTap(Point point) {
+        List<Object[]> draft = activity.getWaveDraft();
+        if (!draft.isEmpty() && SystemClock.uptimeMillis() - waveAddedTime <= TAP_CREATE_UNDO_MS) {
+            // 双击的第一下刚加了一个五浪端点，撤销它
+            draft.remove(draft.size() - 1);
+            downPoint = null;
+            currentPoint = null;
+            return;
+        }
         // 取消第二下按下后正在进行的画线/编辑，避免抬起时又保存
         downPoint = null;
         currentPoint = null;
@@ -391,6 +636,15 @@ public class StickView extends View {
 
     /* 触摸点到线的距离：通道线含平行线，斐波那契线取各水平线 */
     private double getLineDistance(TrendLine trendLine, Point point) {
+        if (isWaveType(trendLine.getType())) {
+            List<Point> pixels = this.getWavePixels(trendLine.getWavePoints());
+            double best = Double.MAX_VALUE;
+            for (int i = 1; pixels != null && i < pixels.size(); i++) {
+                best = Math.min(best, this.pointToLine(pixels.get(i - 1).x, pixels.get(i - 1).y,
+                        pixels.get(i).x, pixels.get(i).y, point.x, point.y));
+            }
+            return best;
+        }
         Point p1 = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
         Point p2 = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
         if (p1 == null || p2 == null) {
@@ -549,6 +803,9 @@ public class StickView extends View {
         for (TrendLine trendLine : trendLines) {
             Point startPoint = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
             Point endPoint = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
+            if (isWaveType(trendLine.getType())) {
+                continue;
+            }
             if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL && startPoint != null) {
                 // 水平线横跨整个画面，线上任意位置都可抓取
                 int distance = Math.abs(point.y - startPoint.y);
@@ -1129,6 +1386,18 @@ public class StickView extends View {
             if (p1 == null || p2 == null) {
                 continue;
             }
+            if (isWaveType(trendLine.getType())) {
+                List<Point> pixels = this.getWavePixels(trendLine.getWavePoints());
+                if (pixels != null) {
+                    if (waveEditLine != null && waveEditLine.getId() == trendLine.getId()
+                            && currentPoint != null && waveEditIndex < pixels.size()) {
+                        pixels.set(waveEditIndex, currentPoint);
+                    }
+                    paint.setColor(trendLine.getColor());
+                    this.drawWave(canvas, paint, pixels, true);
+                }
+                continue;
+            }
             float offsetPx = dragging && !channelMove
                     ? channelOffsetPx : this.getChannelOffsetPx(trendLine);
             if (dragging && channelMove && downPoint != null) {
@@ -1143,6 +1412,23 @@ public class StickView extends View {
                     dragging && channelMove ? null : Float.valueOf(trendLine.getPrice1()));
         }
         // 描画当前正在画的线
+        if (waveEditLine != null) {
+            return;
+        }
+        if (isWaveType(activity.getTrendLineType())) {
+            List<Point> pixels = this.getWavePixels(activity.getWaveDraft());
+            if (pixels != null && pixels.isEmpty() && downPoint != null && currentPoint != null) {
+                pixels.add(downPoint);
+            }
+            if (pixels != null && !pixels.isEmpty()) {
+                if (currentPoint != null && downPoint != null) {
+                    pixels.add(currentPoint);
+                }
+                paint.setColor(activity.getTrendLineColor());
+                this.drawWave(canvas, paint, pixels, false);
+            }
+            return;
+        }
         if (downPoint == null || currentPoint == null || channelLine != null) {
             return;
         }

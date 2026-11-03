@@ -157,7 +157,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 編集モード
     private boolean isEidtMode;
     // 画线工具：线型、颜色、吸附
-    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平", "通道", "斐波", "箱体"};
+    private static final String[] TREND_TYPE_LABELS = {"线段", "射线", "水平", "通道", "斐波", "箱体", "五浪"};
+    /* 正在绘制的五浪端点 {日期, 价格}，满6个点后保存 */
+    private final List<Object[]> waveDraft = new ArrayList<>();
+
+    public List<Object[]> getWaveDraft() {
+        return waveDraft;
+    }
     private static final int[] TREND_COLORS = {
             Color.WHITE, Color.YELLOW, Color.rgb(255, 165, 0), Color.CYAN,
             Color.MAGENTA, Color.GREEN};
@@ -463,6 +469,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             trendLine.setType((Integer) data[7]);
             trendLine.setColor((Integer) data[8]);
             trendLine.setOffset((float) data[9]);
+            trendLine.setExtraPoints((String) data[10]);
             trendLines.add(trendLine);
         }
         return trendLines;
@@ -1770,6 +1777,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 TextView button = createToolButton();
                 button.setOnClickListener(v -> {
                     trendLineType = type;
+                    waveDraft.clear();
                     updateTrendToolButtons();
                 });
                 trendTypeButtons.add(button);
