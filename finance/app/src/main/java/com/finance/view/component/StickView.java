@@ -305,7 +305,9 @@ public class StickView extends View {
                 this.channelLine = editLine == null ? this.getChannelLine(point) : null;
                 this.channelOffsetPx = channelLine == null ? 0 : this.getChannelOffsetPx(channelLine);
                 this.channelStartOffsetPx = channelOffsetPx;
-                this.channelMove = channelLine != null && this.isOnChannelBase(channelLine, point);
+                this.channelMove = channelLine != null
+                        && (channelLine.getType() == TrendLine.TYPE_BOX
+                        || this.isOnChannelBase(channelLine, point));
                 this.currentPoint = null;
                 this.downPoint = editLine == null && channelLine == null
                         ? this.snap(point) : point;
@@ -708,7 +710,8 @@ public class StickView extends View {
         TrendLine best = null;
         double bestDistance = Const.EDIT_DISTANCE;
         for (TrendLine trendLine : trendLines) {
-            if (trendLine.getType() != TrendLine.TYPE_CHANNEL) {
+            if (trendLine.getType() != TrendLine.TYPE_CHANNEL
+                    && trendLine.getType() != TrendLine.TYPE_BOX) {
                 continue;
             }
             double distance = this.getLineDistance(trendLine, point);
@@ -816,8 +819,27 @@ public class StickView extends View {
             if (isWaveType(trendLine.getType())) {
                 continue;
             }
+            if (trendLine.getType() == TrendLine.TYPE_BOX) {
+                // 箱体四个顶点都可抓取；命中后以对角顶点为固定点
+                String[] dates = {trendLine.getDate1(), trendLine.getDate2()};
+                float[] prices = {trendLine.getPrice1(), trendLine.getPrice2()};
+                for (int a = 0; a < 2; a++) {
+                    for (int b = 0; b < 2; b++) {
+                        Point corner = this.getVirtualPoint(dates[a], prices[b]);
+                        if (corner == null) {
+                            continue;
+                        }
+                        int distance = this.getDistance(point, corner);
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            best = trendLine;
+                            bestPoint = 3 + a * 2 + b;
+                        }
+                    }
+                }
+                continue;
+            }
             if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL && startPoint != null) {
-                // 水平线横跨整个画面，线上任意位置都可抓取
                 int distance = Math.abs(point.y - startPoint.y);
                 if (distance < bestDistance) {
                     bestDistance = distance;
@@ -845,6 +867,21 @@ public class StickView extends View {
         }
         if (best == null || bestDistance > Const.EDIT_DISTANCE) {
             return null;
+        }
+        if (best.getType() == TrendLine.TYPE_BOX && bestPoint >= 3) {
+            // 把被拖动的顶点转成第2点，对角顶点转成第1点（固定点），之后沿用线端点编辑流程
+            int k = bestPoint - 3;
+            boolean dragDate2 = k / 2 == 1;
+            boolean dragPrice2 = k % 2 == 1;
+            String movedDate = dragDate2 ? best.getDate2() : best.getDate1();
+            String fixedDate = dragDate2 ? best.getDate1() : best.getDate2();
+            float movedPrice = dragPrice2 ? best.getPrice2() : best.getPrice1();
+            float fixedPrice = dragPrice2 ? best.getPrice1() : best.getPrice2();
+            best.setDate1(fixedDate);
+            best.setPrice1(fixedPrice);
+            best.setDate2(movedDate);
+            best.setPrice2(movedPrice);
+            bestPoint = 2;
         }
         best.setEidtPoint(bestPoint);
         return best;
