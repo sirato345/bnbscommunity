@@ -1830,6 +1830,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (macdView.isSymbolTitleHit(e)) {
             return true;
         }
+        if (macdView.handleFearGreedGaugeTap(e)) {
+            return true;
+        }
         if (macdView.handleIntradayControlTap(e)) {
             return true;
         }

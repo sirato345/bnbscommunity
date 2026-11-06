@@ -533,29 +533,61 @@ public class MacdView  extends View {
         drawSignalMarker(canvas, secondSignalCenter - buttonWidth / 2, top,
                 buttonWidth, buttonHeight,
                 markerSize, secondIndicatorSignal);
-        drawFearGreedGauge(canvas, firstSignalCenter - markerSize / 2 - markerGap,
-                top + buttonHeight / 2, markerSize, density);
+        drawFearGreedGauge(canvas);
     }
 
     /* 贪婪恐慌指数仪表：画在两个指标标记的左侧，仅加密货币显示 */
-    private void drawFearGreedGauge(Canvas canvas, float right, float centerY,
-                                    float markerSize, float density) {
+    private int getFearGreedGaugeValue() {
         boolean fngSymbol = Const.Symbol.fng.toString().equals(symbol);
-        int value = fngSymbol && stickList != null && !stickList.isEmpty()
+        return fngSymbol && stickList != null && !stickList.isEmpty()
                 ? Math.max(0, Math.min(100, Math.round(stickList.get(0).getClose())))
                 : com.finance.model.net.FearGreedIndex.getValue();
-        if (!(activity.isCryptoSymbol() || fngSymbol) || value < 0) {
-            return;
+    }
+
+    private RectF getFearGreedGaugeBounds() {
+        if (!(activity.isCryptoSymbol() || activity.isFearGreedSymbol())
+                || getFearGreedGaugeValue() < 0) {
+            return null;
         }
+        float density = getResources().getDisplayMetrics().density;
+        float markerSize = getIndicatorMarkerSize();
+        float markerGap = 12 * density;
+        float firstSignalCenter = getSignalRightCenter(density, markerSize, markerGap)
+                - markerSize - markerGap;
+        float right = firstSignalCenter - markerSize / 2 - markerGap;
+        float centerY = getSignalControlsTop(34 * density, markerSize) + 17 * density;
         float titleRight = 8 * density + getTitleBounds().width();
         float width = Math.min(markerSize * 2.2f, right - titleRight - 8 * density);
         if (width < markerSize) {
+            return null;
+        }
+        return new RectF(right - width, centerY - width / 4, right, centerY + width / 4);
+    }
+
+    private void drawFearGreedGauge(Canvas canvas) {
+        RectF bounds = getFearGreedGaugeBounds();
+        if (bounds == null) {
             return;
         }
-        float centerX = right - width / 2;
-        // 半圆总高约为宽度的一半，垂直居中于标记
-        float bottom = centerY + width / 4;
-        drawGaugeShape(canvas, centerX, bottom, width, value);
+        drawGaugeShape(canvas, bounds.centerX(), bounds.bottom, bounds.width(),
+                getFearGreedGaugeValue());
+    }
+
+    public boolean handleFearGreedGaugeTap(MotionEvent event) {
+        if (!activity.isCryptoSymbol()) {
+            return false;
+        }
+        RectF bounds = getFearGreedGaugeBounds();
+        if (bounds == null) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        if (!bounds.contains(event.getRawX() - location[0], event.getRawY() - location[1])) {
+            return false;
+        }
+        activity.selectSymbol(Const.Symbol.fng);
+        return true;
     }
 
     private void drawGaugeShape(Canvas canvas, float centerX, float bottom, float width, int value) {
@@ -2041,13 +2073,15 @@ public class MacdView  extends View {
             } else if ("Stale".equals(quote.status(now))) {
                 label = getResources().getString(R.string.index_quote_stale);
             } else {
-                long seconds = UsMarketSchedule.nextOpen(now) - now;
+                boolean marketOpen = quote.isMarketOpen(now);
+                long seconds = (marketOpen ? quote.marketClose : UsMarketSchedule.nextOpen(now)) - now;
                 long minutes = (seconds + 59) / 60;
-                label = getResources().getString(R.string.index_next_open,
+                label = getResources().getString(marketOpen ? R.string.index_next_close
+                                : R.string.index_next_open,
                         minutes / 60, minutes % 60);
             }
             paint.setColor(Color.LTGRAY);
-            paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+            paint.setTextSize(Const.FONT_SIZE_MIDDLE * 1.1f);
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
             if (isKdjMode() && sizeOfStick > 0 && !Float.isNaN(kdjK[0])) {

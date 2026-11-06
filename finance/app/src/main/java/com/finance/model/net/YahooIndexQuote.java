@@ -22,8 +22,12 @@ public final class YahooIndexQuote {
         this.marketClose = marketClose;
     }
 
+    public boolean isMarketOpen(long nowSeconds) {
+        return nowSeconds >= marketOpen && nowSeconds < marketClose;
+    }
+
     public String status(long nowSeconds) {
-        if (nowSeconds < marketOpen || nowSeconds >= marketClose) {
+        if (!isMarketOpen(nowSeconds)) {
             return "Closed";
         }
         return quoteTime > nowSeconds + 60 || nowSeconds - quoteTime > 120
