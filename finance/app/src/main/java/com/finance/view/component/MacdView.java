@@ -2264,15 +2264,18 @@ public class MacdView  extends View {
 
     /* 单击事件，由Activity转发事件 */
     public void onSingleTapConfirmed(MotionEvent e) {
-        // Both(KDJ+MACD) -> KDJ -> MACD -> Both
-        if (Const.Macd.Both.toString().equals(macdType)) {
-            activity.macd = Const.Macd.KDJ.toString();
-        } else if (Const.Macd.KDJ.toString().equals(macdType)) {
-            activity.macd = Const.Macd.Single.toString();
-        } else {
-            activity.macd = Const.Macd.Both.toString();
-        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float localY = e.getRawY() - location[1];
+        activity.macd = modeAfterTap(macdType, localY, getHeight());
         activity.showUI();
+    }
+
+    static String modeAfterTap(String currentMode, float localY, int height) {
+        if (Const.Macd.Both.toString().equals(currentMode)) {
+            return (localY < height / 2f ? Const.Macd.KDJ : Const.Macd.Single).toString();
+        }
+        return Const.Macd.Both.toString();
     }
 
     /* タッチ箇所の価格と日付を描く */
