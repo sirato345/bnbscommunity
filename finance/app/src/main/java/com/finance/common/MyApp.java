@@ -109,7 +109,6 @@ public class MyApp extends Application {
         switch (symbol) {
             case "btc":
             case "eth":
-            case "trump":
                 timeZoneId = "UTC";
                 break;
             case "nikkei":

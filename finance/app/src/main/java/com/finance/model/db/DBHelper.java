@@ -53,12 +53,12 @@ public class DBHelper extends SQLiteOpenHelper {
         if (oldVersion < 11) {
             addTrendLineColumn(db, "Points TEXT DEFAULT ''", "Points");
         }
-        if (oldVersion < 4) {
-            for (String tableName : tableList) {
-                if (tableName.startsWith(Const.Symbol.trump.toString() + "_")) {
-                    db.delete(tableName, null, null);
-                }
+        if (oldVersion < 12) {
+            // TRUMP已删除：清理旧表
+            for (String suffix : new String[] {"d", "w", "m", "q", "3d", "4h", "1h", "15m", "5m"}) {
+                db.execSQL("DROP TABLE IF EXISTS trump_" + suffix);
             }
+            db.execSQL("DELETE FROM " + Const.TREND_LINE_TABLE + " WHERE Symbol = 'trump'");
         }
     }
 

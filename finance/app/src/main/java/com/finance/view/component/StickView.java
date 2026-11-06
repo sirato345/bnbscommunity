@@ -1018,10 +1018,10 @@ public class StickView extends View {
             this.drawAverageLine(canvas, average10, Color.parseColor("#FFFF00"));
         }
         if(activity.isAvg20Disp) {
-            this.drawAverageLine(canvas, average20, Color.parseColor("#FFA500"));
+            this.drawAverageLine(canvas, average20, Color.parseColor("#00FFFF"));
         }
         if(activity.isAvg50Disp) {
-            this.drawAverageLine(canvas, average50, Color.parseColor("#00FFFF"));
+            this.drawAverageLine(canvas, average50, Color.parseColor("#FFA500"));
         }
         if (activity.isAvg200Disp) {
             this.drawAverageLine(canvas, average200, Color.MAGENTA);
@@ -1226,13 +1226,13 @@ public class StickView extends View {
                     canvas.drawText("(10) " + getLimitDigit(current10), 0, Const.FONT_SIZE_MIDDLE * 2, paint);
                 }
                 // 20平均線の色
-                paint.setColor(Color.parseColor("#FF9900"));
+                paint.setColor(Color.parseColor("#00FFFF"));
                 if (current20 != 0) {
                     // 20平均線設定
                     canvas.drawText("(20) " + getLimitDigit(current20), 0, Const.FONT_SIZE_MIDDLE * 3, paint);
                 }
                 // 50平均線の色
-                paint.setColor(Color.parseColor("#00FFFF"));
+                paint.setColor(Color.parseColor("#FF9900"));
                 if (current50 != 0) {
                     // 50平均線設定
                     canvas.drawText("(50) " + getLimitDigit(current50), 0, Const.FONT_SIZE_MIDDLE * 4, paint);

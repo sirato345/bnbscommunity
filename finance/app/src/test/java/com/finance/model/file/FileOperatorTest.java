@@ -4,15 +4,15 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class FileOperatorTest {
 
     @Test
-    public void includesTrumpTablesInDatabaseTableList() {
+    public void excludesTrumpTablesFromDatabaseTableList() {
         List<String> tables = FileOperator.getTableList();
 
-        assertTrue(tables.contains("trump_d"));
-        assertTrue(tables.contains("trump_3d"));
+        assertFalse(tables.contains("trump_d"));
+        assertFalse(tables.contains("trump_3d"));
     }
 }

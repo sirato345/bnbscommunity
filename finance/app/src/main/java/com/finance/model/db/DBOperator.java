@@ -78,9 +78,7 @@ public class DBOperator {
         dbWritable.beginTransactionNonExclusive();
 
         for (String tableName : FileOperator.getTableList()) {
-            boolean loadTrumpHistory = tableName.startsWith(
-                    Const.Symbol.trump.toString() + "_");
-            if (loadTrumpHistory || getRecCount(tableName) == 0) {
+            if (getRecCount(tableName) == 0) {
                 fileOperator = new FileOperator(tableName);
                 while ((fileRow = fileOperator.getFileRow()) != null) {
                     if (fileRow.length < 5) {
@@ -91,12 +89,7 @@ public class DBOperator {
                     dbRecord.put("High", fileRow[2]);
                     dbRecord.put("Low", fileRow[3]);
                     dbRecord.put("Close", fileRow[4]);
-                    if (loadTrumpHistory) {
-                        dbWritable.insertWithOnConflict(tableName, null, dbRecord,
-                                SQLiteDatabase.CONFLICT_IGNORE);
-                    } else {
-                        dbWritable.insert(tableName, "", dbRecord);
-                    }
+                    dbWritable.insert(tableName, "", dbRecord);
                 }
             }
         }
@@ -281,7 +274,6 @@ public class DBOperator {
     private boolean isCryptoSymbol(String symbol) {
         return Const.Symbol.btc.toString().equals(symbol)
                 || Const.Symbol.eth.toString().equals(symbol)
-                || Const.Symbol.trump.toString().equals(symbol)
                 || Const.Symbol.fng.toString().equals(symbol);
     }
 

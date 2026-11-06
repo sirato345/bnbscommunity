@@ -79,9 +79,6 @@ public class ChildActivity extends Activity {
         if (symbol.equals(Const.Symbol.eth.toString())) {
             button = (Button)this.findViewById(R.id.button_eth);
         }
-        if (symbol.equals(Const.Symbol.trump.toString())) {
-            button = (Button)this.findViewById(R.id.button_trump);
-        }
         if (symbol.equals(Const.Symbol.dow.toString())) {
             button = (Button)this.findViewById(R.id.button_dow);
         }
@@ -176,8 +173,7 @@ public class ChildActivity extends Activity {
 
     private boolean isCryptoSymbol(String symbol) {
         return Const.Symbol.btc.toString().equals(symbol)
-                || Const.Symbol.eth.toString().equals(symbol)
-                || Const.Symbol.trump.toString().equals(symbol);
+                || Const.Symbol.eth.toString().equals(symbol);
     }
 
     public void onClick_Btc(View v) {
@@ -185,9 +181,6 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Eth(View v) {
         setResult(Const.Symbol.eth);
-    }
-    public void onClick_Trump(View v) {
-        setResult(Const.Symbol.trump);
     }
     public void onClick_Dow(View v) {
         setResult(Const.Symbol.dow);

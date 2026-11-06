@@ -11,8 +11,6 @@ final class BinanceSymbol {
                 return "BTCUSDT";
             case "eth":
                 return "ETHUSDT";
-            case "trump":
-                return "TRUMPUSDT";
             default:
                 throw new IllegalArgumentException("Unsupported Binance symbol: " + symbol);
         }

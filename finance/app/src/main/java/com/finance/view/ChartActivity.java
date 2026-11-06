@@ -173,7 +173,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return waveDraft;
     }
     private static final int[] TREND_COLORS = {
-            Color.WHITE, Color.YELLOW, Color.rgb(255, 165, 0), Color.CYAN,
+            Color.WHITE, Color.YELLOW, Color.CYAN, Color.rgb(255, 165, 0),
             Color.MAGENTA, Color.GREEN};
     private int trendLineType;
     private int trendColorIndex;
@@ -183,10 +183,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 平均K線１０日表示フラグ
     public boolean isAvg10Disp;
     // 平均K線２０日表示フラグ
-    public boolean isAvg20Disp;
+    public boolean isAvg20Disp = true;
     // 平均K線５０日表示フラグ
     public boolean isAvg50Disp;
-    public boolean isAvg200Disp;
+    public boolean isAvg200Disp = true;
     public boolean isSarDisp;
     public boolean isFearGreedSarDisp;
 
@@ -552,7 +552,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (averageKLine) {
             requiredCount += Const.SMOOTHED;
         }
-        return Math.max(400, requiredCount);
+        // 多取200根，使200均线能铺满整个画面
+        return Math.max(400, requiredCount + 200 + Const.SMOOTHED);
     }
 
     private void maybeLoadMoreIntraday() {
@@ -564,7 +565,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return;
         }
         int visibleCount = comnInfo.getMaxStickCount();
-        if (offset + visibleCount >= intradayRecords.size() - 24) {
+        if (offset + visibleCount + 200 >= intradayRecords.size() - 24) {
             String oldestRecord = intradayRecords.get(intradayRecords.size() - 1);
             long oldestOpenTime = Long.parseLong(oldestRecord.substring(0, oldestRecord.indexOf(',')));
             loadBinanceIntradayPage(oldestOpenTime - 1L);
@@ -631,8 +632,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private boolean isCryptoSymbol(String candidateSymbol) {
         return Const.Symbol.btc.toString().equals(candidateSymbol)
-                || Const.Symbol.eth.toString().equals(candidateSymbol)
-                || Const.Symbol.trump.toString().equals(candidateSymbol);
+                || Const.Symbol.eth.toString().equals(candidateSymbol);
     }
 
     private void requestBinanceRealtimeCandle() {
@@ -1201,9 +1201,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.stickWidth = savedInstanceState.getInt(Const.KEY_STICK_WIDTH);
         this.isEidtMode = savedInstanceState.getBoolean(Const.KEY_EDIT_MODE);
         this.isAvg10Disp = savedInstanceState.getBoolean(Const.KEY_AVG_10_DISP);
-        this.isAvg20Disp = savedInstanceState.getBoolean(Const.KEY_AVG_20_DISP);
+        this.isAvg20Disp = savedInstanceState.getBoolean(Const.KEY_AVG_20_DISP, true);
         this.isAvg50Disp = savedInstanceState.getBoolean(Const.KEY_AVG_50_DISP);
-        this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp");
+        this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp", true);
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
     }

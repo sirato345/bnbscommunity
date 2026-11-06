@@ -141,8 +141,6 @@ public class MacdView  extends View {
     private float cryptoTimeframeScrollDistance;
     private final DecimalFormat cryptoPriceFormat = new DecimalFormat(
             "0.00", DecimalFormatSymbols.getInstance(Locale.US));
-    private final DecimalFormat trumpPriceFormat = new DecimalFormat(
-            "0.000", DecimalFormatSymbols.getInstance(Locale.US));
     private final DecimalFormat marketPriceFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight firstIndicatorSignal = SignalLight.RED;
@@ -1817,9 +1815,6 @@ public class MacdView  extends View {
         if (Const.Symbol.fng.toString().equals(symbol)) {
             return String.valueOf(Math.round(close));
         }
-        if (Const.Symbol.trump.toString().equals(symbol)) {
-            return trumpPriceFormat.format(close);
-        }
         if (Const.Symbol.btc.toString().equals(symbol)
                 || Const.Symbol.eth.toString().equals(symbol)) {
             return cryptoPriceFormat.format(close);
@@ -1838,9 +1833,6 @@ public class MacdView  extends View {
         }
         if (Const.Symbol.eth.toString().equals(symbol)) {
             return replace(getResources().getString(R.string.symbol_eth));
-        }
-        if (Const.Symbol.trump.toString().equals(symbol)) {
-            return replace(getResources().getString(R.string.symbol_trump));
         }
         if (Const.Symbol.dow.toString().equals(symbol)) {
             return replace(getResources().getString(R.string.symbol_dow));
@@ -1912,7 +1904,7 @@ public class MacdView  extends View {
         boolean cryptoMenu = isCryptoMenuSymbol(selectedSymbol);
         Const.Symbol[] symbols = cryptoMenu
                 ? new Const.Symbol[] {Const.Symbol.btc, Const.Symbol.eth,
-                        Const.Symbol.trump, Const.Symbol.fng}
+                                        Const.Symbol.fng}
                 : new Const.Symbol[] {Const.Symbol.dow, Const.Symbol.sp500,
                         Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond};
         List<Const.Symbol> otherSymbols = new ArrayList<>();
@@ -1995,8 +1987,6 @@ public class MacdView  extends View {
                 return getResources().getString(R.string.symbol_btc);
             case eth:
                 return getResources().getString(R.string.symbol_eth);
-            case trump:
-                return getResources().getString(R.string.symbol_trump);
             case fng:
                 return getResources().getString(R.string.symbol_fng);
             case dow:
@@ -2022,7 +2012,7 @@ public class MacdView  extends View {
 
     private boolean isCryptoMenuSymbol(Const.Symbol target) {
         return target == Const.Symbol.btc || target == Const.Symbol.eth
-                || target == Const.Symbol.trump || target == Const.Symbol.fng;
+                || target == Const.Symbol.fng;
     }
 
     /* 单击事件，由Activity转发事件 */

@@ -10,6 +10,5 @@ public class BinanceSymbolTest {
     public void mapsCryptoSymbolsToBinanceSpotPairs() {
         assertEquals("BTCUSDT", BinanceSymbol.getPair("btc"));
         assertEquals("ETHUSDT", BinanceSymbol.getPair("eth"));
-        assertEquals("TRUMPUSDT", BinanceSymbol.getPair("trump"));
     }
 }
