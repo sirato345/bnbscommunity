@@ -19,6 +19,7 @@ import com.finance.common.Const;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.ParabolicSarCalculator;
+import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
@@ -196,6 +197,9 @@ public class StickView extends View {
             maxValue = mid + half;
             minValue = mid - half;
         }
+        float shift = PriceAxisPan.priceShift(activity.getPricePan(), minValue, maxValue);
+        maxValue += shift;
+        minValue += shift;
         // ローソク足に計算値を設定し、ローソク自身情報も計算
         for (int i = 0; i < maxStickCount; i++) {
             // ローソク足
@@ -1251,7 +1255,8 @@ public class StickView extends View {
                 }
             }
             // 缩放后最高最低价线仍在原位置（区域上下沿），显示缩放后的价格
-            boolean zoomed = activity.getPriceZoom() > 1f && !activity.isFearGreedSymbol();
+            boolean zoomed = (activity.getPriceZoom() > 1f || activity.getPricePan() != 0f)
+                    && !activity.isFearGreedSymbol();
             float topY = zoomed ? 0 : lineRect.top;
             float bottomY = zoomed ? comnInfo.getStickHeight() : lineRect.bottom;
             float topValue = zoomed ? stickInfo.getMaxValue() : stickInfo.getHigh();

@@ -35,6 +35,7 @@ import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
 import com.finance.view.component.StickView;
 import com.finance.view.component.stick.ComnInfo;
+import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
@@ -147,10 +148,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private float fingerSepY;
     /* 价格范围缩放倍数：1为自动适配，越大K线越小 */
     private float priceZoom = 1f;
+    private float pricePan;
+    private float pricePanStart;
+    private boolean pricePanGesture;
     private static final float MAX_PRICE_ZOOM = 4f;
 
     public float getPriceZoom() {
         return priceZoom;
+    }
+
+    public float getPricePan() {
+        return pricePan;
     }
     private float pinchStickWidth;
     // 蝋燭の幅
@@ -914,6 +922,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 || "1h".equals(interval) || "4h".equals(interval))) {
             return;
         }
+        if (!interval.equals(intradayInterval)) {
+            pricePan = 0f;
+        }
         intradayInterval = interval;
         intradayGeneration++;
         intradayRecords.clear();
@@ -936,6 +947,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 || "q".equals(selectedTimeframe) || "y".equals(selectedTimeframe))
                 || ("3d".equals(selectedTimeframe) && !isCryptoSymbol()))) {
             return;
+        }
+        if (intradayInterval != null || !selectedTimeframe.equals(timeFrame)) {
+            pricePan = 0f;
         }
         clearIntradaySelection();
         timeFrame = selectedTimeframe;
@@ -1122,6 +1136,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
             Object result = bundle.get(Const.KEY_RESULT);
             if (result instanceof  Const.TimeFrame) {
                 String selectedTimeFrame = result.toString();
+                String currentTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
+                if (!selectedTimeFrame.equals(currentTimeFrame)) {
+                    pricePan = 0f;
+                }
                 if (Const.TimeFrame.h4.toString().equals(selectedTimeFrame)
                         || Const.TimeFrame.h1.toString().equals(selectedTimeFrame)
                         || Const.TimeFrame.m15.toString().equals(selectedTimeFrame)
@@ -1162,6 +1180,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private void applySymbolSelection(String newSymbol) {
         if (!symbol.equals(newSymbol)) {
             realtimeCandle = null;
+            pricePan = 0f;
         }
         if (intradayInterval != null && isCryptoSymbol()
                 && isCryptoSymbol(newSymbol)) {
@@ -1200,6 +1219,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean("Avg200Disp", this.isAvg200Disp);
         outState.putBoolean("SarDisp", this.isSarDisp);
         outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
+        outState.putFloat("PricePan", pricePan);
     }
 
     @Override
@@ -1218,6 +1238,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp", true);
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
+        this.pricePan = savedInstanceState.getFloat("PricePan", 0f);
     }
 
     /* 当面選択された銘柄 */
@@ -1413,6 +1434,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                     }
                                 }
                             }
+                            int chartY = ajustPoint(event).y;
+                            pricePanGesture = !isDispOperate && !cryptoTimeframeControlGesture
+                                    && chartY >= 0 && chartY < comnInfo.getStickHeight()
+                                    && comnInfo.getStickHeight() > 0
+                                    && stickView.getStickList() != null
+                                    && !stickView.getStickList().isEmpty();
+                            pricePanStart = pricePan;
                             break;
                         case MotionEvent.ACTION_MOVE:
                             // 长按时距离测定用X轴位置
@@ -1420,6 +1448,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             // 长按时距离测定用Y轴位置
                             mCurrentMotionY = y;
                             if (!cryptoTimeframeControlGesture) {
+                                if (pricePanGesture) {
+                                    pricePan = PriceAxisPan.afterDrag(pricePanStart,
+                                            y - mLastMotionY, comnInfo.getStickHeight());
+                                }
                                 offset = offset - (int) Math.floor(
                                         (mLastMotionX - x) / (float) Math.max(1, stickWidth));
                                 // 允许向右拖出未来空白，至少保留2根K线在画面内
@@ -1436,6 +1468,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             }
                             break;
                         case MotionEvent.ACTION_UP:
+                            pricePanGesture = false;
                             mLastMotionX = 0;
                             mLastMotionY = 0;
                             mCurrentMotionX = 0;
@@ -1487,6 +1520,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             break;
                         case MotionEvent.ACTION_POINTER_DOWN:      // 第二指押下触发
                             if (event.getPointerCount() == 2) {
+                                offset = offsetLast;
+                                offsetBk = offset;
                                 fingerDistance = getDistance(event);
                                 fingerSepY = Math.abs(event.getY(1) - event.getY(0));
                                 pinchStickWidth = stickWidth;
@@ -1504,6 +1539,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                 mCurrentMotionY = mLastMotionY;
                                 offsetBk = offset;
                                 offsetLast = offset;
+                                pricePanStart = pricePan;
                             }
                             break;
                     }
@@ -1520,6 +1556,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 if (event.getAction() == MotionEvent.ACTION_UP
                         || event.getAction() == MotionEvent.ACTION_CANCEL) {
                     cryptoTimeframeControlGesture = false;
+                    pricePanGesture = false;
                 }
             }
         } else {
