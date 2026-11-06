@@ -84,7 +84,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String intradayInterval;
     private final List<String> intradayRecords = new ArrayList<>();
     private boolean intradayLoading;
-    private static final int INTRADAY_MIN_RECORDS = 600;
     private boolean intradayHasMore = true;
     private long intradayGeneration;
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
@@ -614,13 +613,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     }
                     intradayHasMore = records.size()
                             == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
-                    // 历史不足时EMA尚未稳定，先继续取满再绘制，避免MACD柱体绘制后又变化
-                    if (intradayHasMore && intradayRecords.size() < INTRADAY_MIN_RECORDS) {
-                        String oldest = intradayRecords.get(intradayRecords.size() - 1);
-                        loadBinanceIntradayPage(
-                                Long.parseLong(oldest.substring(0, oldest.indexOf(','))) - 1L);
-                        return;
-                    }
                     showUI();
                 });
     }
