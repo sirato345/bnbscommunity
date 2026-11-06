@@ -84,6 +84,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String intradayInterval;
     private final List<String> intradayRecords = new ArrayList<>();
     private boolean intradayLoading;
+    private static final int INTRADAY_MIN_RECORDS = 600;
     private boolean intradayHasMore = true;
     private long intradayGeneration;
     private final Set<String> loadIntradayAfterHistory = new HashSet<>();
@@ -131,7 +132,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 所以在抬起时必须将最后一次移动后的偏移量真正设置到偏移量变量中进行保存
     private int offsetLast;
     // 表示中のMACDタイプ
-    public String macd = Const.Macd.KDJ.toString();
+    public String macd = Const.Macd.Both.toString();
     // 表示中のローソク線のタイプ
     public String kLine = Const.K_Line.Normal.toString();
     //最后一次按下时的位置
@@ -398,6 +399,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* DBから最新データ取得し、画面表示 */
     public void showUI() {
         // 共通情報
+        if (chartLayout != null) {
+            updateChartLayoutWeights();
+        }
         comnInfo = new ComnInfo(this);
         // DBからの最新データを保持するリスト
         List<StickInfo> stickList;
@@ -432,6 +436,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             macdView.setFearGreedSarValue(null);
         }
         macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
+        macdView.setMacdLines(loadTrendLines(getTrendLineTimeFrame() + "@macd"));
         setImageView();
         int dateOffset = intradayInterval == null
                 ? offset : Math.min(offset, Const.DEFAULT_OFFSET);
@@ -609,6 +614,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     }
                     intradayHasMore = records.size()
                             == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
+                    // 历史不足时EMA尚未稳定，先继续取满再绘制，避免MACD柱体绘制后又变化
+                    if (intradayHasMore && intradayRecords.size() < INTRADAY_MIN_RECORDS) {
+                        String oldest = intradayRecords.get(intradayRecords.size() - 1);
+                        loadBinanceIntradayPage(
+                                Long.parseLong(oldest.substring(0, oldest.indexOf(','))) - 1L);
+                        return;
+                    }
                     showUI();
                 });
     }
@@ -1079,7 +1091,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         DisplayMetrics displayMetrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         int screenHeight = displayMetrics.heightPixels - (isPortrait ? 30 : 100);
-        float areaWeightShift = Const.MACD_AREA_HEIGHT_SHIFT
+        float areaWeightShift = (Const.MACD_AREA_HEIGHT_SHIFT + getMacdExtraHeight())
                 * (float) Const.WEIGHT_ALL / screenHeight;
         return new float[] {
                 Const.WEIGHT_STICK - areaWeightShift,
@@ -1088,11 +1100,19 @@ public class ChartActivity extends FragmentActivity implements Observer,
         };
     }
 
+    /* KDJ和MACD同时显示时，扩大MACD区域 */
+    public int getMacdExtraHeight() {
+        return Const.MACD_BOTH_EXTRA_HEIGHT;
+    }
+
     private void updateChartLayoutWeights() {
         float[] weights = getChartAreaWeights();
         for (int i = 0; i < chartLayout.getChildCount(); i++) {
             View child = chartLayout.getChildAt(i);
             LayoutParams params = (LayoutParams) child.getLayoutParams();
+            if (Math.abs(params.weight - weights[i]) < 0.0001f) {
+                continue;
+            }
             params.weight = weights[i];
             child.setLayoutParams(params);
         }
@@ -1343,7 +1363,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                         if (event.getAction() == MotionEvent.ACTION_UP) {
                             this.showUI();
                         }
-                    } else if (!macdView.handleDivergenceEdit(event.getAction(), point)) {
+                    } else if (macdView.handleDivergenceEdit(event.getAction(), point)) {
+                        // 背离线已处理
+                    } else if (macdView.handleMacdLineEdit(event.getAction(), point)) {
+                        if (event.getAction() == MotionEvent.ACTION_UP) {
+                            this.showUI();
+                        }
+                    } else {
                         stickView.onTouchEvent(event.getAction(), point);
                         this.showUI();
                     }
@@ -1551,6 +1577,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if(isEidtMode) {
             Point point = this.ajustPoint(e);
             if (macdView.deleteKdjLineAt(point)) {
+                this.showUI();
+            } else if (macdView.deleteMacdLineAt(point)) {
                 this.showUI();
             } else if (!macdView.deleteDivergenceAt(point)) {
                 stickView.onDoubleTap(point);

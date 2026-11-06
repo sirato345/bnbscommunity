@@ -32,8 +32,13 @@ public class Const {
     public static final int WEIGHT_DATE = 1;
 
     public static final int MACD_AREA_HEIGHT_SHIFT = 50;
+    // KDJ和MACD同时显示时，MACD区域额外增加的高度(px)
+    public static final int MACD_BOTH_EXTRA_HEIGHT = 200;
 
-    public static final int MACD_CHART_VERTICAL_INSET = 50;
+    public static final int MACD_CHART_VERTICAL_INSET = 100;
+    // KDJ+MACD同时显示时，两图之间的上下边距(px)
+    public static final int MACD_BOTH_INNER_INSET = 0;
+    public static final int MACD_BOTH_OUTER_INSET = 80;
 
     // 画面全体の高さの比率
     public static final int WEIGHT_ALL = 24;
@@ -76,7 +81,7 @@ public class Const {
     }
     // MACDタイプ
     public enum Macd {
-        Single, Double, KDJ;
+        Single, Double, KDJ, Both;
     }
     // ローソク線タイプ
     public enum K_Line {

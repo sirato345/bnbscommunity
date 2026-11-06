@@ -86,6 +86,15 @@ public class MacdView  extends View {
     private boolean kdjTouchActive;
     private long kdjTapCreatedTime;
     private int kdjTapCreatedLineCount = -1;
+    private static final String MACD_LINE_SUFFIX = "@macd";
+    private List<TrendLine> macdLines = new ArrayList<>();
+    private TrendLine macdEditLine;
+    private boolean macdTouchActive;
+    private float macdDownY;
+    private float macdCurrentY;
+    private int macdCurrentX;
+    private long macdTapCreatedTime;
+    private int macdTapCreatedLineCount = -1;
 
     private static final class DivergenceLine {
         String key;
@@ -439,7 +448,21 @@ public class MacdView  extends View {
             background.setColor(Const.FEAR_GREED_BACKGROUND);
             canvas.drawRect(0, 0, getWidth(), getHeight(), background);
         }
-        if (Const.Macd.KDJ.toString().equals(macdType)) {
+        if (Const.Macd.Both.toString().equals(macdType)) {
+            drawKdj(canvas);
+            drawKdjLines(canvas);
+            canvas.save();
+            canvas.translate(0, getHeight() / 2f);
+            this.drawMacd(canvas, Color.parseColor("#FF9900"));
+            this.drawMacdDivergences(canvas);
+            this.drawMacdLines(canvas);
+            this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
+            canvas.restore();
+            Paint divider = new Paint();
+            divider.setColor(Color.DKGRAY);
+            divider.setStrokeWidth(2);
+            canvas.drawLine(0, getHeight() / 2f, getWidth(), getHeight() / 2f, divider);
+        } else if (Const.Macd.KDJ.toString().equals(macdType)) {
             drawKdj(canvas);
             drawKdjLines(canvas);
         } else if (Const.Macd.Double.toString().equals(macdType)) {// ダブル線
@@ -449,16 +472,25 @@ public class MacdView  extends View {
         } else {// シングル線
             this.drawMacd(canvas, Color.parseColor("#FF9900"));
             this.drawMacdDivergences(canvas);
+            this.drawMacdLines(canvas);
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         }
         this.drawText(canvas);
         drawFearGreedSarControl(canvas);
         drawSignals(canvas);
-        if (Const.Macd.KDJ.toString().equals(macdType)) {
+        if (isKdjMode()) {
             drawKdjValues(canvas);
         }
         this.drawTouchedLine(canvas);
         drawIntradayControls(canvas);
+    }
+
+    private boolean isBothMode() {
+        return Const.Macd.Both.toString().equals(macdType);
+    }
+
+    private boolean isKdjMode() {
+        return Const.Macd.KDJ.toString().equals(macdType) || isBothMode();
     }
 
     private void calculateSignals() {
@@ -687,8 +719,8 @@ public class MacdView  extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        float top = Const.MACD_CHART_VERTICAL_INSET;
-        float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
+        float top = kdjTop();
+        float bottom = kdjBottom();
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         guidePaint.setColor(Color.DKGRAY);
         guidePaint.setStrokeWidth(2);
@@ -1012,10 +1044,12 @@ public class MacdView  extends View {
             Point startPoint = line.startPoint;
             Point endPoint = line.endPoint;
             if (line.key.equals(draggingDivergenceKey) && draggingDivergencePoint != null) {
+                Point dragged = new Point(draggingDivergencePoint.x,
+                        Math.round(draggingDivergencePoint.y - macdOffsetY()));
                 if (draggingDivergenceStart) {
-                    startPoint = draggingDivergencePoint;
+                    startPoint = dragged;
                 } else {
-                    endPoint = draggingDivergencePoint;
+                    endPoint = dragged;
                 }
             }
             paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.rgb(0, 230, 118));
@@ -1134,24 +1168,37 @@ public class MacdView  extends View {
         return info.getYPoint(useValue ? macd : 0f);
     }
 
+    private float macdOffsetY() {
+        return isBothMode() ? getHeight() / 2f : 0f;
+    }
+
+    private boolean isDivergenceMode() {
+        return Const.Macd.Single.toString().equals(macdType) || isBothMode();
+    }
+
     /* 编辑模式：拖动背离线端点重画。返回true表示事件已由背离线处理 */
     public boolean handleDivergenceEdit(int action, Point point) {
-        if (!Const.Macd.Single.toString().equals(macdType) || macdList == null
+        if (!isDivergenceMode() || macdList == null
                 || comnInfo == null) {
             return false;
         }
         float density = getResources().getDisplayMetrics().density;
         float x = point.x;
+        // 视图坐标；与背离线端点比较时需减去MACD面板的偏移
         float y = point.y - comnInfo.getStickHeight();
+        float offsetY = macdOffsetY();
         if (action == MotionEvent.ACTION_DOWN) {
+            if (isBothMode() && y < offsetY) {
+                return false;
+            }
             float radius = DIVERGENCE_HIT_RADIUS_DP * density;
             float best = radius;
             draggingDivergenceKey = null;
             for (DivergenceLine line : buildDivergenceLines()) {
                 Point startPoint = line.startPoint;
                 Point endPoint = line.endPoint;
-                float startDistance = (float) Math.hypot(startPoint.x - x, startPoint.y - y);
-                float endDistance = (float) Math.hypot(endPoint.x - x, endPoint.y - y);
+                float startDistance = (float) Math.hypot(startPoint.x - x, startPoint.y + offsetY - y);
+                float endDistance = (float) Math.hypot(endPoint.x - x, endPoint.y + offsetY - y);
                 if (startDistance <= best) {
                     best = startDistance;
                     draggingDivergenceKey = line.key;
@@ -1187,14 +1234,14 @@ public class MacdView  extends View {
 
     /* 编辑模式：双击背离线删除。返回true表示命中并已删除 */
     public boolean deleteDivergenceAt(Point point) {
-        if (!Const.Macd.Single.toString().equals(macdType) || macdList == null
+        if (!isDivergenceMode() || macdList == null
                 || comnInfo == null) {
             return false;
         }
         float density = getResources().getDisplayMetrics().density;
         float radius = DIVERGENCE_HIT_RADIUS_DP * density;
         float x = point.x;
-        float y = point.y - comnInfo.getStickHeight();
+        float y = point.y - comnInfo.getStickHeight() - macdOffsetY();
         DivergenceLine hit = null;
         float best = radius;
         for (DivergenceLine line : buildDivergenceLines()) {
@@ -1217,22 +1264,222 @@ public class MacdView  extends View {
         return true;
     }
 
+    public void setMacdLines(List<TrendLine> lines) {
+        this.macdLines = lines == null ? new ArrayList<>() : lines;
+    }
+
+    private boolean isMacdLineEditable() {
+        return (Const.Macd.Single.toString().equals(macdType) || isBothMode())
+                && macdList != null && !macdList.isEmpty() && stickList != null
+                && !stickList.isEmpty() && comnInfo != null && maxStickCount > 0
+                && getHeight() > 0 && macdList.get(0).getAbsMaxValue() > 0;
+    }
+
+    private float macdPanelHeight() {
+        return isBothMode() ? getHeight() / 2f : getHeight();
+    }
+
+    private float macdValueAt(float panelY) {
+        return macdList.get(0).getValueAt(panelY);
+    }
+
+    private float macdYOf(float value) {
+        return macdList.get(0).getYPoint(value);
+    }
+
+    private static String formatMacdValue(float value) {
+        float abs = Math.abs(value);
+        if (abs >= 100f) {
+            return String.format(Locale.US, "%.0f", value);
+        } else if (abs >= 10f) {
+            return String.format(Locale.US, "%.1f", value);
+        }
+        return String.format(Locale.US, "%.2f", value);
+    }
+
+    private TrendLine findMacdHorizontalLine(float y) {
+        TrendLine best = null;
+        float bestDistance = Const.EDIT_DISTANCE;
+        for (TrendLine line : macdLines) {
+            if (line.getType() != TrendLine.TYPE_HORIZONTAL) {
+                continue;
+            }
+            float distance = Math.abs(y - macdYOf(line.getPrice1()));
+            if (distance <= bestDistance) {
+                bestDistance = distance;
+                best = line;
+            }
+        }
+        return best;
+    }
+
+    /* 编辑模式：在MACD区域画水平线并可上下拖动。返回true表示事件已处理 */
+    public boolean handleMacdLineEdit(int action, Point point) {
+        if (!isMacdLineEditable()) {
+            return false;
+        }
+        float y = point.y - comnInfo.getStickHeight() - macdOffsetY();
+        if (action == MotionEvent.ACTION_DOWN) {
+            macdTouchActive = false;
+            if (y < 0 || y > macdPanelHeight()) {
+                return false;
+            }
+            macdEditLine = findMacdHorizontalLine(y);
+            if (macdEditLine == null && activity.getTrendLineType() != TrendLine.TYPE_HORIZONTAL) {
+                return false;
+            }
+            macdTouchActive = true;
+            macdDownY = y;
+            macdCurrentY = y;
+            macdCurrentX = point.x;
+            invalidate();
+            return true;
+        }
+        if (!macdTouchActive) {
+            return false;
+        }
+        macdCurrentY = y;
+        macdCurrentX = point.x;
+        if (action == MotionEvent.ACTION_UP) {
+            finishMacdLine();
+        }
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            macdTouchActive = false;
+            macdEditLine = null;
+        }
+        invalidate();
+        return true;
+    }
+
+    private void finishMacdLine() {
+        float value = macdValueAt(macdCurrentY);
+        if (macdEditLine != null) {
+            if (Math.abs(macdCurrentY - macdDownY) > KDJ_MIN_LENGTH_PX) {
+                TrendLine edit = macdEditLine;
+                activity.deleteTrendLine(edit.getId());
+                saveMacdLine(edit.getColor(), edit.getDate1(), value);
+            }
+            return;
+        }
+        String date = kdjDateAt(macdCurrentX);
+        saveMacdLine(activity.getTrendLineColor(), date, value);
+        if (Math.abs(macdCurrentY - macdDownY) <= KDJ_MIN_LENGTH_PX) {
+            macdTapCreatedTime = SystemClock.uptimeMillis();
+            macdTapCreatedLineCount = macdLines.size();
+        }
+    }
+
+    private void saveMacdLine(int color, String date, float value) {
+        TrendLine line = new TrendLine();
+        line.setSymbol(activity.getSymbol());
+        line.setTimeFrame(activity.getTrendLineTimeFrame() + MACD_LINE_SUFFIX);
+        line.setType(TrendLine.TYPE_HORIZONTAL);
+        line.setColor(color);
+        line.setDate1(date);
+        line.setPrice1(value);
+        line.setDate2(date);
+        line.setPrice2(value);
+        activity.saveTrendLine(line);
+    }
+
+    /* 编辑模式：双击MACD区域的水平线删除。返回true表示命中并已删除 */
+    public boolean deleteMacdLineAt(Point point) {
+        if (!isMacdLineEditable()) {
+            return false;
+        }
+        float y = point.y - comnInfo.getStickHeight() - macdOffsetY();
+        if (y < 0 || y > macdPanelHeight()) {
+            return false;
+        }
+        macdTouchActive = false;
+        macdEditLine = null;
+        // 双击的第一下点击可能刚画出一条水平线，先撤销它
+        boolean undone = false;
+        if (SystemClock.uptimeMillis() - macdTapCreatedTime <= 500
+                && macdTapCreatedLineCount >= 0 && macdLines.size() > macdTapCreatedLineCount) {
+            TrendLine created = macdLines.remove(macdLines.size() - 1);
+            activity.deleteTrendLine(created.getId());
+            undone = true;
+        }
+        macdTapCreatedLineCount = -1;
+        TrendLine hit = findMacdHorizontalLine(y);
+        if (hit == null) {
+            invalidate();
+            return undone;
+        }
+        macdLines.remove(hit);
+        activity.deleteTrendLine(hit.getId());
+        invalidate();
+        return true;
+    }
+
+    /* 在MACD面板坐标系内绘制水平线及其数值 */
+    private void drawMacdLines(Canvas canvas) {
+        if (!isMacdLineEditable()) {
+            return;
+        }
+        canvas.save();
+        canvas.clipRect(0, 0, getWidth(), macdPanelHeight());
+        for (TrendLine line : macdLines) {
+            if (line.getType() != TrendLine.TYPE_HORIZONTAL) {
+                continue;
+            }
+            if (macdTouchActive && macdEditLine != null && line.getId() == macdEditLine.getId()) {
+                continue;
+            }
+            drawMacdHorizontal(canvas, line.getColor(), macdYOf(line.getPrice1()),
+                    line.getPrice1());
+        }
+        if (macdTouchActive) {
+            if (macdEditLine != null) {
+                drawMacdHorizontal(canvas, macdEditLine.getColor(), macdCurrentY,
+                        macdValueAt(macdCurrentY));
+            } else {
+                drawMacdHorizontal(canvas, activity.getTrendLineColor(), macdCurrentY,
+                        macdValueAt(macdCurrentY));
+            }
+        }
+        canvas.restore();
+    }
+
+    private void drawMacdHorizontal(Canvas canvas, int color, float y, float value) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(color);
+        paint.setStrokeWidth(3);
+        canvas.drawLine(0, y, getWidth(), y, paint);
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        String text = formatMacdValue(value);
+        Rect textBounds = new Rect();
+        paint.getTextBounds(text, 0, text.length(), textBounds);
+        float gap = 4 + (textBounds.top - fm.ascent);
+        float baseline = y - gap;
+        // 上方会碰到标题文字（或面板顶部）时，数值改显示在线下方
+        float limit = isBothMode() ? 0 : getTitleBaseline() + 6;
+        if (baseline + fm.ascent < limit) {
+            baseline = y + gap - textBounds.top;
+        }
+        canvas.drawText(text, 2, baseline, paint);
+    }
+
     public void setKdjLines(List<TrendLine> lines) {
         this.kdjLines = lines == null ? new ArrayList<>() : lines;
     }
 
     private boolean isKdjEditable() {
-        return Const.Macd.KDJ.toString().equals(macdType) && stickList != null
+        return isKdjMode() && stickList != null
                 && !stickList.isEmpty() && comnInfo != null && maxStickCount > 0
                 && getHeight() > 0;
     }
 
     private float kdjTop() {
-        return Const.MACD_CHART_VERTICAL_INSET;
+        return isBothMode() ? Const.MACD_BOTH_OUTER_INSET : Const.MACD_CHART_VERTICAL_INSET;
     }
 
     private float kdjBottom() {
-        return getHeight() - Const.MACD_CHART_VERTICAL_INSET;
+        float height = isBothMode() ? getHeight() / 2f : getHeight();
+        return height - (isBothMode() ? Const.MACD_BOTH_INNER_INSET
+                : Const.MACD_CHART_VERTICAL_INSET);
     }
 
     private float kdjValueAt(float y) {
@@ -1385,7 +1632,7 @@ public class MacdView  extends View {
         float x = point.x;
         float y = point.y - comnInfo.getStickHeight();
         if (action == MotionEvent.ACTION_DOWN) {
-            kdjTouchActive = y >= 0;
+            kdjTouchActive = y >= 0 && (!isBothMode() || y <= getHeight() / 2f);
             if (!kdjTouchActive) {
                 return false;
             }
@@ -1551,7 +1798,7 @@ public class MacdView  extends View {
             return;
         }
         canvas.save();
-        canvas.clipRect(0, 0, getWidth(), getHeight());
+        canvas.clipRect(0, 0, getWidth(), isBothMode() ? getHeight() / 2f : getHeight()); 
         boolean dragging = kdjTouchActive && kdjCurrentPoint != null;
         for (TrendLine line : kdjLines) {
             // 刷新会重新加载线对象，所以按id比较
@@ -2017,10 +2264,13 @@ public class MacdView  extends View {
 
     /* 单击事件，由Activity转发事件 */
     public void onSingleTapConfirmed(MotionEvent e) {
-        if (Const.Macd.KDJ.toString().equals(macdType)) {
+        // Both(KDJ+MACD) -> KDJ -> MACD -> Both
+        if (Const.Macd.Both.toString().equals(macdType)) {
+            activity.macd = Const.Macd.KDJ.toString();
+        } else if (Const.Macd.KDJ.toString().equals(macdType)) {
             activity.macd = Const.Macd.Single.toString();
         } else {
-            activity.macd = Const.Macd.KDJ.toString();
+            activity.macd = Const.Macd.Both.toString();
         }
         activity.showUI();
     }
@@ -2039,19 +2289,43 @@ public class MacdView  extends View {
             canvas.drawLine(touchPoint.x, 0, touchPoint.x, getHeight(), paint);
         }
         drawKdjTouchedValue(canvas, paint);
+        drawMacdTouchedValue(canvas, paint);
+    }
+
+    /* MACD(单独/下半区)模式下，长按位于MACD区域时，画横线并在左侧显示该位置的数值 */
+    private void drawMacdTouchedValue(Canvas canvas, Paint paint) {
+        if (!(Const.Macd.Single.toString().equals(macdType) || isBothMode())
+                || comnInfo == null || macdList == null || macdList.isEmpty()
+                || macdList.get(0).getAbsMaxValue() <= 0) {
+            return;
+        }
+        float panelY = touchPoint.y - comnInfo.getStickHeight() - macdOffsetY();
+        if (panelY < 0 || panelY > macdPanelHeight()) {
+            return;
+        }
+        float y = panelY + macdOffsetY();
+        String text = formatMacdValue(macdValueAt(panelY));
+        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setFakeBoldText(true);
+        float textWidth = paint.measureText(text);
+        canvas.drawLine(textWidth, y, getWidth(), y, paint);
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        float baseline = y - (fm.ascent + fm.descent) / 2;
+        baseline = Math.max(-fm.ascent, Math.min(getHeight() - fm.descent, baseline));
+        canvas.drawText(text, 0, baseline, paint);
     }
 
     /* KDJ模式下，长按位于MACD区域时，画横线并在左侧显示该位置的数值 */
     private void drawKdjTouchedValue(Canvas canvas, Paint paint) {
-        if (!Const.Macd.KDJ.toString().equals(macdType) || comnInfo == null) {
+        if (!isKdjMode() || comnInfo == null) {
             return;
         }
         float y = touchPoint.y - comnInfo.getStickHeight();
-        if (y < 0 || y > getHeight()) {
+        if (y < 0 || y > (isBothMode() ? getHeight() / 2f : getHeight())) {
             return;
         }
-        float top = Const.MACD_CHART_VERTICAL_INSET;
-        float bottom = getHeight() - Const.MACD_CHART_VERTICAL_INSET;
+        float top = kdjTop();
+        float bottom = kdjBottom();
         float value = (bottom - y) / (bottom - top) * 140f - 20f;
         String text = String.format(Locale.US, "%.1f", value);
         paint.setTextSize(Const.FONT_SIZE_MIDDLE);

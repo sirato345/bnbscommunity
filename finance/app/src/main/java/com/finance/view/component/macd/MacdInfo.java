@@ -52,9 +52,10 @@ public class MacdInfo {
 
     public void calculate(StickInfo stickInfo) {
         this.stickInfo = stickInfo;
-        this.macd_height = Math.max(1, comnInfo.getMacdHeight()
-                - 2 * Const.MACD_CHART_VERTICAL_INSET);
-        this.zero_axis = Const.MACD_CHART_VERTICAL_INSET + macd_height / 2;
+        int topInset = comnInfo.getMacdTopInset();
+        this.macd_height = Math.max(1, comnInfo.getMacdPanelHeight()
+                - topInset - comnInfo.getMacdBottomInset());
+        this.zero_axis = topInset + macd_height / 2;
         this.fullValue = absMaxValue * 2;
         this.setColor();
         this.calcMacdOsciRect();
@@ -127,8 +128,17 @@ public class MacdInfo {
         } else {
             valueRate = (absMaxValue + Math.abs(value)) / fullValue;
         }
-        yPoint = Const.MACD_CHART_VERTICAL_INSET + (int) (valueRate * macd_height);
+        yPoint = comnInfo.getMacdTopInset() + (int) (valueRate * macd_height);
         return yPoint;
+    }
+
+    /* getYPoint的逆运算：由MACD面板内的Y坐标求数值 */
+    public float getValueAt(float y) {
+        return absMaxValue - (y - comnInfo.getMacdTopInset()) / macd_height * fullValue;
+    }
+
+    public float getAbsMaxValue() {
+        return absMaxValue;
     }
 
     public void setAbsMaxValue(float absMaxValue) {

@@ -104,13 +104,16 @@ public class ChildActivity extends Activity {
             Drawable drawable = getResources().getDrawable(R.drawable.button_symbol_select);
             button.setBackground(drawable);
         }
+        button = null;
         if (macd.equals(Const.Macd.KDJ.toString())) {
             button = (Button)this.findViewById(R.id.button_kdj);
-        } else {
+        } else if (!macd.equals(Const.Macd.Both.toString())) {
             button = (Button)this.findViewById(R.id.button_macd);
         }
         Drawable drawable= getResources().getDrawable(R.drawable.button_macd_select);
-        button.setBackground(drawable);
+        if (button != null) {
+            button.setBackground(drawable);
+        }
         if (kLine.equals(Const.K_Line.Average.toString())) {
             button = (Button)this.findViewById(R.id.button_k_line_average);
         }

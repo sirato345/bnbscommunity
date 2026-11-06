@@ -70,9 +70,10 @@ public class ComnInfo {
         int baseDateHeight = screenHeight * Const.WEIGHT_DATE / Const.WEIGHT_ALL;
         int baseDateTickHeight = baseDateHeight / 3;
         int heightAdjustment = isPortrait ? baseDateTickHeight / 2 : 0;
-        stickHeight = Math.max(1, stickHeight - Const.MACD_AREA_HEIGHT_SHIFT);
+        stickHeight = Math.max(1, stickHeight - Const.MACD_AREA_HEIGHT_SHIFT
+                - activity.getMacdExtraHeight());
         macdHeight = baseMacdHeight + heightAdjustment
-                + Const.MACD_AREA_HEIGHT_SHIFT;
+                + Const.MACD_AREA_HEIGHT_SHIFT + activity.getMacdExtraHeight();
         dateHeight = baseDateHeight - heightAdjustment;
         dateTickHeight = baseDateTickHeight - heightAdjustment;
         stickWidth = activity.getStickWidth();
@@ -125,6 +126,22 @@ public class ComnInfo {
 
     public int getMacdHeight() {
         return macdHeight;
+    }
+
+    /* MACD图形实际绘制区域高度：KDJ+MACD模式下MACD占下半部分 */
+    public int getMacdPanelHeight() {
+        return Const.Macd.Both.toString().equals(activity.macd) ? macdHeight / 2 : macdHeight;
+    }
+
+    /* MACD图形上边距：同时显示模式下紧贴KDJ，缩小两图间隔 */
+    public int getMacdTopInset() {
+        return Const.Macd.Both.toString().equals(activity.macd)
+                ? Const.MACD_BOTH_INNER_INSET : Const.MACD_CHART_VERTICAL_INSET;
+    }
+
+    public int getMacdBottomInset() {
+        return Const.Macd.Both.toString().equals(activity.macd)
+                ? Const.MACD_BOTH_OUTER_INSET : Const.MACD_CHART_VERTICAL_INSET;
     }
 
     public int getDateHeight() {
