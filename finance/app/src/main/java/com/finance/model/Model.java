@@ -147,7 +147,13 @@ public class Model {
         if (dbOperator != null) {
             return dbOperator.getDataCount(symbol, timeFrame);
         }
+
         return 0;
+    }
+
+    @NonNull
+    public List<String> getCandleDates(@NonNull String symbol, @NonNull String timeFrame) {
+        return dbOperator.getCandleDates(symbol, timeFrame);
     }
 
     /* 取得小于指定日期的数据数量作为偏移量 */

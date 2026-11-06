@@ -113,8 +113,13 @@ public class DateView extends View {
             float sw = comnInfo.getStickWidth();
             if (stickList.size() > 1 && sw > 0
                     && tickX > newest.getStickRect().centerX() + sw / 2) {
-                String future = futureDate(newest.getDate(), stickList.get(1).getDate(),
-                        Math.round((tickX - newest.getStickRect().centerX()) / sw));
+                String future = activity.getCandleDateIndex() == null ? null
+                        : activity.getCandleDateIndex().dateForX(tickX, newest.getDate(),
+                        newest.getLineRect().centerX(), comnInfo.getStickWidth());
+                if (future == null) {
+                    future = futureDate(newest.getDate(), stickList.get(1).getDate(),
+                            Math.round((tickX - newest.getStickRect().centerX()) / sw));
+                }
                 if (future != null) {
                     rawDate = future;
                 }

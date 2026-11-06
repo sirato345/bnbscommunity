@@ -260,6 +260,18 @@ public class DBOperator {
         return dataList;
     }
 
+    public List<String> getCandleDates(String symbol, String timeFrame) {
+        String tableName = symbol + "_" + timeFrame;
+        List<String> dates = new ArrayList<>();
+        try (Cursor cursor = dbReadable.rawQuery(
+                "select Date from " + tableName + " order by Date desc", null)) {
+            while (cursor.moveToNext()) {
+                dates.add(cursor.getString(0));
+            }
+        }
+        return dates;
+    }
+
     // タイムフレーム計算
     public void calculateWMQY(String symbol) {
         if (isCryptoSymbol(symbol)) {

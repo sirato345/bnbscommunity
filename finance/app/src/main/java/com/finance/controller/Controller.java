@@ -70,7 +70,13 @@ public class Controller {
         if (model != null) {
             return model.getDataCount(symbol, timeFrame);
         }
+
         return 0;
+    }
+
+    @NonNull
+    public List<String> getCandleDates(@NonNull String symbol, @NonNull String timeFrame) {
+        return model.getCandleDates(symbol, timeFrame);
     }
 
     public void updateFearGreedHistory(@NonNull String symbol, @NonNull List<String> records,

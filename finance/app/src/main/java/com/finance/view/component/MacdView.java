@@ -1503,6 +1503,14 @@ public class MacdView  extends View {
         if (date == null) {
             return Integer.MIN_VALUE;
         }
+        StickInfo anchor = stickList.get(0);
+        if (activity.getCandleDateIndex() != null) {
+            Integer x = activity.getCandleDateIndex().xForDate(date, anchor.getDate(),
+                    anchor.getLineRect().centerX(), comnInfo.getStickWidth());
+            if (x != null) {
+                return x;
+            }
+        }
         int visible = Math.min(maxStickCount, stickList.size());
         for (int i = 0; i < visible; i++) {
             if (date.equals(stickList.get(i).getDate())) {
@@ -1532,6 +1540,13 @@ public class MacdView  extends View {
     private String kdjDateAt(int x) {
         int visible = Math.min(maxStickCount, stickList.size());
         StickInfo newest = stickList.get(0);
+        if (activity.getCandleDateIndex() != null) {
+            String date = activity.getCandleDateIndex().dateForX(x, newest.getDate(),
+                    newest.getLineRect().centerX(), comnInfo.getStickWidth());
+            if (date != null) {
+                return date;
+            }
+        }
         if (visible < 2) {
             return newest.getDate();
         }

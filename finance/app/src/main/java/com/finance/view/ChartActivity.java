@@ -35,12 +35,14 @@ import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
 import com.finance.view.component.StickView;
 import com.finance.view.component.stick.ComnInfo;
+import com.finance.view.component.stick.CandleDateIndex;
 import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -82,6 +84,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String symbol = Const.Symbol.btc.toString();
     // 表示中のタイムフレーム
     private String timeFrame = Const.TimeFrame.d.toString();
+    private String candleDatesKey;
+    private List<String> candleDates;
+    private CandleDateIndex candleDateIndex;
     private String intradayInterval;
     private final List<String> intradayRecords = new ArrayList<>();
     private boolean intradayLoading;
@@ -297,6 +302,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             if (isFearGreedSymbol()) {
                 controller.updateFearGreedHistory(symbol, records, () -> {
                     if (isFearGreedSymbol()) {
+                        candleDatesKey = null;
                         showUI();
                     }
                 });
@@ -337,6 +343,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             // ネットデータが来る前に、画面切替をした場合、DB更新のみを行い、画面更新なし
             // ネットからの戻りデータが画面表示銘柄と一致する場合のみ画面更新
             if (symbol.equals(updSymbol)) {
+                candleDatesKey = null;
                 // 历史数据取得后，先刷新画面
                 this.showUI();
                 // 历史数据更新完了后，再更新当天数据
@@ -354,6 +361,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             loadIntradayAfterHistory.remove(updSymbol);
             app.setResult(updSymbol, false);
             if (symbol.equals(updSymbol)) {
+                candleDatesKey = null;
                 this.showUI();
             }
         }
@@ -394,6 +402,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             // ネットデータが来る前に、画面切替をした場合、DB更新のみを行い、画面更新なし
             // ネットからの戻りデータが画面表示銘柄と一致する場合のみ画面更新
             if (symbol.equals(updSymbol)) {
+                candleDatesKey = null;
                 this.showUI();
             }
         } else {// ネットワック異常又は当日データがまだ存在しない
@@ -425,6 +434,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else {// 平均K線図
             stickList = getSticksOfAvgKLine(this.timeFrame);
         }
+        updateCandleDateIndex(stickList);
         List<TrendLine> trendLines = this.loadTrendLines();
         List<StickInfo> fearGreedSarHistory = null;
         if (isFearGreedSymbol()) {
@@ -452,6 +462,35 @@ public class ChartActivity extends FragmentActivity implements Observer,
         macdView.invalidate();
         dateView.invalidate();
         maybeLoadMoreIntraday();
+    }
+
+    private void updateCandleDateIndex(List<StickInfo> sticks) {
+        String key = symbol + ":" + (intradayInterval == null ? timeFrame : intradayInterval);
+        if (!key.equals(candleDatesKey)) {
+            if (intradayInterval == null) {
+                candleDates = controller.getCandleDates(symbol, timeFrame);
+            } else {
+                candleDates = new ArrayList<>(intradayRecords.size());
+                for (String record : intradayRecords) {
+                    int start = record.indexOf(',') + 1;
+                    int end = record.indexOf(',', start);
+                    candleDates.add(record.substring(start, end));
+                }
+            }
+            candleDatesKey = key;
+        }
+        if (!sticks.isEmpty()) {
+            String date = sticks.get(0).getDate();
+            int position = Collections.binarySearch(candleDates, date, Collections.reverseOrder());
+            if (position < 0) {
+                candleDates.add(-position - 1, date);
+            }
+        }
+        candleDateIndex = new CandleDateIndex(candleDates);
+    }
+
+    public CandleDateIndex getCandleDateIndex() {
+        return candleDateIndex;
     }
 
     private List<StickInfo> getFearGreedSarHistory(String timeFrame) {
@@ -621,6 +660,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     }
                     intradayHasMore = records.size()
                             == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
+                    if (added > 0) {
+                        candleDatesKey = null;
+                    }
                     showUI();
                 });
     }
@@ -686,6 +728,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     showUI();
                 }
             } else if (!record.equals(realtimeCandle)) {
+                if (realtimeCandle == null || !record.split(",", -1)[0]
+                        .equals(realtimeCandle.split(",", -1)[0])) {
+                    candleDatesKey = null;
+                }
                 realtimeCandle = record;
                 LogWriter.getInstance(this).log(
                         "Binance realtime candle updated: " + requestedSymbol
@@ -724,6 +770,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 }
             }
             intradayRecords.add(insertIndex, record);
+            candleDatesKey = null;
             if (insertIndex == 0 && offset > 0) {
                 setOffset(offset + 1);
             }
@@ -928,6 +975,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         intradayInterval = interval;
         intradayGeneration++;
         intradayRecords.clear();
+        candleDatesKey = null;
         intradayLoading = false;
         intradayHasMore = true;
         setOffset(0);
@@ -964,6 +1012,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void resetIntradayRecords() {
+        candleDatesKey = null;
         intradayGeneration++;
         intradayRecords.clear();
         intradayLoading = false;
@@ -1302,8 +1351,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 // 超出最新K线：吸附到右侧未来K线位置，日期按周期推算
                 int steps = Math.max(1, Math.round(
                         (point.x - newest.getStickRect().centerX()) / sw));
-                String future = com.finance.view.component.DateView.futureDate(
-                        newest.getDate(), list.get(1).getDate(), steps);
+                String future = candleDateIndex == null ? null : candleDateIndex.dateForX(
+                        point.x, newest.getDate(), newest.getLineRect().centerX(),
+                        comnInfo.getStickWidth());
+                if (future == null) {
+                    future = com.finance.view.component.DateView.futureDate(
+                            newest.getDate(), list.get(1).getDate(), steps);
+                }
                 touchPoint.x = Math.round(newest.getStickRect().centerX() + steps * sw);
                 if (future != null) {
                     stickView.setTouchedDate(future);
