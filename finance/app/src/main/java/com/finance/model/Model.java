@@ -8,6 +8,7 @@ import com.finance.model.db.DBOperator;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
+import com.finance.model.net.NetConnectorYahooIndex;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -99,6 +100,16 @@ public class Model {
                     "銘柄：" + symbol + " Binance realtime request setup failed", e);
             callback.onComplete(symbol, null, e.getMessage() == null
                     ? "Binance realtime request setup failed" : e.getMessage());
+        }
+    }
+
+    public void loadYahooIndex(@NonNull String symbol,
+                               @NonNull NetConnectorYahooIndex.Callback callback) {
+        try {
+            new NetConnectorYahooIndex(symbol, callback).executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(view).error("Yahoo index request setup failed: " + symbol, e);
+            callback.onComplete(symbol, null, "Yahoo index request setup failed");
         }
     }
 

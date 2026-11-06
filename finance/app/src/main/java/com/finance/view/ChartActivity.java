@@ -31,11 +31,13 @@ import com.finance.controller.Controller;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
+import com.finance.model.net.YahooIndexQuote;
 import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
 import com.finance.view.component.StickView;
 import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.CandleDateIndex;
+import com.finance.view.component.stick.IndexCandleMerger;
 import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
@@ -61,6 +63,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     // 请求超过该时间仍无响应，视为卡住，允许发起新请求
     private static final long BINANCE_REQUEST_STUCK_MS = 8000L;
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
+    private static final long INDEX_REFRESH_INTERVAL_MS = 15000L;
     private static final int MIN_STICK_WIDTH = 4;
     private static final int MAX_STICK_WIDTH = 60;
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
@@ -101,6 +104,22 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean titleTapCandidate;
     private boolean editTouchBlocked;
     private String realtimeCandle;
+    private YahooIndexQuote indexQuote;
+    private boolean indexQuoteFailed;
+    private boolean indexQuoteLoading;
+    private int indexRequestId;
+    private final Runnable indexRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!activityResumed) {
+                return;
+            }
+            if (isUsIndexSymbol() && !indexQuoteLoading) {
+                requestYahooIndex();
+            }
+            handler.postDelayed(this, INDEX_REFRESH_INTERVAL_MS);
+        }
+    };
     private LinearLayout editButtonContainer;
     private ImageView editButton;
     private final Runnable binanceRefreshRunnable = new Runnable() {
@@ -237,11 +256,16 @@ public class ChartActivity extends FragmentActivity implements Observer,
         activityResumed = true;
         handler.removeCallbacks(binanceRefreshRunnable);
         handler.removeCallbacks(fearGreedRefreshRunnable);
+        handler.removeCallbacks(indexRefreshRunnable);
         if (isBinanceRealtimeEligible()) {
             requestBinanceRealtimeCandle();
             handler.postDelayed(binanceRefreshRunnable, BINANCE_REFRESH_INTERVAL_MS);
         }
         handler.postDelayed(fearGreedRefreshRunnable, FEAR_GREED_REFRESH_INTERVAL_MS);
+        if (isUsIndexSymbol()) {
+            requestYahooIndex();
+        }
+        handler.postDelayed(indexRefreshRunnable, INDEX_REFRESH_INTERVAL_MS);
         if (intradayInterval == null) {
             controller.calculateWMQY(symbol);
         }
@@ -255,6 +279,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         activityResumed = false;
         handler.removeCallbacks(binanceRefreshRunnable);
         handler.removeCallbacks(fearGreedRefreshRunnable);
+        handler.removeCallbacks(indexRefreshRunnable);
+        indexRequestId++;
+        indexQuoteLoading = false;
         super.onPause();
     }
 
@@ -680,6 +707,61 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return isCryptoSymbol(symbol);
     }
 
+    public boolean isUsIndexSymbol() {
+        return Const.Symbol.dow.toString().equals(symbol)
+                || Const.Symbol.sp500.toString().equals(symbol)
+                || Const.Symbol.nasdaq.toString().equals(symbol);
+    }
+
+    public YahooIndexQuote getIndexQuote() {
+        return indexQuote;
+    }
+
+    public boolean isIndexQuoteFailed() {
+        return indexQuoteFailed;
+    }
+
+    private void requestYahooIndex() {
+        indexQuoteLoading = true;
+        int requestId = ++indexRequestId;
+        String requestedSymbol = symbol;
+        controller.loadYahooIndex(requestedSymbol, (responseSymbol, quote, error) -> {
+            if (requestId != indexRequestId) {
+                return;
+            }
+            indexQuoteLoading = false;
+            if (!activityResumed || !symbol.equals(responseSymbol)) {
+                return;
+            }
+            if (error != null || quote == null) {
+                indexQuoteFailed = true;
+                LogWriter.getInstance(this).error("Yahoo index quote failed: " + responseSymbol
+                        + ": " + (error == null ? "empty response" : error));
+                macdView.invalidate();
+                return;
+            }
+            if (indexQuote != null && quote.quoteTime < indexQuote.quoteTime) {
+                indexQuoteFailed = true;
+                LogWriter.getInstance(this).error("Yahoo index quote moved backwards: " + responseSymbol);
+                macdView.invalidate();
+                return;
+            }
+            if (indexQuote == null || !indexQuote.date.equals(quote.date)) {
+                candleDatesKey = null;
+            }
+            boolean changed = indexQuote == null || !indexQuote.date.equals(quote.date)
+                    || indexQuote.open != quote.open || indexQuote.high != quote.high
+                    || indexQuote.low != quote.low || indexQuote.price != quote.price;
+            indexQuote = quote;
+            indexQuoteFailed = false;
+            if (changed) {
+                showUI();
+            } else {
+                macdView.invalidate();
+            }
+        });
+    }
+
     private boolean isBinanceRealtimeEligible() {
         return isCryptoSymbol();
     }
@@ -783,10 +865,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void applyRealtimeCandle(List<Object[]> records, String selectedTimeFrame) {
+        if (isUsIndexSymbol()) {
+            applyIndexCandle(records, selectedTimeFrame);
+            return;
+        }
         if (realtimeCandle == null || !isCryptoSymbol() || offset > Const.DEFAULT_OFFSET
                 || !isBinanceTimeFrame(selectedTimeFrame)) {
             return;
         }
+
         String[] fields = realtimeCandle.split(",", -1);
         if (fields.length != 5) {
             LogWriter.getInstance(this).error("Invalid cached Binance realtime candle");
@@ -826,6 +913,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } catch (RuntimeException e) {
             LogWriter.getInstance(this).error("Unable to apply Binance realtime candle", e);
         }
+    }
+
+    private void applyIndexCandle(List<Object[]> records, String selectedTimeFrame) {
+        if (indexQuote == null || offset > Const.DEFAULT_OFFSET
+                || !isBinanceTimeFrame(selectedTimeFrame)) {
+            return;
+        }
+        String label = getRealtimePeriodLabel(indexQuote.date, selectedTimeFrame);
+        List<Object[]> dailyRecords = controller.getData(symbol, "d", 400);
+        IndexCandleMerger.apply(records, dailyRecords, indexQuote, label,
+                date -> getRealtimeBucketKey(date, selectedTimeFrame));
     }
 
     private float[] getRealtimePeriodValues(String liveDate, String selectedTimeFrame,
@@ -1217,6 +1315,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public void selectSymbol(@NonNull Const.Symbol selectedSymbol) {
         applySymbolSelection(selectedSymbol.toString());
         showUI();
+        if (isUsIndexSymbol() && activityResumed && !indexQuoteLoading) {
+            requestYahooIndex();
+        }
         if (isBinanceRealtimeEligible()) {
             requestBinanceRealtimeCandle();
             // 从恐慌指数等非加密货币画面切换过来时，确保定时刷新在运行
@@ -1229,6 +1330,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private void applySymbolSelection(String newSymbol) {
         if (!symbol.equals(newSymbol)) {
             realtimeCandle = null;
+            indexQuote = null;
+            indexQuoteFailed = false;
+            indexQuoteLoading = false;
+            indexRequestId++;
             pricePan = 0f;
         }
         if (intradayInterval != null && isCryptoSymbol()

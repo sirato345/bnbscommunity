@@ -63,6 +63,34 @@ public class MarketDataParserTest {
     }
 
     @Test
+    public void parsesYahooIndexQuoteAndMatchesNewYorkTradingDate() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"^DJI\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
+                + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793975400,"
+                + "\"end\":1793998800}}},\"timestamp\":[1793802600,1793889000],"
+                + "\"indicators\":{\"quote\":[{\"open\":[90,100],\"high\":[95,101],"
+                + "\"low\":[85,98]}]}}]}}";
+        YahooIndexQuote quote = NetConnectorYahooIndex.parse(response, "^DJI");
+        assertEquals("20261105", quote.date);
+        assertEquals(100f, quote.open, 0f);
+        assertEquals(102f, quote.high, 0f);
+        assertEquals(98f, quote.low, 0f);
+        assertEquals(102f, quote.price, 0f);
+    }
+
+    @Test
+    public void rejectsYahooQuoteWithoutMatchingDailyCandle() {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"^DJI\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
+                + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793975400,"
+                + "\"end\":1793998800}}},\"timestamp\":[1793802600],"
+                + "\"indicators\":{\"quote\":[{\"open\":[90],\"high\":[95],"
+                + "\"low\":[85]}]}}]}}";
+        assertThrows(Exception.class, () -> NetConnectorYahooIndex.parse(response, "^DJI"));
+        assertThrows(Exception.class, () -> NetConnectorYahooIndex.parse(response, "^GSPC"));
+    }
+
+    @Test
     public void rejectsEmptyBinanceRealtimeResponse() {
         assertThrows(Exception.class,
                 () -> NetConnectorBinanceRealtime.parseCurrentCandle("1d", "[]"));

@@ -29,5 +29,9 @@
 
     <string name="action_settings">Setting</string>
     <string name="edit_chart">Edit chart</string>
+    <string name="index_quote_error">Quote error</string>
+    <string name="index_quote_loading">Loading</string>
+    <string name="index_quote_stale">Quote stale</string>
+    <string name="index_next_open">Next open ~%1$dh %2$02dm</string>
     <string name="icon_label">BNBs Finance</string>
 </resources>

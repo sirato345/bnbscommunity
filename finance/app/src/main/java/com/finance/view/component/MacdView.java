@@ -21,6 +21,8 @@ import android.widget.PopupWindow;
 
 import com.finance.R;
 import com.finance.common.Const;
+import com.finance.model.net.YahooIndexQuote;
+import com.finance.model.net.UsMarketSchedule;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdDivergenceCalculator;
 import com.finance.view.component.macd.MacdCalculator;
@@ -705,9 +707,9 @@ public class MacdView  extends View {
             case RED:
                 paint.setColor(Color.rgb(255, 82, 82));
                 Path triangle = new Path();
-                triangle.moveTo(centerX, centerY - shapeSize / 2);
-                triangle.lineTo(centerX + shapeSize / 2, centerY + shapeSize / 2);
-                triangle.lineTo(centerX - shapeSize / 2, centerY + shapeSize / 2);
+                triangle.moveTo(centerX, centerY + shapeSize / 2);
+                triangle.lineTo(centerX + shapeSize / 2, centerY - shapeSize / 2);
+                triangle.lineTo(centerX - shapeSize / 2, centerY - shapeSize / 2);
                 triangle.close();
                 canvas.drawPath(triangle, paint);
                 break;
@@ -2017,11 +2019,55 @@ public class MacdView  extends View {
         paint.setTextSize(getPriceTextSize());
         paint.setFakeBoldText(true);
         paint.setTextAlign(Paint.Align.RIGHT);
-        paint.setColor(stickList.get(0).getColor());
+        paint.setColor(stickList == null || stickList.isEmpty()
+                ? Color.LTGRAY : stickList.get(0).getColor());
+        if (activity.isUsIndexSymbol() && (activity.getIndexQuote() == null
+                || activity.isIndexQuoteFailed()
+                || !"Open".equals(activity.getIndexQuote().status(System.currentTimeMillis() / 1000)))) {
+            paint.setColor(Color.LTGRAY);
+        }
         float density = getResources().getDisplayMetrics().density;
         Rect priceBounds = getPriceTextBounds();
         float priceBaseline = getTitleBaseline() + getTitleBounds().top - priceBounds.top;
         canvas.drawText(price, getWidth() - 8 * density, priceBaseline, paint);
+        if (activity.isUsIndexSymbol()) {
+            YahooIndexQuote quote = activity.getIndexQuote();
+            long now = System.currentTimeMillis() / 1000;
+            String label;
+            if (activity.isIndexQuoteFailed()) {
+                label = getResources().getString(R.string.index_quote_error);
+            } else if (quote == null) {
+                label = getResources().getString(R.string.index_quote_loading);
+            } else if ("Stale".equals(quote.status(now))) {
+                label = getResources().getString(R.string.index_quote_stale);
+            } else {
+                long seconds = UsMarketSchedule.nextOpen(now) - now;
+                long minutes = (seconds + 59) / 60;
+                label = getResources().getString(R.string.index_next_open,
+                        minutes / 60, minutes % 60);
+            }
+            paint.setColor(Color.LTGRAY);
+            paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+            paint.setFakeBoldText(false);
+            float labelBaseline = priceBaseline + paint.getFontSpacing();
+            if (isKdjMode() && sizeOfStick > 0 && !Float.isNaN(kdjK[0])) {
+                Paint kdjPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                kdjPaint.setTextSize(Const.FONT_SIZE_LARGE);
+                kdjPaint.setFakeBoldText(true);
+                String values = String.format(Locale.US, "K: %.1f", kdjK[0])
+                        + String.format(Locale.US, "D: %.1f", kdjD[0])
+                        + String.format(Locale.US, "J: %.1f", kdjJ[0]);
+                float valuesRight = kdjPaint.measureText(values) + 24;
+                float kdjBaseline = getTitleBaseline() + 20 + kdjPaint.getFontSpacing();
+                if (getWidth() - 8 * density - paint.measureText(label) < valuesRight + 8 * density
+                        && labelBaseline + paint.descent() > kdjBaseline + kdjPaint.ascent()
+                        && labelBaseline + paint.ascent() < kdjBaseline + kdjPaint.descent()) {
+                    labelBaseline = kdjBaseline + kdjPaint.descent() - paint.ascent() + 4 * density;
+                }
+            }
+            canvas.drawText(label, getWidth() - 8 * density,
+                    labelBaseline, paint);
+        }
     }
 
     private void drawFearGreedSarControl(Canvas canvas) {
@@ -2070,6 +2116,10 @@ public class MacdView  extends View {
     }
 
     private String getCurrentPriceText() {
+        if (activity.isUsIndexSymbol()) {
+            YahooIndexQuote quote = activity.getIndexQuote();
+            return quote == null ? "--" : marketPriceFormat.format(quote.price);
+        }
         if (stickList == null || stickList.isEmpty()) {
             return null;
         }

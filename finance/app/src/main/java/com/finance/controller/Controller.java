@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 import com.finance.model.Model;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
+import com.finance.model.net.NetConnectorYahooIndex;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -113,6 +114,11 @@ public class Controller {
         } else {
             callback.onComplete(symbol, null, "Market data model is unavailable");
         }
+    }
+
+    public void loadYahooIndex(@NonNull String symbol,
+                               @NonNull NetConnectorYahooIndex.Callback callback) {
+        model.loadYahooIndex(symbol, callback);
     }
 
     /**
