@@ -1434,11 +1434,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if(isEidtMode) {
             return;
         }
-        this.isLongPress = !isLongPress;
-        // 长按开始,由touchEvent画线;长按解除,手动消除画线
-        if (isLongPress == false) {
-            drawTouchedLine(e);
-        }
+        this.isLongPress = true;
+        drawTouchedLine(e);
     }
 
     /* 长按＆滑动：用于显示选中位置的价格和日期 */
@@ -1720,7 +1717,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else {
             // 由Activity处理双击,滑动事件
             ges.onTouchEvent(event);
-            // 处理长按事件
+            if (event.getActionMasked() == MotionEvent.ACTION_UP
+                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                isLongPress = false;
+            }
             this.drawTouchedLine(event);
             // *消除开启和关闭编辑模式时的距离差*
             mLastMotionX = (int)event.getX();
