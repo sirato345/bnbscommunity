@@ -21,6 +21,7 @@ import com.finance.view.component.stick.ComnInfo;
 import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
+import com.finance.view.component.stick.TdSequentialCalculator;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.text.DecimalFormat;
@@ -257,36 +258,14 @@ public class StickView extends View {
 
     /* TD序列 */
     private void calTDtdSequential() {
-        int size = stickList.size() - 4 > 60 ? 60 : stickList.size() - 4;
-        for (int i = 0; i < size; i ++) {
-            int up = 0;
-            int down = 0;
-            for (int j = i; j < i + 9; j ++) {
-                if (stickList.size() < j+5) {
-                    break;
-                }
-                if (stickList.get(j).getClose() > stickList.get(j+4).getClose()) {
-                    up ++;
-                } else {
-                    break;
-                }
-            }
-            for (int j = i; j < i + 9; j ++) {
-                if (stickList.size() < j+5) {
-                    break;
-                }
-                if (stickList.get(j).getClose() < stickList.get(j+4).getClose()) {
-                    down ++;
-                } else {
-                    break;
-                }
-            }
-            if (up >= 8) {
-                stickList.get(i).setTdSequentialUp(up);
-            }
-            if (down >= 8) {
-                stickList.get(i).setTdSequentialDown(down);
-            }
+        float[] closes = new float[stickList.size()];
+        for (int i = 0; i < closes.length; i++) {
+            closes[i] = stickList.get(i).getClose();
+        }
+        int[] signals = TdSequentialCalculator.calculate(closes, maxStickCount);
+        for (int i = 0; i < signals.length; i++) {
+            stickList.get(i).setTdSequentialUp(Math.max(0, signals[i]));
+            stickList.get(i).setTdSequentialDown(Math.max(0, -signals[i]));
         }
     }
 
@@ -559,7 +538,7 @@ public class StickView extends View {
     /* 折线 + 1~n浪数字；arrow为true时在末端加箭头 */
     private void drawWave(Canvas canvas, Paint paint, List<Point> pixels, boolean arrow) {
         float textSize = paint.getTextSize();
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
         for (int i = 1; i < pixels.size(); i++) {
             canvas.drawLine(pixels.get(i - 1).x, pixels.get(i - 1).y,
@@ -1069,7 +1048,7 @@ public class StickView extends View {
             path.lineTo(width, latest.getYPoint(v));
             canvas.drawPath(path, dash);
         }
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.RIGHT);
         float margin = 4 * getResources().getDisplayMetrics().density;
         for (int v = 0; v <= 100; v += 20) {
@@ -1213,7 +1192,7 @@ public class StickView extends View {
         // 描画オブジェクト
         Paint paint = new Paint();
         paint.setStyle(Paint.Style.FILL);
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setStrokeWidth(2);
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stickInfo = stickList.get(i);
@@ -1227,31 +1206,31 @@ public class StickView extends View {
                 paint.setColor(Color.parseColor("#FFFF00"));
                 if (current10 != 0) {
                     // 10平均線設定
-                    canvas.drawText("(10) " + getLimitDigit(current10), 0, Const.FONT_SIZE_MIDDLE * 2, paint);
+                    canvas.drawText("(10) " + getLimitDigit(current10), 0, indicatorBaseline(paint, 0), paint);
                 }
                 // 20平均線の色
                 paint.setColor(Color.parseColor("#00FFFF"));
                 if (current20 != 0) {
                     // 20平均線設定
-                    canvas.drawText("(20) " + getLimitDigit(current20), 0, Const.FONT_SIZE_MIDDLE * 3, paint);
+                    canvas.drawText("(20) " + getLimitDigit(current20), 0, indicatorBaseline(paint, 1), paint);
                 }
                 // 50平均線の色
                 paint.setColor(Color.parseColor("#FF9900"));
                 if (current50 != 0) {
                     // 50平均線設定
-                    canvas.drawText("(50) " + getLimitDigit(current50), 0, Const.FONT_SIZE_MIDDLE * 4, paint);
+                    canvas.drawText("(50) " + getLimitDigit(current50), 0, indicatorBaseline(paint, 2), paint);
                 }
                 paint.setColor(Color.MAGENTA);
                 if (current200 != 0) {
                     canvas.drawText("(200) " + getLimitDigit(current200), 0,
-                            Const.FONT_SIZE_MIDDLE * 5, paint);
+                            indicatorBaseline(paint, 3), paint);
                 }
                 Float sar = sarValuesByDate.get(stickInfo.getDate());
                 if (sar != null && !Float.isNaN(sar)) {
                     paint.setColor(sar < stickInfo.getClose()
                             ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
                     canvas.drawText("(SAR) " + getLimitDigit(sar), 0,
-                            Const.FONT_SIZE_MIDDLE * 6, paint);
+                            indicatorBaseline(paint, 4), paint);
                 }
             }
             // 缩放后最高最低价线仍在原位置（区域上下沿），显示缩放后的价格
@@ -1272,7 +1251,7 @@ public class StickView extends View {
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
-                canvas.drawText(getLimitDigit(topValue), 0, topY + Const.FONT_SIZE_MIDDLE, paint);
+                drawRightPriceText(canvas, paint, getLimitDigit(topValue), topY - paint.ascent());
             }
             // 最小値の線
             if (stickInfo.isMinValueStick()) {
@@ -1285,9 +1264,24 @@ public class StickView extends View {
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
-                canvas.drawText(getLimitDigit(bottomValue), 0, bottomY - 8, paint);
+                drawRightPriceText(canvas, paint, getLimitDigit(bottomValue), bottomY - 8);
             }
         }
+    }
+
+    private float indicatorBaseline(Paint paint, int row) {
+        return -paint.ascent() + row * Const.FONT_SIZE_LARGE;
+    }
+
+    public int getIndicatorControlRow(MotionEvent event) {
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        if (x < 0 || x >= 220 || y < 0 || y >= Const.FONT_SIZE_LARGE * 5) {
+            return -1;
+        }
+        return (int) (y / Const.FONT_SIZE_LARGE);
     }
 
     /* タッチ箇所の価格と日付を描く */
@@ -1298,27 +1292,24 @@ public class StickView extends View {
         Paint paint = new Paint();
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(3);
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
         if (touchPoint.y <= comnInfo.getStickHeight()) {
             if (currentValue != null) {
                 // 价格线
-                canvas.drawLine(getDigitLength(currentValue),
-                        touchPoint.y, comnInfo.getScreenWidth(), touchPoint.y, paint);
                 // 文字粗体
                 paint.setFakeBoldText(true);
+                String valueText = getLimitDigit(currentValue);
+                float textRight = getPriceTextRight();
+                canvas.drawLine(0, touchPoint.y,
+                        Math.max(0, textRight - paint.measureText(valueText) - 4),
+                        touchPoint.y, paint);
                 // 文字坐标
-                int y;
-                // 判定文字是否超出屏幕显示
-                if (touchPoint.y - Const.FONT_SIZE_HALF < 0) {
-                    y = touchPoint.y + Const.FONT_SIZE_MIDDLE - 10;
-                } else if (touchPoint.y + Const.FONT_SIZE_HALF > comnInfo.getStickHeight()) {
-                    y = touchPoint.y;
-                } else {
-                    y = touchPoint.y + Const.FONT_SIZE_HALF - 5;
-                }
+                Paint.FontMetrics fm = paint.getFontMetrics();
+                float y = touchPoint.y - (fm.ascent + fm.descent) / 2;
+                y = Math.max(-fm.ascent, Math.min(comnInfo.getStickHeight() - fm.descent, y));
                 // 最新価格設定
-                canvas.drawText(getLimitDigit(currentValue), 0, y, paint);
+                drawRightPriceText(canvas, paint, valueText, y);
             } else {
                 canvas.drawLine(0, touchPoint.y, comnInfo.getScreenWidth(), touchPoint.y, paint);
             }
@@ -1547,7 +1538,7 @@ public class StickView extends View {
         String text = getLimitDigit(price);
         Paint textPaint = new Paint(linePaint);
         textPaint.setStyle(Paint.Style.FILL);
-        textPaint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        textPaint.setTextSize(Const.FONT_SIZE_LARGE);
         textPaint.setFakeBoldText(true);
         Paint.FontMetrics fm = textPaint.getFontMetrics();
         float margin = 2;
@@ -1555,13 +1546,13 @@ public class StickView extends View {
         if (baseline + fm.ascent < 0) {
             baseline = y + margin - fm.ascent;
         }
-        canvas.drawText(text, 0, baseline, textPaint);
+        drawRightPriceText(canvas, textPaint, text, baseline);
     }
 
     private void drawFibonacci(Canvas canvas, Paint paint, float x1, float y1,
                                float x2, float y2) {
         float textSize = paint.getTextSize();
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
         canvas.drawLine(x1, y1, x2, y2, paint);
         float left = Math.min(x1, x2);
@@ -1576,20 +1567,28 @@ public class StickView extends View {
         paint.setTextSize(textSize);
     }
 
+    private float getPriceTextRight() {
+        return getWidth() - 4 * getResources().getDisplayMetrics().density;
+    }
+
+    private void drawRightPriceText(Canvas canvas, Paint paint, String text, float baseline) {
+        Paint.Align previousAlign = paint.getTextAlign();
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText(text, getPriceTextRight(), baseline, paint);
+        paint.setTextAlign(previousAlign);
+    }
+
     /* TD序列の数字を描く */
     private void drawTDtdSequential(Canvas canvas) {
         // 描画オブジェクト
         Paint paint = new Paint();
         paint.setStyle(Paint.Style.FILL);
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setStrokeWidth(2);
         // 文字粗体
         paint.setFakeBoldText(true);
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stickInfo = stickList.get(i);
-            if (i == 60) {
-                break;
-            }
             if (stickInfo.getTdSequentialUp() == 0 && stickInfo.getTdSequentialDown() == 0) {
                 continue;
             }
@@ -1690,16 +1689,6 @@ public class StickView extends View {
             activity.kLine = Const.K_Line.Normal.toString();
         }
         activity.showUI();
-    }
-
-    /* 取得数值的像素长度 */
-    private int getDigitLength(float value) {
-        String digit = getLimitDigit(value);
-        if (digit.indexOf("－") == -1) {
-            return digit.length() * 23;
-        } else {
-            return digit.length() * 23;
-        }
     }
 
     /* 价格显示精度 */

@@ -1564,26 +1564,25 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             // ①在一次触摸中备份偏移量
                             offsetBk = offset;
                             // 平均K線表示非表示
-                            if(x < 220) {
-                                if(y < Const.FONT_SIZE_MIDDLE + Const.STATUS_BAR_HEIGHT) {
-                                    isDispOperate = true;
-                                } else if(y >= (Const.FONT_SIZE_MIDDLE + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 2 + Const.STATUS_BAR_HEIGHT)) {
+                            int indicatorRow = stickView.getIndicatorControlRow(event);
+                            if (indicatorRow >= 0) {
+                                if (indicatorRow == 0) {
                                     this.isAvg10Disp = !this.isAvg10Disp;
                                     isDispOperate = true;
                                     this.showUI();
-                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 2 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 3 + Const.STATUS_BAR_HEIGHT)) {
+                                } else if (indicatorRow == 1) {
                                     this.isAvg20Disp = !this.isAvg20Disp;
                                     isDispOperate = true;
                                     this.showUI();
-                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 3 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT)) {
+                                } else if (indicatorRow == 2) {
                                     this.isAvg50Disp = !this.isAvg50Disp;
                                     isDispOperate = true;
                                     this.showUI();
-                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 4 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT)) {
+                                } else if (indicatorRow == 3) {
                                     this.isAvg200Disp = !this.isAvg200Disp;
                                     isDispOperate = true;
                                     this.showUI();
-                                } else if(y >= (Const.FONT_SIZE_MIDDLE * 5 + Const.STATUS_BAR_HEIGHT) && y < (Const.FONT_SIZE_MIDDLE * 6 + Const.STATUS_BAR_HEIGHT)) {
+                                } else {
                                     if (isFearGreedSymbol()) {
                                         isDispOperate = true;
                                     } else {

@@ -812,16 +812,30 @@ public class MacdView  extends View {
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.LEFT);
         paint.setFakeBoldText(true);
-        float baseline = getTitleBaseline() + 20 + paint.getFontSpacing();
         String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
+        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
+        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
+        float density = getResources().getDisplayMetrics().density;
+        float panelBottom = isBothMode() ? getHeight() / 2f : getHeight();
+        float baseline = panelBottom - paint.descent();
+        if (!isBothMode() && showsTimeframeControls()) {
+            float gap = 6 * density;
+            float controlsLeft = getIntradayControlsRight(density)
+                    - VISIBLE_CRYPTO_TIMEFRAMES * getCryptoTimeframeButtonWidth(density, gap)
+                    - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+            float valuesRight = paint.measureText(kValue) + paint.measureText(dValue)
+                    + paint.measureText(jValue) + 24;
+            if (valuesRight + 4 * density > controlsLeft) {
+                float controlsTop = getHeight() - 7 * density - 34 * density * 0.88f;
+                baseline = controlsTop - 4 * density - paint.descent();
+            }
+        }
         paint.setColor(Color.rgb(255, 193, 7));
         canvas.drawText(kValue, 0, baseline, paint);
         float nextX = paint.measureText(kValue) + 12;
-        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
         paint.setColor(Color.rgb(3, 218, 198));
         canvas.drawText(dValue, nextX, baseline, paint);
         nextX += paint.measureText(dValue) + 12;
-        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
         paint.setColor(Color.rgb(255, 82, 82));
         canvas.drawText(jValue, nextX, baseline, paint);
     }
@@ -1481,7 +1495,7 @@ public class MacdView  extends View {
         paint.setColor(color);
         paint.setStrokeWidth(3);
         canvas.drawLine(0, y, getWidth(), y, paint);
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         Paint.FontMetrics fm = paint.getFontMetrics();
         String text = formatMacdValue(value);
         Rect textBounds = new Rect();
@@ -1493,7 +1507,7 @@ public class MacdView  extends View {
         if (baseline + fm.ascent < limit) {
             baseline = y + gap - textBounds.top;
         }
-        canvas.drawText(text, 2, baseline, paint);
+        drawRightValue(canvas, paint, text, baseline);
     }
 
     public void setKdjLines(List<TrendLine> lines) {
@@ -1884,7 +1898,7 @@ public class MacdView  extends View {
         if (type == TrendLine.TYPE_HORIZONTAL) {
             canvas.drawLine(0, p1.y, getWidth(), p1.y, paint);
             paint.setStyle(Paint.Style.FILL);
-            paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+            paint.setTextSize(Const.FONT_SIZE_LARGE);
             Paint.FontMetrics fm = paint.getFontMetrics();
             String text = String.format(Locale.US, "%.1f", value);
             Rect textBounds = new Rect();
@@ -1896,7 +1910,7 @@ public class MacdView  extends View {
             if (baseline + fm.ascent < getTitleBaseline() + 6) {
                 baseline = p1.y + gap - textBounds.top;
             }
-            canvas.drawText(text, 2, baseline, paint);
+            drawRightValue(canvas, paint, text, baseline);
         } else if (type == TrendLine.TYPE_RAY) {
             Point end = rayEnd(p1, p2);
             canvas.drawLine(p1.x, p1.y, end.x, end.y, paint);
@@ -2084,21 +2098,6 @@ public class MacdView  extends View {
             paint.setTextSize(Const.FONT_SIZE_MIDDLE * 1.1f);
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
-            if (isKdjMode() && sizeOfStick > 0 && !Float.isNaN(kdjK[0])) {
-                Paint kdjPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                kdjPaint.setTextSize(Const.FONT_SIZE_LARGE);
-                kdjPaint.setFakeBoldText(true);
-                String values = String.format(Locale.US, "K: %.1f", kdjK[0])
-                        + String.format(Locale.US, "D: %.1f", kdjD[0])
-                        + String.format(Locale.US, "J: %.1f", kdjJ[0]);
-                float valuesRight = kdjPaint.measureText(values) + 24;
-                float kdjBaseline = getTitleBaseline() + 20 + kdjPaint.getFontSpacing();
-                if (getWidth() - 8 * density - paint.measureText(label) < valuesRight + 8 * density
-                        && labelBaseline + paint.descent() > kdjBaseline + kdjPaint.ascent()
-                        && labelBaseline + paint.ascent() < kdjBaseline + kdjPaint.descent()) {
-                    labelBaseline = kdjBaseline + kdjPaint.descent() - paint.ascent() + 4 * density;
-                }
-            }
             canvas.drawText(label, getWidth() - 8 * density,
                     labelBaseline, paint);
         }
@@ -2394,7 +2393,7 @@ public class MacdView  extends View {
         drawMacdTouchedValue(canvas, paint);
     }
 
-    /* MACD(单独/下半区)模式下，长按位于MACD区域时，画横线并在左侧显示该位置的数值 */
+    /* MACD(单独/下半区)模式下，长按显示该位置的数值 */
     private void drawMacdTouchedValue(Canvas canvas, Paint paint) {
         if (!(Const.Macd.Single.toString().equals(macdType) || isBothMode())
                 || comnInfo == null || macdList == null || macdList.isEmpty()
@@ -2407,17 +2406,16 @@ public class MacdView  extends View {
         }
         float y = panelY + macdOffsetY();
         String text = formatMacdValue(macdValueAt(panelY));
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
-        float textWidth = paint.measureText(text);
-        canvas.drawLine(textWidth, y, getWidth(), y, paint);
         Paint.FontMetrics fm = paint.getFontMetrics();
         float baseline = y - (fm.ascent + fm.descent) / 2;
-        baseline = Math.max(-fm.ascent, Math.min(getHeight() - fm.descent, baseline));
-        canvas.drawText(text, 0, baseline, paint);
+        baseline = Math.max(macdOffsetY() - fm.ascent,
+                Math.min(macdOffsetY() + macdPanelHeight() - fm.descent, baseline));
+        drawTouchedRightValue(canvas, paint, text, y, baseline);
     }
 
-    /* KDJ模式下，长按位于MACD区域时，画横线并在左侧显示该位置的数值 */
+    /* KDJ模式下，长按显示该位置的数值 */
     private void drawKdjTouchedValue(Canvas canvas, Paint paint) {
         if (!isKdjMode() || comnInfo == null) {
             return;
@@ -2430,16 +2428,32 @@ public class MacdView  extends View {
         float bottom = kdjBottom();
         float value = (bottom - y) / (bottom - top) * 140f - 20f;
         String text = String.format(Locale.US, "%.1f", value);
-        paint.setTextSize(Const.FONT_SIZE_MIDDLE);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
-        float textWidth = paint.measureText(text);
-        canvas.drawLine(textWidth, y, getWidth(), y, paint);
         Paint.FontMetrics fm = paint.getFontMetrics();
         float baseline = y - (fm.ascent + fm.descent) / 2;
         float minBaseline = -fm.ascent;
-        float maxBaseline = getHeight() - fm.descent;
+        float maxBaseline = (isBothMode() ? getHeight() / 2f : getHeight()) - fm.descent;
         baseline = Math.max(minBaseline, Math.min(maxBaseline, baseline));
-        canvas.drawText(text, 0, baseline, paint);
+        drawTouchedRightValue(canvas, paint, text, y, baseline);
+    }
+
+    private float getValueTextRight() {
+        return getWidth() - 4 * getResources().getDisplayMetrics().density;
+    }
+
+    private void drawRightValue(Canvas canvas, Paint paint, String text, float baseline) {
+        Paint.Align previousAlign = paint.getTextAlign();
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText(text, getValueTextRight(), baseline, paint);
+        paint.setTextAlign(previousAlign);
+    }
+
+    private void drawTouchedRightValue(Canvas canvas, Paint paint, String text,
+                                       float y, float baseline) {
+        float end = getValueTextRight() - paint.measureText(text) - 4;
+        canvas.drawLine(0, y, Math.max(0, end), y, paint);
+        drawRightValue(canvas, paint, text, baseline);
     }
 
     /* 去掉换行符 */

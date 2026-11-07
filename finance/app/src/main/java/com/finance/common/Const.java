@@ -31,7 +31,7 @@ public class Const {
     // Date Viewの高さの比率
     public static final int WEIGHT_DATE = 1;
 
-    public static final int MACD_AREA_HEIGHT_SHIFT = 50;
+    public static final int MACD_AREA_HEIGHT_SHIFT = 0;
     // KDJ和MACD同时显示时，MACD区域额外增加的高度(px)
     public static final int MACD_BOTH_EXTRA_HEIGHT = 200;
 
