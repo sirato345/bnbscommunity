@@ -998,10 +998,10 @@ public class StickView extends View {
         }
         this.drawStick(canvas);
         if(activity.isAvg10Disp) {
-            this.drawAverageLine(canvas, average10, Color.parseColor("#FFFF00"));
+            this.drawAverageLine(canvas, average10, Color.CYAN);
         }
         if(activity.isAvg20Disp) {
-            this.drawAverageLine(canvas, average20, Color.parseColor("#00FFFF"));
+            this.drawAverageLine(canvas, average20, Color.YELLOW);
         }
         if(activity.isAvg50Disp) {
             this.drawAverageLine(canvas, average50, Color.parseColor("#FFA500"));
@@ -1165,7 +1165,7 @@ public class StickView extends View {
         Path path = new Path();
         Paint paint = new Paint();
         paint.setColor(color);
-        paint.setStrokeWidth(5);
+        paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.STROKE);
         // 計算した移動平均線のポイントの数が表示可能最大ローソク数により少ない場合
@@ -1203,13 +1203,13 @@ public class StickView extends View {
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 10平均線の色
-                paint.setColor(Color.parseColor("#FFFF00"));
+                paint.setColor(Color.CYAN);
                 if (current10 != 0) {
                     // 10平均線設定
                     canvas.drawText("(10) " + getLimitDigit(current10), 0, indicatorBaseline(paint, 0), paint);
                 }
                 // 20平均線の色
-                paint.setColor(Color.parseColor("#00FFFF"));
+                paint.setColor(Color.YELLOW);
                 if (current20 != 0) {
                     // 20平均線設定
                     canvas.drawText("(20) " + getLimitDigit(current20), 0, indicatorBaseline(paint, 1), paint);
@@ -1278,10 +1278,35 @@ public class StickView extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        if (x < 0 || x >= 220 || y < 0 || y >= Const.FONT_SIZE_LARGE * 5) {
+        if (x < 0 || y < 0 || stickList == null || stickList.isEmpty()) {
             return -1;
         }
-        return (int) (y / Const.FONT_SIZE_LARGE);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
+        paint.setFakeBoldText(true);
+        Float sar = sarValuesByDate.get(stickList.get(0).getDate());
+        String[] labels = {
+                current10 != 0 ? "(10) " + getLimitDigit(current10) : "",
+                current20 != 0 ? "(20) " + getLimitDigit(current20) : "",
+                current50 != 0 ? "(50) " + getLimitDigit(current50) : "",
+                current200 != 0 ? "(200) " + getLimitDigit(current200) : "",
+                sar != null && !Float.isNaN(sar) ? "(SAR) " + getLimitDigit(sar) : ""
+        };
+        Paint.FontMetrics metrics = paint.getFontMetrics();
+        int selected = -1;
+        float nearest = Float.MAX_VALUE;
+        for (int row = 0; row < labels.length; row++) {
+            float baseline = indicatorBaseline(paint, row);
+            float top = Math.min(row * Const.FONT_SIZE_LARGE, baseline + metrics.ascent);
+            float bottom = Math.max((row + 1) * Const.FONT_SIZE_LARGE, baseline + metrics.descent);
+            float width = Math.max(220, paint.measureText(labels[row]));
+            float distance = Math.abs(y - (baseline + (metrics.ascent + metrics.descent) / 2));
+            if (x <= width && y >= top && y <= bottom && distance < nearest) {
+                selected = row;
+                nearest = distance;
+            }
+        }
+        return selected;
     }
 
     /* タッチ箇所の価格と日付を描く */
@@ -1428,7 +1453,7 @@ public class StickView extends View {
     private void drawTrandLine(Canvas canvas) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setStyle(Paint.Style.FILL);
-        paint.setStrokeWidth(3);
+        paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
         // 描画已经保存的线（超出画面的部分由画布裁剪，线的角度保持不变）
         for (TrendLine trendLine : trendLines) {
             boolean dragging = currentPoint != null && (editLine != null

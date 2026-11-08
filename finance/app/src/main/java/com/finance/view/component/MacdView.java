@@ -1493,7 +1493,7 @@ public class MacdView  extends View {
     private void drawMacdHorizontal(Canvas canvas, int color, float y, float value) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(color);
-        paint.setStrokeWidth(3);
+        paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
         canvas.drawLine(0, y, getWidth(), y, paint);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         Paint.FontMetrics fm = paint.getFontMetrics();
@@ -1893,7 +1893,7 @@ public class MacdView  extends View {
                               float value) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(color);
-        paint.setStrokeWidth(3);
+        paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
         paint.setStyle(Paint.Style.STROKE);
         if (type == TrendLine.TYPE_HORIZONTAL) {
             canvas.drawLine(0, p1.y, getWidth(), p1.y, paint);

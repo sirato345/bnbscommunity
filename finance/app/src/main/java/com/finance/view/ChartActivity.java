@@ -205,7 +205,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return waveDraft;
     }
     private static final int[] TREND_COLORS = {
-            Color.WHITE, Color.YELLOW, Color.CYAN, Color.rgb(255, 165, 0),
+            Color.WHITE, Color.CYAN, Color.YELLOW, Color.rgb(255, 165, 0),
             Color.MAGENTA, Color.GREEN};
     private int trendLineType;
     private int trendColorIndex;

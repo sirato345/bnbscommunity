@@ -60,6 +60,8 @@ public class Const {
     // 文字サイズ_ビッグ
     public static final int FONT_SIZE_ARROW = 60;
 
+    public static final float CHART_LINE_WIDTH = 6f;
+
     // 編集要否の距離
     public static final int EDIT_DISTANCE = 50;
 
