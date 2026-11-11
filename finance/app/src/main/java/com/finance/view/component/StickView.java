@@ -930,7 +930,7 @@ public class StickView extends View {
 
     /* 吸附到触摸位置K线的开高低收价 */
     private Point snap(Point point) {
-        boolean horizontal = editLine != null
+        boolean horizontal = waveGesture ? false : editLine != null
                 ? editLine.getType() == TrendLine.TYPE_HORIZONTAL
                 : activity.getTrendLineType() == TrendLine.TYPE_HORIZONTAL;
         // 水平线需要设置到任意价格，不吸附到K线价格
@@ -1622,13 +1622,10 @@ public class StickView extends View {
             }
             Paint marker = new Paint(Paint.ANTI_ALIAS_FLAG);
             float radius = 6 * getResources().getDisplayMetrics().density;
+            marker.setStyle(Paint.Style.STROKE);
+            marker.setColor(selected.getColor());
+            marker.setStrokeWidth(Const.CHART_LINE_WIDTH);
             for (Point point : points) {
-                marker.setStyle(Paint.Style.FILL);
-                marker.setColor(Color.WHITE);
-                canvas.drawCircle(point.x, point.y, radius, marker);
-                marker.setStyle(Paint.Style.STROKE);
-                marker.setColor(Color.BLACK);
-                marker.setStrokeWidth(2);
                 canvas.drawCircle(point.x, point.y, radius, marker);
             }
         }

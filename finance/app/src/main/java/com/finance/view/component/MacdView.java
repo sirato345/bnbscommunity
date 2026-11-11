@@ -720,6 +720,14 @@ public class MacdView  extends View {
                 + 5 * density;
     }
 
+    public float getTimeframeControlsLeft() {
+        float density = getResources().getDisplayMetrics().density;
+        float gap = 6 * density;
+        return getIntradayControlsRight(density)
+                - VISIBLE_CRYPTO_TIMEFRAMES * getCryptoTimeframeButtonWidth(density, gap)
+                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+    }
+
     private void drawSignalMarker(Canvas canvas, float left, float top,
                                   float buttonWidth, float buttonHeight, float shapeSize,
                                   SignalLight signal) {
@@ -819,10 +827,7 @@ public class MacdView  extends View {
         float panelBottom = isBothMode() ? getHeight() / 2f : getHeight();
         float baseline = panelBottom - paint.descent();
         if (!isBothMode() && showsTimeframeControls()) {
-            float gap = 6 * density;
-            float controlsLeft = getIntradayControlsRight(density)
-                    - VISIBLE_CRYPTO_TIMEFRAMES * getCryptoTimeframeButtonWidth(density, gap)
-                    - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+            float controlsLeft = getTimeframeControlsLeft();
             float valuesRight = paint.measureText(kValue) + paint.measureText(dValue)
                     + paint.measureText(jValue) + 24;
             if (valuesRight + 4 * density > controlsLeft) {
@@ -860,9 +865,7 @@ public class MacdView  extends View {
         float gap = 6 * density;
         float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
         float buttonHeight = 34 * density * 0.88f;
-        float controlsLeft = getIntradayControlsRight(density)
-                - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
-                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        float controlsLeft = getTimeframeControlsLeft();
         float bottom = getHeight() - 7 * density;
         float textSize = 16 * density * 0.88f;
         intervalButtonPaint.setTextSize(textSize);
@@ -910,9 +913,7 @@ public class MacdView  extends View {
         float gap = 6 * density;
         float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
         float buttonHeight = 34 * density * 0.88f;
-        float controlsLeft = getIntradayControlsRight(density)
-                - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
-                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        float controlsLeft = getTimeframeControlsLeft();
         float bottom = getHeight() - 7 * density;
         float top = bottom - buttonHeight;
         int first = activity.isCryptoSymbol() ? firstVisibleCryptoTimeframe : 0;
@@ -944,8 +945,7 @@ public class MacdView  extends View {
         float bottom = getHeight() - 7 * density;
         float top = bottom - 34 * density * 0.88f;
         float right = getIntradayControlsRight(density);
-        float left = right - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
-                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        float left = getTimeframeControlsLeft();
         if (x < left || x > right || y < top || y > bottom) {
             return false;
         }
@@ -974,11 +974,8 @@ public class MacdView  extends View {
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
         float density = getResources().getDisplayMetrics().density;
-        float gap = 6 * density;
-        float buttonWidth = getCryptoTimeframeButtonWidth(density, gap);
         float right = getIntradayControlsRight(density);
-        float left = right - VISIBLE_CRYPTO_TIMEFRAMES * buttonWidth
-                - (VISIBLE_CRYPTO_TIMEFRAMES - 1) * gap;
+        float left = getTimeframeControlsLeft();
         float bottom = getHeight() - 7 * density;
         float top = bottom - 34 * density * 0.88f;
         return x >= left && x <= right && y >= top && y <= bottom;

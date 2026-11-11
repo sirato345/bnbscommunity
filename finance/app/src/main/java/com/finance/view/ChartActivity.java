@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import androidx.annotation.NonNull;
@@ -12,6 +13,7 @@ import androidx.fragment.app.FragmentActivity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewConfiguration;
 import android.view.Window;
 import android.util.DisplayMetrics;
 import android.widget.ImageView;
@@ -67,6 +69,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private static final int MIN_STICK_WIDTH = 4;
     private static final int MAX_STICK_WIDTH = 60;
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
+    private static final String TREND_SNAP_PREF = "trend_snap_enabled";
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -103,6 +106,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean cryptoTimeframeControlGesture;
     private boolean titleTapCandidate;
     private boolean editTouchBlocked;
+    private boolean editIconTouch;
+    private float editIconDownX;
+    private float editIconDownY;
+    private boolean editIconTouchMoved;
     private String realtimeCandle;
     private YahooIndexQuote indexQuote;
     private boolean indexQuoteFailed;
@@ -212,6 +219,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private LinearLayout trendToolContainer;
     private final List<TextView> trendTypeButtons = new ArrayList<>();
     private TextView trendColorButton;
+    private TextView trendSnapButton;
+    private boolean trendSnapEnabled = true;
     // 平均K線１０日表示フラグ
     public boolean isAvg10Disp;
     // 平均K線２０日表示フラグ
@@ -227,6 +236,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     protected void onCreate(Bundle savedInstanceState) {
         // UncaughtExceptionHandlerを実装したクラスをセットする。
         super.onCreate(savedInstanceState);
+        trendSnapEnabled = getPreferences(MODE_PRIVATE).getBoolean(TREND_SNAP_PREF, true);
         if (savedInstanceState != null) {
             intradayInterval = savedInstanceState.getString("IntradayInterval");
         }
@@ -1499,6 +1509,80 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            editIconTouch = isEditIconTouch(event.getRawX(), event.getRawY());
+            if (editIconTouch) {
+                editIconDownX = event.getRawX();
+                editIconDownY = event.getRawY();
+                editIconTouchMoved = false;
+                editButton.setPressed(true);
+                return true;
+            }
+        } else if (editIconTouch) {
+            float slop = ViewConfiguration.get(this).getScaledTouchSlop();
+            if (action == MotionEvent.ACTION_POINTER_DOWN
+                    || Math.hypot(event.getRawX() - editIconDownX,
+                            event.getRawY() - editIconDownY) > slop) {
+                editIconTouchMoved = true;
+                editButton.setPressed(false);
+            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                boolean click = action == MotionEvent.ACTION_UP && !editIconTouchMoved
+                        && isEditIconTouch(event.getRawX(), event.getRawY());
+                editIconTouch = false;
+                editButton.setPressed(false);
+                if (click) {
+                    editButton.performClick();
+                }
+            }
+            return true;
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    private boolean isEditIconTouch(float x, float y) {
+        RectF bounds = getEditIconTouchBounds();
+        if (bounds == null || !EditIconTouchArea.contains(
+                x, y, bounds.left, bounds.top, bounds.right, bounds.bottom)) {
+            return false;
+        }
+        RectF tools = getVisibleTrendToolBounds();
+        return tools == null || !tools.contains(x, y);
+    }
+
+    private RectF getEditIconTouchBounds() {
+        if (editButton == null || trendSnapButton == null || macdView == null || dateView == null
+                || macdView.getWidth() == 0 || dateView.getHeight() == 0) {
+            return null;
+        }
+        int[] iconLocation = new int[2];
+        int[] macdLocation = new int[2];
+        int[] dateLocation = new int[2];
+        editButton.getLocationOnScreen(iconLocation);
+        macdView.getLocationOnScreen(macdLocation);
+        dateView.getLocationOnScreen(dateLocation);
+        float controlsLeft = macdLocation[0] + macdView.getTimeframeControlsLeft();
+        float left = macdLocation[0];
+        float top = iconLocation[1] - trendSnapButton.getLayoutParams().height / 2f;
+        float right = EditIconTouchArea.rightEdge(iconLocation[0] + editButton.getWidth(),
+                controlsLeft);
+        return new RectF(left, top, right, dateLocation[1]);
+    }
+
+    private RectF getVisibleTrendToolBounds() {
+        if (trendToolContainer != null && trendToolContainer.isShown()) {
+            int[] toolLocation = new int[2];
+            trendToolContainer.getLocationOnScreen(toolLocation);
+            return new RectF(toolLocation[0], toolLocation[1],
+                    toolLocation[0] + trendToolContainer.getWidth(),
+                    toolLocation[1] + trendToolContainer.getHeight());
+        }
+        return null;
+    }
+
+    @Override
     /* 触摸 */
     public boolean onTouchEvent(MotionEvent event) {
         if (titleTapCandidate) {
@@ -1995,12 +2079,20 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 updateTrendToolButtons();
             });
             trendToolContainer.addView(trendColorButton);
+            trendSnapButton = createToolButton();
+            trendSnapButton.setOnClickListener(v -> {
+                trendSnapEnabled = !trendSnapEnabled;
+                getPreferences(MODE_PRIVATE).edit().putBoolean(TREND_SNAP_PREF, trendSnapEnabled).apply();
+                updateTrendToolButtons();
+            });
+            trendToolContainer.addView(trendSnapButton);
             addContentView(trendToolContainer, new ViewGroup.LayoutParams(-2, -2));
         }
         int toolGap = 0;
         int toolButtonHeight = Math.round(buttonHeight * 0.85f * 0.9f);
         List<TextView> buttons = new ArrayList<>(trendTypeButtons);
         buttons.add(trendColorButton);
+        buttons.add(trendSnapButton);
         for (TextView button : buttons) {
             LinearLayout.LayoutParams params =
                     new LinearLayout.LayoutParams(buttonWidth, toolButtonHeight);
@@ -2032,6 +2124,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         trendColorButton.setText("颜色");
         trendColorButton.setTextColor(TREND_COLORS[trendColorIndex]);
+        trendSnapButton.setText(trendSnapEnabled ? "吸附开" : "吸附关");
+        trendSnapButton.setTextColor(trendSnapEnabled ? Color.rgb(66, 165, 245) : Color.WHITE);
+        trendSnapButton.setSelected(trendSnapEnabled);
     }
 
     public int getTrendLineType() {
@@ -2047,7 +2142,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     public boolean isTrendSnapEnabled() {
-        return true;
+        return trendSnapEnabled;
     }
 
     public int getStickWidth() {
