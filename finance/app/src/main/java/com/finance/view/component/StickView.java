@@ -546,7 +546,7 @@ public class StickView extends View {
             trendLine.setColor(activity.getTrendLineColor());
             trendLine.setWavePoints(draft);
             draft.clear();
-            activity.saveTrendLine(trendLine);
+            saveAndSelectNewLine(trendLine);
         }
         draft.clear();
         // 结束本次手势的后续取点
@@ -569,6 +569,14 @@ public class StickView extends View {
         trendLine.setColor(waveEditLine.getColor());
         trendLine.setWavePoints(points);
         activity.saveTrendLine(trendLine);
+    }
+
+    private void saveAndSelectNewLine(TrendLine line) {
+        activity.saveTrendLine(line);
+        if (line.getId() <= 0) {
+            throw new IllegalStateException("New trend line was not saved");
+        }
+        selectedLineId = line.getId();
     }
 
     /* 触摸点是否落在已保存五浪线的端点上，命中则记录线和端点序号 */
@@ -1437,7 +1445,11 @@ public class StickView extends View {
             // 新通道线先只画基准线，平行线之后从线中间拖出
             trendLine.setOffset(editLine != null ? editLine.getOffset() : 0f);
         }
-        activity.saveTrendLine(trendLine);
+        if (editLine == null) {
+            saveAndSelectNewLine(trendLine);
+        } else {
+            activity.saveTrendLine(trendLine);
+        }
     }
 
     private String getDate(Point point) {
@@ -1736,6 +1748,7 @@ public class StickView extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setStrokeWidth(2);
+        paint.setTextAlign(Paint.Align.CENTER);
         // 文字粗体
         paint.setFakeBoldText(true);
         for (int i = 0; i < maxStickCount; i++) {
@@ -1744,7 +1757,7 @@ public class StickView extends View {
                 continue;
             }
             // 文字坐标
-            int x = stickInfo.getStickRect().left;
+            int x = stickInfo.getStickRect().centerX();
             if (stickInfo.getTdSequentialUp() >= 8) {
                 // LIME
                 paint.setColor(Color.parseColor("#00FF00"));

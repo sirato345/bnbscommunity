@@ -693,6 +693,7 @@ public class DBOperator {
         values.put("Color", trendLine.getColor());
         values.put("Offset", trendLine.getOffset());
         values.put("Points", trendLine.getExtraPoints());
+        int savedId = trendLine.getId();
         dbWritable.beginTransactionNonExclusive();
         try {
             if (trendLine.getId() > 0) {
@@ -702,13 +703,14 @@ public class DBOperator {
                     throw new IllegalStateException("Trend line not found: " + trendLine.getId());
                 }
             } else {
-                dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values);
+                savedId = Math.toIntExact(dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values));
             }
             log("趋势线保存:" + trendLine.getSymbol() + " " + trendLine.getTimeFrame());
             dbWritable.setTransactionSuccessful();
         } finally {
             dbWritable.endTransaction();
         }
+        trendLine.setId(savedId);
     }
 
     public void deleteTrendLine(int id) {
