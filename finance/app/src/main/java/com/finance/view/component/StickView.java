@@ -11,13 +11,13 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.finance.common.Const;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.stick.ComnInfo;
+import com.finance.view.component.stick.LineSelectionGesture;
 import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.PriceAxisPan;
 import com.finance.view.component.stick.StickInfo;
@@ -83,6 +83,10 @@ public class StickView extends View {
     private Float currentValue;
     // 编辑中趋势线
     private TrendLine editLine;
+    private int selectedLineId = -1;
+    private Point selectionDownPoint;
+    private boolean selectionMoved;
+    private boolean ignoreGesture;
     private Bitmap loupeBitmap;
     private Canvas loupeCanvas;
     // 正在调整宽度的通道线及当前偏移（像素）
@@ -90,18 +94,12 @@ public class StickView extends View {
     private float channelOffsetPx;
     private boolean channelMove;
     // 最近一次点击新建水平线的时间与当时的线条数，用于双击时撤销这条新线
-    private long tapCreatedTime;
-    private long waveAddedTime;
     private static final int WAVE_POINT_COUNT = 6;
     private static final int WAVE_HOLD_MS = 1000;
     private boolean waveGesture;
     private TrendLine waveEditLine;
     private int waveEditIndex;
     private Point waveHoldAnchor;
-    private int tapCreatedLineCount = -1;
-    private static final int TAP_CREATE_UNDO_MS = 500;
-    // 双击删除线的判定范围
-    private static final int NEAR_LINE_PX = 100;
     // 点击时手指的自然抖动范围，小于此距离不当作拖动
     private static final int TAP_SLOP_PX = 30;
     private float channelStartOffsetPx;
@@ -123,6 +121,9 @@ public class StickView extends View {
         this.comnInfo = comnInfo;
         this.stickList = stickList;
         this.trendLines = trendLines;
+        if (selectedLineId != -1 && getSelectedLine() == null) {
+            selectedLineId = -1;
+        }
         this.average10 = new ArrayList<>();
         this.average20 = new ArrayList<>();
         this.average50 = new ArrayList<>();
@@ -271,13 +272,45 @@ public class StickView extends View {
 
     public void onTouchEvent(int action, Point point) {
         if (action == MotionEvent.ACTION_DOWN) {
-            waveGesture = this.hitWavePoint(point)
-                    || isWaveType(activity.getTrendLineType());
+            ignoreGesture = point.y < 0 || point.y >= comnInfo.getStickHeight();
+            if (ignoreGesture) {
+                return;
+            }
+            selectionDownPoint = new Point(point);
+            selectionMoved = false;
+            boolean wavePoint = this.hitWavePoint(point);
+            TrendLine selected = getSelectedLine();
+            boolean onSelected = selected != null
+                    && getLineDistance(selected, point) <= Const.EDIT_DISTANCE;
+            waveGesture = wavePoint || (isWaveType(activity.getTrendLineType())
+                    && !onSelected);
+        }
+        if (ignoreGesture || selectionDownPoint == null) {
+            return;
+        }
+        if (action == MotionEvent.ACTION_MOVE
+                && getDistance(selectionDownPoint, point) > TAP_SLOP_PX) {
+            selectionMoved = true;
+        }
+        if (action == MotionEvent.ACTION_UP && LineSelectionGesture.isTap(selectionMoved,
+                getDistance(selectionDownPoint, point), TAP_SLOP_PX)) {
+            TrendLine hit = findSelectableLine(point);
+            if (hit != null || selectedLineId != -1) {
+                selectedLineId = hit == null ? -1 : hit.getId();
+                cancelDrawingGesture();
+                invalidate();
+                return;
+            }
         }
         if (waveGesture) {
+            if (action == MotionEvent.ACTION_CANCEL) {
+                cancelDrawingGesture();
+                return;
+            }
             this.onWaveTouch(action, point);
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 waveGesture = false;
+                selectionDownPoint = null;
             }
             return;
         }
@@ -289,7 +322,7 @@ public class StickView extends View {
                 this.channelOffsetPx = channelLine == null ? 0 : this.getChannelOffsetPx(channelLine);
                 this.channelStartOffsetPx = channelOffsetPx;
                 this.channelMove = channelLine != null
-                        && (channelLine.getType() == TrendLine.TYPE_BOX
+                        && (channelLine.getType() != TrendLine.TYPE_CHANNEL
                         || this.isOnChannelBase(channelLine, point));
                 this.currentPoint = null;
                 this.downPoint = editLine == null && channelLine == null
@@ -331,6 +364,7 @@ public class StickView extends View {
                     downPoint = null;
                     currentPoint = null;
                     editLine = null;
+                    selectionDownPoint = null;
                     break;
                 }
                 if (downPoint != null && editLine == null
@@ -341,26 +375,64 @@ public class StickView extends View {
                         currentPoint = downPoint;
                     }
                     this.saveTrendLine();
-                    if (tap) {
-                        tapCreatedTime = SystemClock.uptimeMillis();
-                        tapCreatedLineCount = trendLines.size();
-                    }
                 } else if (downPoint != null && currentPoint != null) {
                     int length = this.getDistance(downPoint, currentPoint);
                     // 低于一定长度,不画线（编辑时保留原线；水平线只需上下移动）
                     if (length > 120 || (editLine != null
                             && editLine.getType() == TrendLine.TYPE_HORIZONTAL)) {
-                        if (editLine != null) {
-                            activity.deleteTrendLine(editLine.getId());
-                        }
                         this.saveTrendLine();
                     }
                 }
                 downPoint = null;
                 currentPoint = null;
                 editLine = null;
+                selectionDownPoint = null;
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                cancelDrawingGesture();
                 break;
         }
+    }
+
+    public void clearLineSelection() {
+        selectedLineId = -1;
+        cancelDrawingGesture();
+        invalidate();
+    }
+
+    private void cancelDrawingGesture() {
+        waveHandler.removeCallbacks(waveHoldTask);
+        activity.getWaveDraft().clear();
+        waveGesture = false;
+        waveEditLine = null;
+        editLine = null;
+        channelLine = null;
+        channelMove = false;
+        downPoint = null;
+        currentPoint = null;
+        selectionDownPoint = null;
+    }
+
+    private TrendLine getSelectedLine() {
+        for (TrendLine line : trendLines) {
+            if (line.getId() == selectedLineId) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    private TrendLine findSelectableLine(Point point) {
+        TrendLine nearest = null;
+        double best = Const.EDIT_DISTANCE;
+        for (TrendLine line : trendLines) {
+            double distance = getLineDistance(line, point);
+            if (distance <= best) {
+                nearest = line;
+                best = distance;
+            }
+        }
+        return nearest;
     }
 
     /*
@@ -458,7 +530,6 @@ public class StickView extends View {
     private void commitWavePoint(Point p) {
         List<Object[]> draft = activity.getWaveDraft();
         draft.add(new Object[] {this.getDate(p), this.getPrice(p)});
-        waveAddedTime = SystemClock.uptimeMillis();
         if (draft.size() >= WAVE_POINT_COUNT) {
             this.finishWave();
         }
@@ -476,8 +547,6 @@ public class StickView extends View {
             trendLine.setWavePoints(draft);
             draft.clear();
             activity.saveTrendLine(trendLine);
-            tapCreatedTime = waveAddedTime;
-            tapCreatedLineCount = trendLines.size();
         }
         draft.clear();
         // 结束本次手势的后续取点
@@ -493,12 +562,12 @@ public class StickView extends View {
         points.set(waveEditIndex,
                 new Object[] {this.getDate(currentPoint), this.getPrice(currentPoint)});
         TrendLine trendLine = new TrendLine();
+        trendLine.setId(waveEditLine.getId());
         trendLine.setSymbol(waveEditLine.getSymbol());
         trendLine.setTimeFrame(waveEditLine.getTimeFrame());
         trendLine.setType(waveEditLine.getType());
         trendLine.setColor(waveEditLine.getColor());
         trendLine.setWavePoints(points);
-        activity.deleteTrendLine(waveEditLine.getId());
         activity.saveTrendLine(trendLine);
     }
 
@@ -507,7 +576,7 @@ public class StickView extends View {
         double best = Const.EDIT_DISTANCE;
         waveEditLine = null;
         for (TrendLine trendLine : trendLines) {
-            if (!isWaveType(trendLine.getType())) {
+            if (trendLine.getId() != selectedLineId || !isWaveType(trendLine.getType())) {
                 continue;
             }
             List<Point> pixels = this.getWavePixels(trendLine.getWavePoints());
@@ -581,52 +650,15 @@ public class StickView extends View {
 
     /* 双击：删除线。双击的第一下点击可能刚画出一条水平线，先撤销它，再删除原有的线 */
     public void onDoubleTap(Point point) {
-        List<Object[]> draft = activity.getWaveDraft();
-        if (!draft.isEmpty() && SystemClock.uptimeMillis() - waveAddedTime <= TAP_CREATE_UNDO_MS) {
-            // 双击的第一下刚加了一个五浪端点，撤销它
-            draft.remove(draft.size() - 1);
-            downPoint = null;
-            currentPoint = null;
-            return;
+        TrendLine selected = getSelectedLine();
+        cancelDrawingGesture();
+        ignoreGesture = true;
+        if (selected != null && getLineDistance(selected, point) <= Const.EDIT_DISTANCE) {
+            activity.deleteTrendLine(selected.getId());
+            trendLines.remove(selected);
+            selectedLineId = -1;
+            invalidate();
         }
-        // 取消第二下按下后正在进行的画线/编辑，避免抬起时又保存
-        downPoint = null;
-        currentPoint = null;
-        editLine = null;
-        channelLine = null;
-        channelMove = false;
-        if (SystemClock.uptimeMillis() - tapCreatedTime <= TAP_CREATE_UNDO_MS
-                && trendLines.size() > tapCreatedLineCount && tapCreatedLineCount >= 0) {
-            TrendLine created = trendLines.remove(trendLines.size() - 1);
-            activity.deleteTrendLine(created.getId());
-        }
-        tapCreatedLineCount = -1;
-        TrendLine nearest = null;
-        double nearestDistance = Double.MAX_VALUE;
-        for (TrendLine trendLine : trendLines) {
-            double distance = this.getLineDistance(trendLine, point);
-            if (distance < nearestDistance) {
-                nearestDistance = distance;
-                nearest = trendLine;
-            }
-        }
-        if (nearest != null && nearestDistance <= NEAR_LINE_PX) {
-            int index = this.getTrendLineIndex(nearest);
-            if (index != -1) {
-                trendLines.remove(index);
-                activity.deleteTrendLine(nearest.getId());
-            }
-        }
-    }
-
-    // 删除线ID取得
-    private int getTrendLineIndex(TrendLine editLine) {
-        for (int i = 0; i < trendLines.size(); i++) {
-            if (trendLines.get(i).getId() == editLine.getId()) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /* 触摸点到线的距离：通道线含平行线，斐波那契线取各水平线 */
@@ -693,8 +725,10 @@ public class StickView extends View {
         TrendLine best = null;
         double bestDistance = Const.EDIT_DISTANCE;
         for (TrendLine trendLine : trendLines) {
-            if (trendLine.getType() != TrendLine.TYPE_CHANNEL
-                    && trendLine.getType() != TrendLine.TYPE_BOX) {
+            if (trendLine.getId() != selectedLineId) {
+                continue;
+            }
+            if (trendLine.getType() == TrendLine.TYPE_HORIZONTAL) {
                 continue;
             }
             double distance = this.getLineDistance(trendLine, point);
@@ -750,16 +784,29 @@ public class StickView extends View {
         Point n1 = new Point(p1.x + dx, p1.y + dy);
         Point n2 = new Point(p2.x + dx, p2.y + dy);
         TrendLine trendLine = new TrendLine();
+        trendLine.setId(channelLine.getId());
         trendLine.setSymbol(channelLine.getSymbol());
         trendLine.setTimeFrame(channelLine.getTimeFrame());
         trendLine.setType(channelLine.getType());
         trendLine.setColor(channelLine.getColor());
-        trendLine.setDate1(this.getDate(n1));
-        trendLine.setPrice1(this.getPrice(n1));
-        trendLine.setDate2(this.getDate(n2));
-        trendLine.setPrice2(this.getPrice(n2));
+        if (isWaveType(channelLine.getType())) {
+            List<Point> pixels = getWavePixels(channelLine.getWavePoints());
+            if (pixels == null) {
+                return;
+            }
+            List<Object[]> points = new ArrayList<>();
+            for (Point pixel : pixels) {
+                Point moved = new Point(pixel.x + dx, pixel.y + dy);
+                points.add(new Object[] {getDate(moved), getPrice(moved)});
+            }
+            trendLine.setWavePoints(points);
+        } else {
+            trendLine.setDate1(this.getDate(n1));
+            trendLine.setPrice1(this.getPrice(n1));
+            trendLine.setDate2(this.getDate(n2));
+            trendLine.setPrice2(this.getPrice(n2));
+        }
         trendLine.setOffset(channelLine.getOffset());
-        activity.deleteTrendLine(channelLine.getId());
         activity.saveTrendLine(trendLine);
     }
 
@@ -771,6 +818,7 @@ public class StickView extends View {
             return;
         }
         TrendLine trendLine = new TrendLine();
+        trendLine.setId(channelLine.getId());
         trendLine.setSymbol(channelLine.getSymbol());
         trendLine.setTimeFrame(channelLine.getTimeFrame());
         trendLine.setType(channelLine.getType());
@@ -781,7 +829,6 @@ public class StickView extends View {
         trendLine.setPrice2(channelLine.getPrice2());
         trendLine.setOffset(this.getPrice(new Point(0, Math.round(p1.y + channelOffsetPx)))
                 - channelLine.getPrice1());
-        activity.deleteTrendLine(channelLine.getId());
         activity.saveTrendLine(trendLine);
     }
 
@@ -797,6 +844,9 @@ public class StickView extends View {
         int bestPoint = 0;
         int bestDistance = Integer.MAX_VALUE;
         for (TrendLine trendLine : trendLines) {
+            if (trendLine.getId() != selectedLineId) {
+                continue;
+            }
             Point startPoint = this.getVirtualPoint(trendLine.getDate1(), trendLine.getPrice1());
             Point endPoint = this.getVirtualPoint(trendLine.getDate2(), trendLine.getPrice2());
             if (isWaveType(trendLine.getType())) {
@@ -1233,7 +1283,7 @@ public class StickView extends View {
                             indicatorBaseline(paint, 4), paint);
                 }
             }
-            // 缩放后最高最低价线仍在原位置（区域上下沿），显示缩放后的价格
+            // 缩放后最高最低价格线显示在区域上下沿
             boolean zoomed = (activity.getPriceZoom() > 1f || activity.getPricePan() != 0f)
                     && !activity.isFearGreedSymbol();
             float topY = zoomed ? 0 : lineRect.top;
@@ -1242,12 +1292,10 @@ public class StickView extends View {
             float bottomValue = zoomed ? stickInfo.getMinValue() : stickInfo.getLow();
             // 最大値の線
             if (stickInfo.isMaxValueStick()) {
+                paint.setColor(Color.GREEN);
+                canvas.drawLine(0, topY, comnInfo.getScreenWidth(), topY, paint);
                 // 白色
                 paint.setColor(Color.WHITE);
-                // 不设置粗体
-                paint.setFakeBoldText(false);
-                // 最大値の線
-                canvas.drawLine(0, topY, comnInfo.getScreenWidth(), topY, paint);
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
@@ -1255,12 +1303,10 @@ public class StickView extends View {
             }
             // 最小値の線
             if (stickInfo.isMinValueStick()) {
+                paint.setColor(Color.GREEN);
+                canvas.drawLine(0, bottomY, comnInfo.getScreenWidth(), bottomY, paint);
                 // 白色
                 paint.setColor(Color.WHITE);
-                // 不设置粗体
-                paint.setFakeBoldText(false);
-                // 最小値の線
-                canvas.drawLine(0, bottomY, comnInfo.getScreenWidth(), bottomY, paint);
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 // 最新価格設定
@@ -1363,6 +1409,7 @@ public class StickView extends View {
             date2 = this.getDate(currentPoint);
             price2 = this.getPrice(currentPoint);
         } else {
+            trendLine.setId(editLine.getId());
             trendLine.setType(editLine.getType());
             trendLine.setColor(editLine.getColor());
             if (editLine.getEidtPoint() == 1) {
@@ -1473,6 +1520,13 @@ public class StickView extends View {
                     if (waveEditLine != null && waveEditLine.getId() == trendLine.getId()
                             && currentPoint != null && waveEditIndex < pixels.size()) {
                         pixels.set(waveEditIndex, currentPoint);
+                    } else if (channelLine != null && channelLine.getId() == trendLine.getId()
+                            && currentPoint != null && downPoint != null) {
+                        int dx = currentPoint.x - downPoint.x;
+                        int dy = currentPoint.y - downPoint.y;
+                        for (Point pixel : pixels) {
+                            pixel.offset(dx, dy);
+                        }
                     }
                     paint.setColor(trendLine.getColor());
                     this.drawWave(canvas, paint, pixels, true);
@@ -1492,11 +1546,83 @@ public class StickView extends View {
                     trendLine.getType(), offsetPx,
                     dragging && channelMove ? null : Float.valueOf(trendLine.getPrice1()));
         }
+        if (activity.isChartEditMode()) {
+            drawSelectedHandles(canvas);
+        }
         // 描画当前正在画的线
         if (waveEditLine != null) {
             return;
         }
-        if (isWaveType(activity.getTrendLineType())) {
+        drawCurrentTrendLine(canvas, paint);
+    }
+
+    private void drawSelectedHandles(Canvas canvas) {
+            TrendLine selected = getSelectedLine();
+            if (selected == null) {
+                return;
+            }
+            List<Point> points = new ArrayList<>();
+            if (isWaveType(selected.getType())) {
+                List<Point> wavePoints = getWavePixels(selected.getWavePoints());
+                if (wavePoints == null) {
+                    return;
+                }
+                points.addAll(wavePoints);
+                if (waveEditLine != null && currentPoint != null && waveEditIndex < points.size()) {
+                    points.set(waveEditIndex, currentPoint);
+                } else if (channelLine != null && channelMove && currentPoint != null && downPoint != null) {
+                    int dx = currentPoint.x - downPoint.x;
+                    int dy = currentPoint.y - downPoint.y;
+                    for (Point point : points) {
+                        point.offset(dx, dy);
+                    }
+                }
+            } else {
+                Point p1 = getVirtualPoint(selected.getDate1(), selected.getPrice1());
+                Point p2 = getVirtualPoint(selected.getDate2(), selected.getPrice2());
+                if (p1 == null || p2 == null) {
+                    return;
+                }
+                if (selected.getType() == TrendLine.TYPE_HORIZONTAL) {
+                    float y = editLine != null && currentPoint != null ? currentPoint.y : p1.y;
+                    points.add(new Point(Math.round(12 * getResources().getDisplayMetrics().density), Math.round(y)));
+                    points.add(new Point(getWidth() - Math.round(12 * getResources().getDisplayMetrics().density), Math.round(y)));
+                } else {
+                    if (channelLine != null && channelMove && currentPoint != null && downPoint != null) {
+                        int dx = currentPoint.x - downPoint.x;
+                        int dy = currentPoint.y - downPoint.y;
+                        p1.offset(dx, dy);
+                        p2.offset(dx, dy);
+                    } else if (editLine != null && currentPoint != null) {
+                        if (editLine.getEidtPoint() == 1) {
+                            p1 = currentPoint;
+                        } else {
+                            p2 = currentPoint;
+                        }
+                    }
+                    points.add(p1);
+                    points.add(p2);
+                    if (selected.getType() == TrendLine.TYPE_BOX) {
+                        points.add(new Point(p1.x, p2.y));
+                        points.add(new Point(p2.x, p1.y));
+                    }
+                }
+            }
+            Paint marker = new Paint(Paint.ANTI_ALIAS_FLAG);
+            float radius = 6 * getResources().getDisplayMetrics().density;
+            for (Point point : points) {
+                marker.setStyle(Paint.Style.FILL);
+                marker.setColor(Color.WHITE);
+                canvas.drawCircle(point.x, point.y, radius, marker);
+                marker.setStyle(Paint.Style.STROKE);
+                marker.setColor(Color.BLACK);
+                marker.setStrokeWidth(2);
+                canvas.drawCircle(point.x, point.y, radius, marker);
+            }
+        }
+
+    private void drawCurrentTrendLine(Canvas canvas, Paint paint) {
+        if (waveGesture && waveEditLine == null) {
             List<Point> pixels = this.getWavePixels(activity.getWaveDraft());
             if (pixels != null && pixels.isEmpty() && downPoint != null && currentPoint != null) {
                 pixels.add(downPoint);

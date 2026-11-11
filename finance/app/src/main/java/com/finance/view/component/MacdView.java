@@ -1100,14 +1100,14 @@ public class MacdView  extends View {
                     endPoint = dragged;
                 }
             }
-            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.rgb(0, 230, 118));
+            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.GREEN);
             paint.getTextBounds(line.label, 0, line.label.length(), textBounds);
             float baseline = isTop
                     ? endPoint.y - gap - textBounds.bottom
                     : endPoint.y + gap - textBounds.top;
 
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(3 * density);
+            paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
             canvas.drawLine(startPoint.x, startPoint.y, endPoint.x, endPoint.y, paint);
 
             paint.setStyle(Paint.Style.FILL);
@@ -1899,6 +1899,7 @@ public class MacdView  extends View {
             canvas.drawLine(0, p1.y, getWidth(), p1.y, paint);
             paint.setStyle(Paint.Style.FILL);
             paint.setTextSize(Const.FONT_SIZE_LARGE);
+            paint.setFakeBoldText(true);
             Paint.FontMetrics fm = paint.getFontMetrics();
             String text = String.format(Locale.US, "%.1f", value);
             Rect textBounds = new Rect();

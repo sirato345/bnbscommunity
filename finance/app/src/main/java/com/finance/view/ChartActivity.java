@@ -1763,12 +1763,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         if(isEidtMode) {
             Point point = this.ajustPoint(e);
-            if (macdView.deleteKdjLineAt(point)) {
+            if (point.y >= 0 && point.y < comnInfo.getStickHeight()) {
+                stickView.onDoubleTap(point);
+                this.showUI();
+            } else if (macdView.deleteKdjLineAt(point)) {
                 this.showUI();
             } else if (macdView.deleteMacdLineAt(point)) {
                 this.showUI();
-            } else if (!macdView.deleteDivergenceAt(point)) {
-                stickView.onDoubleTap(point);
+            } else {
+                macdView.deleteDivergenceAt(point);
             }
             return true;
         }
@@ -1908,6 +1911,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
             editButton.setContentDescription(getString(R.string.edit_chart));
             editButton.setOnClickListener(v -> {
                 isEidtMode = !isEidtMode;
+                if (!isEidtMode) {
+                    stickView.clearLineSelection();
+                }
                 updateEditButtonImage();
             });
             editButtonContainer.addView(editButton);
@@ -2030,6 +2036,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public int getTrendLineType() {
         return trendLineType;
+    }
+
+    public boolean isChartEditMode() {
+        return isEidtMode;
     }
 
     public int getTrendLineColor() {

@@ -695,7 +695,15 @@ public class DBOperator {
         values.put("Points", trendLine.getExtraPoints());
         dbWritable.beginTransactionNonExclusive();
         try {
-            dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values);
+            if (trendLine.getId() > 0) {
+                int updated = dbWritable.update(Const.TREND_LINE_TABLE, values, "Id = ?",
+                        new String[] {String.valueOf(trendLine.getId())});
+                if (updated != 1) {
+                    throw new IllegalStateException("Trend line not found: " + trendLine.getId());
+                }
+            } else {
+                dbWritable.insertOrThrow(Const.TREND_LINE_TABLE, null, values);
+            }
             log("趋势线保存:" + trendLine.getSymbol() + " " + trendLine.getTimeFrame());
             dbWritable.setTransactionSuccessful();
         } finally {
