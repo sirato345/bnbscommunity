@@ -1230,7 +1230,7 @@ public class StickView extends View {
             canvas.drawRect(stickReck, paint);
             // ローソク足の線を描く
             Rect lineRect = stickInfo.getLineRect();
-            paint.setStrokeWidth(comnInfo.getStickWidth() == 2 ? 1 : 3);
+            paint.setStrokeWidth(comnInfo.getStickWidth() <= 2 ? 1 : 3);
             paint.setTextSize(Const.FONT_SIZE);
             canvas.drawLine(lineRect.left, lineRect.top, lineRect.right, lineRect.bottom, paint);
         }
@@ -1433,16 +1433,9 @@ public class StickView extends View {
                 // 文字粗体
                 paint.setFakeBoldText(true);
                 String valueText = getLimitDigit(currentValue);
-                float textRight = getPriceTextRight();
-                canvas.drawLine(0, touchPoint.y,
-                        Math.max(0, textRight - paint.measureText(valueText) - 4),
-                        touchPoint.y, paint);
-                // 文字坐标
-                Paint.FontMetrics fm = paint.getFontMetrics();
-                float y = touchPoint.y - (fm.ascent + fm.descent) / 2;
-                y = Math.max(-fm.ascent, Math.min(comnInfo.getStickHeight() - fm.descent, y));
-                // 最新価格設定
-                drawRightPriceText(canvas, paint, valueText, y);
+                canvas.drawLine(0, touchPoint.y, comnInfo.getScreenWidth(), touchPoint.y, paint);
+                drawRightPriceText(canvas, paint, valueText,
+                        horizontalPriceBaseline(paint, touchPoint.y));
             } else {
                 canvas.drawLine(0, touchPoint.y, comnInfo.getScreenWidth(), touchPoint.y, paint);
             }
@@ -1754,13 +1747,17 @@ public class StickView extends View {
         textPaint.setStyle(Paint.Style.FILL);
         textPaint.setTextSize(Const.FONT_SIZE_LARGE);
         textPaint.setFakeBoldText(true);
+        drawRightPriceText(canvas, textPaint, text, horizontalPriceBaseline(textPaint, y));
+    }
+
+    private float horizontalPriceBaseline(Paint textPaint, float y) {
         Paint.FontMetrics fm = textPaint.getFontMetrics();
         float margin = 2;
         float baseline = y - margin - fm.descent;
         if (baseline + fm.ascent < 0) {
             baseline = y + margin - fm.ascent;
         }
-        drawRightPriceText(canvas, textPaint, text, baseline);
+        return baseline;
     }
 
     private void drawFibonacci(Canvas canvas, Paint paint, float x1, float y1,

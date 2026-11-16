@@ -1500,18 +1500,9 @@ public class MacdView  extends View {
         paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
         canvas.drawLine(0, y, getWidth(), y, paint);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
-        Paint.FontMetrics fm = paint.getFontMetrics();
         String text = formatMacdValue(value);
-        Rect textBounds = new Rect();
-        paint.getTextBounds(text, 0, text.length(), textBounds);
-        float gap = 4 + (textBounds.top - fm.ascent);
-        float baseline = y - gap;
-        // 上方会碰到标题文字（或面板顶部）时，数值改显示在线下方
         float limit = isBothMode() ? 0 : getTitleBaseline() + 6;
-        if (baseline + fm.ascent < limit) {
-            baseline = y + gap - textBounds.top;
-        }
-        drawRightValue(canvas, paint, text, baseline);
+        drawRightValue(canvas, paint, text, horizontalValueBaseline(paint, text, y, limit));
     }
 
     public void setKdjLines(List<TrendLine> lines) {
@@ -1905,18 +1896,9 @@ public class MacdView  extends View {
             paint.setStyle(Paint.Style.FILL);
             paint.setTextSize(Const.FONT_SIZE_LARGE);
             paint.setFakeBoldText(true);
-            Paint.FontMetrics fm = paint.getFontMetrics();
             String text = String.format(Locale.US, "%.1f", value);
-            Rect textBounds = new Rect();
-            paint.getTextBounds(text, 0, text.length(), textBounds);
-            // 以数字实际字形为准，线上方与线下方的间距保持一致
-            float gap = 4 + (textBounds.top - fm.ascent);
-            float baseline = p1.y - gap;
-            // 上方会碰到标题文字时，价格改显示在线下方
-            if (baseline + fm.ascent < getTitleBaseline() + 6) {
-                baseline = p1.y + gap - textBounds.top;
-            }
-            drawRightValue(canvas, paint, text, baseline);
+            drawRightValue(canvas, paint, text,
+                    horizontalValueBaseline(paint, text, p1.y, getTitleBaseline() + 6));
         } else if (type == TrendLine.TYPE_RAY) {
             Point end = rayEnd(p1, p2);
             canvas.drawLine(p1.x, p1.y, end.x, end.y, paint);
@@ -2478,10 +2460,8 @@ public class MacdView  extends View {
         String text = formatMacdValue(macdValueAt(panelY));
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
-        Paint.FontMetrics fm = paint.getFontMetrics();
-        float baseline = y - (fm.ascent + fm.descent) / 2;
-        baseline = Math.max(macdOffsetY() - fm.ascent,
-                Math.min(macdOffsetY() + macdPanelHeight() - fm.descent, baseline));
+        float limit = macdOffsetY() + (isBothMode() ? 0 : getTitleBaseline() + 6);
+        float baseline = horizontalValueBaseline(paint, text, y, limit);
         drawTouchedRightValue(canvas, paint, text, y, baseline);
     }
 
@@ -2501,12 +2481,17 @@ public class MacdView  extends View {
         String text = String.format(Locale.US, "%.1f", value);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);
-        Paint.FontMetrics fm = paint.getFontMetrics();
-        float baseline = y - (fm.ascent + fm.descent) / 2;
-        float minBaseline = -fm.ascent;
-        float maxBaseline = (isBothMode() ? getHeight() / 2f : getHeight()) - fm.descent;
-        baseline = Math.max(minBaseline, Math.min(maxBaseline, baseline));
+        float baseline = horizontalValueBaseline(paint, text, y, getTitleBaseline() + 6);
         drawTouchedRightValue(canvas, paint, text, y, baseline);
+    }
+
+    private float horizontalValueBaseline(Paint paint, String text, float y, float topLimit) {
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        Rect textBounds = new Rect();
+        paint.getTextBounds(text, 0, text.length(), textBounds);
+        float gap = 4 + (textBounds.top - fm.ascent);
+        float baseline = y - gap;
+        return baseline + fm.ascent < topLimit ? y + gap - textBounds.top : baseline;
     }
 
     private float getValueTextRight() {
@@ -2522,8 +2507,7 @@ public class MacdView  extends View {
 
     private void drawTouchedRightValue(Canvas canvas, Paint paint, String text,
                                        float y, float baseline) {
-        float end = getValueTextRight() - paint.measureText(text) - 4;
-        canvas.drawLine(0, y, Math.max(0, end), y, paint);
+        canvas.drawLine(0, y, getWidth(), y, paint);
         drawRightValue(canvas, paint, text, baseline);
     }
 
