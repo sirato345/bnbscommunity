@@ -220,7 +220,8 @@ public class MacdView  extends View {
         }
         int lastValidIndex = Math.max(-1, Math.min(start_Macd_Osci, sizeOfStick - 1));
         macdDivergences = MacdDivergenceCalculator.findDivergences(
-                highs, lows, macd, signal, macd, maxStickCount, lastValidIndex);
+                highs, lows, macd, signal, macd, maxStickCount, lastValidIndex,
+                activity.isPriceAxisInverted());
     }
 
     private void calculateKdj() {
@@ -504,18 +505,18 @@ public class MacdView  extends View {
             float previousMacd = macdList.get(1).getMacd();
             float currentJ = kdjJ[0];
             float previousJ = kdjJ[1];
-            firstIndicatorSignal = SignalLight.fromDirections(
-                    currentJ > previousJ, currentJ < previousJ,
-                    currentMacd > previousMacd, currentMacd < previousMacd);
+            firstIndicatorSignal = SignalLight.fromIndicatorDirections(
+                    currentJ, previousJ, currentMacd, previousMacd,
+                    activity.isPriceAxisInverted());
         } else {
             firstIndicatorSignal = SignalLight.RED;
         }
 
         if (sizeOfStick >= EMA_SLOW + SIGNAL - 1
                 && !Float.isNaN(kdjK[0]) && !Float.isNaN(kdjD[0])) {
-            boolean kdjDead = kdjK[0] < kdjD[0];
-            boolean macdDead = macdList.get(0).getMacd() < macdList.get(0).getSignal();
-            secondIndicatorSignal = SignalLight.fromBearishConditions(kdjDead, macdDead);
+            secondIndicatorSignal = SignalLight.fromIndicatorCrosses(
+                    kdjK[0], kdjD[0], macdList.get(0).getMacd(),
+                    macdList.get(0).getSignal(), activity.isPriceAxisInverted());
         } else {
             secondIndicatorSignal = SignalLight.RED;
         }
@@ -1102,7 +1103,7 @@ public class MacdView  extends View {
             }
             paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.GREEN);
             paint.getTextBounds(line.label, 0, line.label.length(), textBounds);
-            float baseline = isTop != activity.isPriceAxisInverted()
+            float baseline = isTop
                     ? endPoint.y - gap - textBounds.bottom
                     : endPoint.y + gap - textBounds.top;
 
@@ -1212,7 +1213,8 @@ public class MacdView  extends View {
     }
 
     private int getPivotY(MacdInfo info, float macd, boolean isTop) {
-        boolean useValue = isTop ? macd >= 0f : macd < 0f;
+        boolean actualTop = isTop != activity.isPriceAxisInverted();
+        boolean useValue = actualTop ? macd >= 0f : macd < 0f;
         return info.getYPoint(useValue ? macd : 0f);
     }
 

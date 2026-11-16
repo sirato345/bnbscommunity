@@ -1230,7 +1230,7 @@ public class StickView extends View {
             canvas.drawRect(stickReck, paint);
             // ローソク足の線を描く
             Rect lineRect = stickInfo.getLineRect();
-            paint.setStrokeWidth(3);
+            paint.setStrokeWidth(comnInfo.getStickWidth() == 2 ? 1 : 3);
             paint.setTextSize(Const.FONT_SIZE);
             canvas.drawLine(lineRect.left, lineRect.top, lineRect.right, lineRect.bottom, paint);
         }
@@ -1512,8 +1512,8 @@ public class StickView extends View {
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stick = stickList.get(i);
             Rect stickRect = stick.getStickRect();
-            if (point.x >= stickRect.left && point.x <=
-                    (stickRect.right + StickInfo.BETWEEN_SPACE)) {
+            if (point.x >= stickRect.left
+                    && point.x < stickRect.left + comnInfo.getStickWidth()) {
                 return stick.getDate();
             }
         }
@@ -1926,7 +1926,7 @@ public class StickView extends View {
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stickInfo = stickList.get(i);
             Rect stickReck = stickInfo.getStickRect();
-            if (x >= stickReck.left && x <= stickReck.right + 2) {
+            if (x >= stickReck.left && x < stickReck.left + comnInfo.getStickWidth()) {
                 return stickInfo;
             }
         }

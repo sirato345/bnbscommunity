@@ -29,6 +29,22 @@ public enum SignalLight {
         return YELLOW;
     }
 
+    public static SignalLight fromIndicatorDirections(float currentJ, float previousJ,
+                                                       float currentMacd, float previousMacd,
+                                                       boolean inverted) {
+        return inverted
+                ? fromDirections(currentJ < previousJ, currentJ > previousJ,
+                        currentMacd < previousMacd, currentMacd > previousMacd)
+                : fromDirections(currentJ > previousJ, currentJ < previousJ,
+                        currentMacd > previousMacd, currentMacd < previousMacd);
+    }
+
+    public static SignalLight fromIndicatorCrosses(float k, float d, float macd, float signal,
+                                                    boolean inverted) {
+        return inverted ? fromBearishConditions(k > d, macd > signal)
+                : fromBearishConditions(k < d, macd < signal);
+    }
+
     public static SignalLight fromBearishConditions(boolean... conditions) {
         int passed = 0;
         for (boolean condition : conditions) {

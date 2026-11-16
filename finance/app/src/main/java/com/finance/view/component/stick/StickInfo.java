@@ -70,7 +70,7 @@ public class StickInfo {
         int closeY = getYPoint(close);
         stickRect.top = Math.min(openY, closeY);
         // X軸計算
-        stickRect.right = (int)(index * comnInfo.getStickWidth() - BETWEEN_SPACE);
+        stickRect.right = stickRect.left + CandleGeometry.bodyWidth(comnInfo.getStickWidth());
         // Y軸計算
         stickRect.bottom = Math.max(openY, closeY);
         // 开盘收盘同等价格时，显示十字星
@@ -85,7 +85,7 @@ public class StickInfo {
         // Y軸終点計算
         lineRect.bottom = Math.max(getYPoint(high), getYPoint(low));
         // X軸計算
-        lineRect.left = stickRect.left + (comnInfo.getStickWidth() - BETWEEN_SPACE)/ 2;
+        lineRect.left = stickRect.centerX();
         // X軸計算
         lineRect.right = lineRect.left;
     }

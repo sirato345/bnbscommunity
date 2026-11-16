@@ -272,6 +272,45 @@ public class MacdDivergenceCalculatorTest {
         assertType(MacdDivergenceCalculator.Type.NONE, divergences[NEW]);
     }
 
+    @Test
+    public void inversionExchangesTopAndBottomIncludingCrosses() {
+        assertInvertedPair(8f, 4f, 0f, 20f, 25f,
+                MacdDivergenceCalculator.Type.TOP, MacdDivergenceCalculator.Type.BOTTOM);
+        assertInvertedPair(8f, 4f, -1f, 20f, 25f,
+                MacdDivergenceCalculator.Type.TOP_DEATH_CROSS,
+                MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS);
+        assertInvertedPair(-8f, -4f, 0f, -20f, -25f,
+                MacdDivergenceCalculator.Type.BOTTOM, MacdDivergenceCalculator.Type.TOP);
+        assertInvertedPair(-8f, -4f, 2f, -20f, -25f,
+                MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS,
+                MacdDivergenceCalculator.Type.TOP_DEATH_CROSS);
+    }
+
+    private static void assertInvertedPair(float oldMacd, float newMacd, float afterMacd,
+                                           float oldPrice, float newPrice,
+                                           MacdDivergenceCalculator.Type normalType,
+                                           MacdDivergenceCalculator.Type invertedType) {
+        float[] highs = new float[SIZE];
+        float[] lows = new float[SIZE];
+        float[] macd = new float[SIZE];
+        highs[OLD] = lows[OLD] = oldPrice;
+        highs[NEW] = lows[NEW] = newPrice;
+        macd[OLD] = oldMacd;
+        macd[NEW] = newMacd;
+        macd[NEW - 1] = afterMacd;
+        float[] signal = new float[SIZE];
+        MacdDivergenceCalculator.Divergence[] normal =
+                MacdDivergenceCalculator.findDivergences(
+                        highs, lows, macd, signal, macd, SIZE, SIZE - 1, false);
+        MacdDivergenceCalculator.Divergence[] inverted =
+                MacdDivergenceCalculator.findDivergences(
+                        highs, lows, macd, signal, macd, SIZE, SIZE - 1, true);
+        assertType(normalType, normal[NEW]);
+        assertType(invertedType, inverted[NEW]);
+        assertEquals(OLD, inverted[NEW].getComparisonIndex());
+        assertType(MacdDivergenceCalculator.Type.NONE, inverted[0]);
+    }
+
     private static MacdDivergenceCalculator.Divergence[] find(
             float[] highs, float[] lows, float[] macd, float[] histogram) {
         return MacdDivergenceCalculator.findDivergences(

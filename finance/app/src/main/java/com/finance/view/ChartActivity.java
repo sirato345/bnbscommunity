@@ -66,7 +66,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private static final long BINANCE_REQUEST_STUCK_MS = 8000L;
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
     private static final long INDEX_REFRESH_INTERVAL_MS = 15000L;
-    private static final int MIN_STICK_WIDTH = 4;
+    private static final int MIN_STICK_WIDTH = 2;
     private static final int MAX_STICK_WIDTH = 60;
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
     private static final String TREND_SNAP_PREF = "trend_snap_enabled";

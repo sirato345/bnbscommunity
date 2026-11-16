@@ -98,6 +98,40 @@ public final class MacdDivergenceCalculator {
         return divergences;
     }
 
+    public static Divergence[] findDivergences(float[] highs, float[] lows,
+                                               float[] macd, float[] signal,
+                                               float[] histogram, int visibleCount,
+                                               int lastValidIndex, boolean inverted) {
+        Divergence[] divergences = findDivergences(highs, lows, macd, signal, histogram,
+                visibleCount, lastValidIndex);
+        if (inverted) {
+            for (int i = 0; i < divergences.length; i++) {
+                Divergence divergence = divergences[i];
+                Type type = divergence.type;
+                switch (type) {
+                    case TOP:
+                        type = Type.BOTTOM;
+                        break;
+                    case TOP_DEATH_CROSS:
+                        type = Type.BOTTOM_GOLDEN_CROSS;
+                        break;
+                    case BOTTOM:
+                        type = Type.TOP;
+                        break;
+                    case BOTTOM_GOLDEN_CROSS:
+                        type = Type.TOP_DEATH_CROSS;
+                        break;
+                    default:
+                        break;
+                }
+                if (type != divergence.type) {
+                    divergences[i] = new Divergence(type, divergence.comparisonIndex);
+                }
+            }
+        }
+        return divergences;
+    }
+
     private static boolean isFirstHistogramLonger(float first, float second) {
         return Math.abs(first) > Math.abs(second);
     }
