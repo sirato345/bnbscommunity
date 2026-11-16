@@ -218,9 +218,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return waveDraft;
     }
     private static final int[] TREND_COLORS = {
-            Color.CYAN, Color.YELLOW, Color.MAGENTA, Color.GREEN,
-            Color.rgb(255, 128, 128), Color.rgb(128, 200, 255),
-            Color.rgb(210, 160, 255)};
+            Color.CYAN, Color.YELLOW, Color.GREEN,
+            Color.rgb(255, 128, 171), Color.rgb(198, 255, 0),
+            Color.rgb(128, 216, 255), Color.rgb(224, 224, 224)};
     private int trendLineType;
     private int trendColorIndex;
     private LinearLayout trendToolContainer;

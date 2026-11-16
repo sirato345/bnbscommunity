@@ -741,7 +741,7 @@ public class MacdView  extends View {
         float centerY = top + buttonHeight / 2;
         switch (signal) {
             case GREEN:
-                paint.setColor(Color.rgb(0, 230, 118));
+                paint.setColor(StickInfo.RISING_COLOR);
                 canvas.drawCircle(centerX, centerY, shapeSize / 2, paint);
                 break;
             case YELLOW:
