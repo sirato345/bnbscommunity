@@ -105,6 +105,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private int binanceRealtimeRequestId;
     private boolean cryptoTimeframeControlGesture;
     private boolean titleTapCandidate;
+    private boolean cryptoSwitchGesture;
+    private boolean cryptoSwitchMoved;
+    private float cryptoSwitchDownX;
+    private float cryptoSwitchDownY;
     private boolean editTouchBlocked;
     private boolean editIconTouch;
     private float editIconDownX;
@@ -1594,9 +1598,34 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     /* 触摸 */
     public boolean onTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (!isLongPress && action == MotionEvent.ACTION_DOWN
+                && macdView.isCryptoSwitchHit(event)) {
+            cryptoSwitchGesture = true;
+            cryptoSwitchMoved = false;
+            cryptoSwitchDownX = event.getRawX();
+            cryptoSwitchDownY = event.getRawY();
+            return true;
+        }
+        if (cryptoSwitchGesture) {
+            if (action == MotionEvent.ACTION_POINTER_DOWN
+                    || Math.hypot(event.getRawX() - cryptoSwitchDownX,
+                            event.getRawY() - cryptoSwitchDownY)
+                    > ViewConfiguration.get(this).getScaledTouchSlop()) {
+                cryptoSwitchMoved = true;
+            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                boolean switchSymbol = action == MotionEvent.ACTION_UP && !cryptoSwitchMoved
+                        && macdView.isCryptoSwitchHit(event);
+                cryptoSwitchGesture = false;
+                if (switchSymbol) {
+                    macdView.switchCryptoSymbol();
+                }
+            }
+            return true;
+        }
         if (titleTapCandidate) {
             // 标题点击已在按下时处理，本次触摸的后续事件不再作为滑动
-            int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 titleTapCandidate = false;
             }

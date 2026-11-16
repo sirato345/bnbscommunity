@@ -559,7 +559,9 @@ public class MacdView  extends View {
                 - markerSize - markerGap;
         float right = firstSignalCenter - markerSize / 2 - markerGap;
         float centerY = getSignalControlsTop(34 * density, markerSize) + 17 * density;
-        float titleRight = 8 * density + getTitleBounds().width();
+        RectF switchBounds = getCryptoSwitchBounds();
+        float titleRight = switchBounds != null
+                ? switchBounds.right : 8 * density + getTitleBounds().width();
         float width = Math.min(markerSize * 2.2f, right - titleRight - 8 * density);
         if (width < markerSize) {
             return null;
@@ -2054,6 +2056,70 @@ public class MacdView  extends View {
             canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
         } else {
             canvas.drawText(getChartTitle(), 0, getTitleBaseline(), paint);
+        }
+        drawCryptoSwitch(canvas);
+    }
+
+    private RectF getCryptoSwitchBounds() {
+        if (!activity.isCryptoSymbol()) {
+            return null;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        titlePaint.setTextSize(getTitleTextSize());
+        titlePaint.setFakeBoldText(true);
+        float left = titlePaint.measureText(getSymbolTitle()) + 6 * density;
+        Rect bounds = getTitleBounds();
+        float centerY = getTitleBaseline() + bounds.top + getIndicatorMarkerSize() / 2;
+        float size = getIndicatorMarkerSize();
+        return new RectF(left, centerY - size / 2, left + size, centerY + size / 2);
+    }
+
+    private void drawCryptoSwitch(Canvas canvas) {
+        RectF bounds = getCryptoSwitchBounds();
+        if (bounds == null) {
+            return;
+        }
+        float inset = bounds.width() * 0.1f;
+        Path triangle = new Path();
+        triangle.moveTo(bounds.left + inset, bounds.top + inset);
+        triangle.lineTo(bounds.right - inset, bounds.centerY());
+        triangle.lineTo(bounds.left + inset, bounds.bottom - inset);
+        triangle.close();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(Color.GREEN);
+        canvas.drawPath(triangle, paint);
+    }
+
+    public boolean isCryptoSwitchHit(MotionEvent event) {
+        RectF bounds = getCryptoSwitchBounds();
+        if (bounds == null) {
+            return false;
+        }
+        float padding = 8 * getResources().getDisplayMetrics().density;
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        RectF gaugeBounds = getFearGreedGaugeBounds();
+        float right = bounds.right + 24 * getResources().getDisplayMetrics().density;
+        if (gaugeBounds != null) {
+            right = Math.min(right, gaugeBounds.left);
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float markerSize = getIndicatorMarkerSize();
+        float firstSignalLeft = getSignalRightCenter(density, markerSize, 12 * density)
+                - markerSize - 12 * density - markerSize / 2;
+        right = Math.min(right, firstSignalLeft);
+        return x >= bounds.left && x < right
+                && y >= bounds.top - padding && y < bounds.bottom + padding;
+    }
+
+    public void switchCryptoSymbol() {
+        if (Const.Symbol.btc.toString().equals(symbol)) {
+            activity.selectSymbol(Const.Symbol.eth);
+        } else if (Const.Symbol.eth.toString().equals(symbol)) {
+            activity.selectSymbol(Const.Symbol.btc);
         }
     }
 
