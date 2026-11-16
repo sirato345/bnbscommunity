@@ -34,6 +34,7 @@ public class StickInfo {
     private float maxValue;
     // チャートに表示可能な再小値
     private float minValue;
+    private boolean priceAxisInverted;
     // 最大値所属のローソク足かどうかのフラグ
     private boolean isMaxValueStick;
     // 最小値所属のローソク足かどうかのフラグ
@@ -65,11 +66,13 @@ public class StickInfo {
         // X軸計算
         stickRect.left = (int)((index - 1) * comnInfo.getStickWidth());
         // Y軸計算
-        stickRect.top = getYPoint(open >= close ? open : close);
+        int openY = getYPoint(open);
+        int closeY = getYPoint(close);
+        stickRect.top = Math.min(openY, closeY);
         // X軸計算
         stickRect.right = (int)(index * comnInfo.getStickWidth() - BETWEEN_SPACE);
         // Y軸計算
-        stickRect.bottom = getYPoint(open < close ? open : close);
+        stickRect.bottom = Math.max(openY, closeY);
         // 开盘收盘同等价格时，显示十字星
         if (stickRect.bottom - stickRect.top < 4) {
             stickRect.bottom = stickRect.top + 4;
@@ -78,9 +81,9 @@ public class StickInfo {
 
     private void calcLineRect() {
         // Y軸始点計算
-        lineRect.top = getYPoint(high);
+        lineRect.top = Math.min(getYPoint(high), getYPoint(low));
         // Y軸終点計算
-        lineRect.bottom = getYPoint(low);
+        lineRect.bottom = Math.max(getYPoint(high), getYPoint(low));
         // X軸計算
         lineRect.left = stickRect.left + (comnInfo.getStickWidth() - BETWEEN_SPACE)/ 2;
         // X軸計算
@@ -89,18 +92,18 @@ public class StickInfo {
 
     /* 縦軸の値から最大値までの差により縦軸の画素数を計算 */
     public int getYPoint(float value) {
-        float valueRate = (maxValue - value) / (maxValue - minValue);
-        // StatusBarの高を除いて(0,0)になる
-        int yPoint = Math.round(valueRate * comnInfo.getStickHeight());
-        return yPoint;
+        return PriceAxis.yForPrice(value, minValue, maxValue,
+                comnInfo.getStickHeight(), priceAxisInverted);
     }
 
     /* 从纵轴的位置,计算纵轴价格 */
     public float getYValue(int y) {
-        float yRate = (float)(comnInfo.getStickHeight() - y) / comnInfo.getStickHeight();
-        // StatusBarの高を除いて(0,0)になる
-        float yValue = yRate * (maxValue - minValue) + minValue;
-        return yValue;
+        return PriceAxis.priceForY(y, minValue, maxValue,
+                comnInfo.getStickHeight(), priceAxisInverted);
+    }
+
+    public void setPriceAxisInverted(boolean inverted) {
+        priceAxisInverted = inverted;
     }
 
     /* ローソク足の色を設定 */

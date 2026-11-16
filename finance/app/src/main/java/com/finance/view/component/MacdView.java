@@ -27,6 +27,7 @@ import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdDivergenceCalculator;
 import com.finance.view.component.macd.MacdCalculator;
 import com.finance.view.component.macd.KdjCalculator;
+import com.finance.view.component.macd.IndicatorAxis;
 import com.finance.view.component.macd.MacdInfo;
 import com.finance.view.component.macd.SignalLight;
 import com.finance.view.component.stick.ComnInfo;
@@ -184,6 +185,7 @@ public class MacdView  extends View {
         // MACDオブジェクト生成
         for (int i = 0; i < sizeOfStick; i ++) {
             MacdInfo macdInfo = new MacdInfo(comnInfo);
+            macdInfo.setAxisInverted(activity.isPriceAxisInverted());
             macdInfo.setDate(stickList.get(i).getDate());
             macdList.add(macdInfo);
         }
@@ -809,7 +811,8 @@ public class MacdView  extends View {
 
     private float getKdjY(float value, float top, float bottom) {
         float clampedValue = Math.max(-20f, Math.min(120f, value));
-        return bottom - (clampedValue + 20f) / 140f * (bottom - top);
+        return IndicatorAxis.yForValue(clampedValue, -20f, 120f, top, bottom,
+                activity.isPriceAxisInverted());
     }
 
     private void drawKdjValues(Canvas canvas) {
@@ -1099,7 +1102,7 @@ public class MacdView  extends View {
             }
             paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.GREEN);
             paint.getTextBounds(line.label, 0, line.label.length(), textBounds);
-            float baseline = isTop
+            float baseline = isTop != activity.isPriceAxisInverted()
                     ? endPoint.y - gap - textBounds.bottom
                     : endPoint.y + gap - textBounds.top;
 
@@ -1528,7 +1531,8 @@ public class MacdView  extends View {
     }
 
     private float kdjValueAt(float y) {
-        float value = (kdjBottom() - y) / (kdjBottom() - kdjTop()) * 140f - 20f;
+        float value = IndicatorAxis.valueForY(y, -20f, 120f, kdjTop(), kdjBottom(),
+                activity.isPriceAxisInverted());
         return Math.max(-20f, Math.min(120f, value));
     }
 
@@ -2424,7 +2428,8 @@ public class MacdView  extends View {
         }
         float top = kdjTop();
         float bottom = kdjBottom();
-        float value = (bottom - y) / (bottom - top) * 140f - 20f;
+        float value = IndicatorAxis.valueForY(y, -20f, 120f, top, bottom,
+                activity.isPriceAxisInverted());
         String text = String.format(Locale.US, "%.1f", value);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setFakeBoldText(true);

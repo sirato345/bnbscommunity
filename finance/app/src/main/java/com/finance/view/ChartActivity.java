@@ -180,6 +180,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 价格范围缩放倍数：1为自动适配，越大K线越小 */
     private float priceZoom = 1f;
     private float pricePan;
+    private boolean priceAxisInverted;
+    private boolean priceLimitTouchGesture;
     private float pricePanStart;
     private boolean pricePanGesture;
     private static final float MAX_PRICE_ZOOM = 4f;
@@ -212,8 +214,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return waveDraft;
     }
     private static final int[] TREND_COLORS = {
-            Color.WHITE, Color.CYAN, Color.YELLOW, Color.rgb(255, 165, 0),
-            Color.MAGENTA, Color.GREEN};
+            Color.CYAN, Color.YELLOW, Color.MAGENTA, Color.GREEN,
+            Color.rgb(255, 128, 128), Color.rgb(128, 200, 255),
+            Color.rgb(210, 160, 255)};
     private int trendLineType;
     private int trendColorIndex;
     private LinearLayout trendToolContainer;
@@ -715,6 +718,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public boolean isCryptoSymbol() {
         return isCryptoSymbol(symbol);
+    }
+
+    public boolean isPriceAxisInverted() {
+        return isCryptoSymbol() && priceAxisInverted;
     }
 
     public boolean isUsIndexSymbol() {
@@ -1384,6 +1391,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean("SarDisp", this.isSarDisp);
         outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
         outState.putFloat("PricePan", pricePan);
+        outState.putBoolean("PriceAxisInverted", priceAxisInverted);
     }
 
     @Override
@@ -1403,6 +1411,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
         this.pricePan = savedInstanceState.getFloat("PricePan", 0f);
+        this.priceAxisInverted = savedInstanceState.getBoolean("PriceAxisInverted", false);
     }
 
     /* 当面選択された銘柄 */
@@ -1606,6 +1615,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
             int y = (int) event.getY();
             // 編集モード
             if(isEidtMode) {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    priceLimitTouchGesture = isCryptoSymbol() && stickView.isPriceLimitHit(event);
+                }
+                if (priceLimitTouchGesture) {
+                    ges.onTouchEvent(event);
+                    if (event.getActionMasked() == MotionEvent.ACTION_UP
+                            || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        priceLimitTouchGesture = false;
+                    }
+                    return true;
+                }
                 if (isEditTouchBlocked(event)) {
                     return true;
                 }
@@ -1689,7 +1709,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             if (!cryptoTimeframeControlGesture) {
                                 if (pricePanGesture) {
                                     pricePan = PriceAxisPan.afterDrag(pricePanStart,
-                                            y - mLastMotionY, comnInfo.getStickHeight());
+                                            (isPriceAxisInverted() ? -1 : 1) * (y - mLastMotionY),
+                                            comnInfo.getStickHeight());
                                 }
                                 offset = offset - (int) Math.floor(
                                         (mLastMotionX - x) / (float) Math.max(1, stickWidth));
@@ -1843,6 +1864,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 双击：設定画面表示 */
     public boolean onDoubleTap(MotionEvent e) {
         if (isLongPress) {
+            return true;
+        }
+        if (isCryptoSymbol() && stickView.isPriceLimitHit(e)) {
+            priceAxisInverted = !priceAxisInverted;
+            showUI();
             return true;
         }
         if(isEidtMode) {

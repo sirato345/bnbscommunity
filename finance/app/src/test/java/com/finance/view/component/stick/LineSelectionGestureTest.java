@@ -13,4 +13,12 @@ public class LineSelectionGestureTest {
         assertFalse(LineSelectionGesture.isTap(false, 31, 30));
         assertFalse(LineSelectionGesture.isTap(true, 0, 30));
     }
+
+    @Test
+    public void onlyAllowsDrawingWhenNoLineIsSelectedOrGestureStartsOnSelectedLine() {
+        assertTrue(LineSelectionGesture.canStartDrawing(false, false));
+        assertTrue(LineSelectionGesture.canStartDrawing(false, true));
+        assertTrue(LineSelectionGesture.canStartDrawing(true, true));
+        assertFalse(LineSelectionGesture.canStartDrawing(true, false));
+    }
 }

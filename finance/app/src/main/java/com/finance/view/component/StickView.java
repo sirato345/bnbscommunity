@@ -86,6 +86,7 @@ public class StickView extends View {
     private int selectedLineId = -1;
     private Point selectionDownPoint;
     private boolean selectionMoved;
+    private boolean selectedLineBlocksDrawing;
     private boolean ignoreGesture;
     private Bitmap loupeBitmap;
     private Canvas loupeCanvas;
@@ -212,6 +213,7 @@ public class StickView extends View {
             stickInfo.setMaxValue(maxValue);
             // 最小下限値
             stickInfo.setMinValue(minValue);
+            stickInfo.setPriceAxisInverted(activity.isPriceAxisInverted());
             // 最大値ローソク足のフラグを設定
             if (stickInfo.getHigh() == dataMax) {
                 stickInfo.setIsMaxValueStick(true);
@@ -282,6 +284,12 @@ public class StickView extends View {
             TrendLine selected = getSelectedLine();
             boolean onSelected = selected != null
                     && getLineDistance(selected, point) <= Const.EDIT_DISTANCE;
+            selectedLineBlocksDrawing = !LineSelectionGesture.canStartDrawing(
+                    selected != null, onSelected || wavePoint);
+            if (selectedLineBlocksDrawing) {
+                waveGesture = false;
+                return;
+            }
             waveGesture = wavePoint || (isWaveType(activity.getTrendLineType())
                     && !onSelected);
         }
@@ -302,6 +310,13 @@ public class StickView extends View {
                 return;
             }
         }
+        if (selectedLineBlocksDrawing) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                selectedLineBlocksDrawing = false;
+                selectionDownPoint = null;
+            }
+            return;
+        }
         if (waveGesture) {
             if (action == MotionEvent.ACTION_CANCEL) {
                 cancelDrawingGesture();
@@ -311,6 +326,7 @@ public class StickView extends View {
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 waveGesture = false;
                 selectionDownPoint = null;
+                selectedLineBlocksDrawing = false;
             }
             return;
         }
@@ -365,6 +381,7 @@ public class StickView extends View {
                     currentPoint = null;
                     editLine = null;
                     selectionDownPoint = null;
+                    selectedLineBlocksDrawing = false;
                     break;
                 }
                 if (downPoint != null && editLine == null
@@ -411,6 +428,7 @@ public class StickView extends View {
         downPoint = null;
         currentPoint = null;
         selectionDownPoint = null;
+        selectedLineBlocksDrawing = false;
     }
 
     private TrendLine getSelectedLine() {
@@ -1254,8 +1272,6 @@ public class StickView extends View {
         paint.setStrokeWidth(2);
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stickInfo = stickList.get(i);
-            Rect stickReck = stickInfo.getStickRect();
-            Rect lineRect = stickInfo.getLineRect();
             // 最新の移動平均価格
             if (i == 0) {
                 // 文字粗体
@@ -1294,33 +1310,71 @@ public class StickView extends View {
             // 缩放后最高最低价格线显示在区域上下沿
             boolean zoomed = (activity.getPriceZoom() > 1f || activity.getPricePan() != 0f)
                     && !activity.isFearGreedSymbol();
-            float topY = zoomed ? 0 : lineRect.top;
-            float bottomY = zoomed ? comnInfo.getStickHeight() : lineRect.bottom;
-            float topValue = zoomed ? stickInfo.getMaxValue() : stickInfo.getHigh();
-            float bottomValue = zoomed ? stickInfo.getMinValue() : stickInfo.getLow();
-            // 最大値の線
             if (stickInfo.isMaxValueStick()) {
-                paint.setColor(Color.GREEN);
-                canvas.drawLine(0, topY, comnInfo.getScreenWidth(), topY, paint);
-                // 白色
-                paint.setColor(Color.WHITE);
-                // 文字粗体
-                paint.setFakeBoldText(true);
-                // 最新価格設定
-                drawRightPriceText(canvas, paint, getLimitDigit(topValue), topY - paint.ascent());
+                drawPriceLimit(canvas, paint, stickInfo, true, zoomed);
             }
-            // 最小値の線
             if (stickInfo.isMinValueStick()) {
-                paint.setColor(Color.GREEN);
-                canvas.drawLine(0, bottomY, comnInfo.getScreenWidth(), bottomY, paint);
-                // 白色
-                paint.setColor(Color.WHITE);
-                // 文字粗体
-                paint.setFakeBoldText(true);
-                // 最新価格設定
-                drawRightPriceText(canvas, paint, getLimitDigit(bottomValue), bottomY - 8);
+                drawPriceLimit(canvas, paint, stickInfo, false, zoomed);
             }
         }
+    }
+
+    private float priceLimitValue(StickInfo stick, boolean high, boolean zoomed) {
+        return high ? (zoomed ? stick.getMaxValue() : stick.getHigh())
+                : (zoomed ? stick.getMinValue() : stick.getLow());
+    }
+
+    private float priceLimitY(StickInfo stick, boolean high, boolean zoomed) {
+        return stick.getYPoint(priceLimitValue(stick, high, zoomed));
+    }
+
+    private float priceLimitBaseline(Paint paint, float y, boolean high) {
+        boolean atTop = high != activity.isPriceAxisInverted();
+        return atTop ? y - paint.ascent() : y - 8;
+    }
+
+    private void drawPriceLimit(Canvas canvas, Paint paint, StickInfo stick,
+                                boolean high, boolean zoomed) {
+        float y = priceLimitY(stick, high, zoomed);
+        paint.setColor(Color.GREEN);
+        canvas.drawLine(0, y, comnInfo.getScreenWidth(), y, paint);
+        paint.setColor(Color.WHITE);
+        paint.setFakeBoldText(true);
+        drawRightPriceText(canvas, paint, getLimitDigit(priceLimitValue(stick, high, zoomed)),
+                priceLimitBaseline(paint, y, high));
+    }
+
+    public boolean isPriceLimitHit(MotionEvent event) {
+        if (stickList == null || stickList.isEmpty() || maxStickCount == 0) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        float x = event.getRawX() - location[0];
+        float y = event.getRawY() - location[1];
+        Paint paint = new Paint();
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
+        paint.setFakeBoldText(true);
+        float padding = 8 * getResources().getDisplayMetrics().density;
+        boolean zoomed = activity.getPriceZoom() > 1f || activity.getPricePan() != 0f;
+        for (int i = 0; i < maxStickCount; i++) {
+            StickInfo stick = stickList.get(i);
+            for (int side = 0; side < 2; side++) {
+                boolean high = side == 0;
+                if (high ? !stick.isMaxValueStick() : !stick.isMinValueStick()) {
+                    continue;
+                }
+                float baseline = priceLimitBaseline(paint, priceLimitY(stick, high, zoomed), high);
+                String label = getLimitDigit(priceLimitValue(stick, high, zoomed));
+                if (x >= getPriceTextRight() - paint.measureText(label) - padding
+                        && x <= getPriceTextRight() + padding
+                        && y >= baseline + paint.ascent() - padding
+                        && y <= baseline + paint.descent() + padding) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private float indicatorBaseline(Paint paint, int row) {

@@ -31,12 +31,11 @@ public class MacdInfo {
     private float macd_osci;
     // チャートに表示可能な最大値
     private float absMaxValue;
-    // チャートに表示可能な最大範囲
-    private float fullValue;
     // 零轴
     private int zero_axis;
     // MACDビューの高さ
     private int macd_height;
+    private boolean axisInverted;
 
     ////////////////// 計算値 //////////////////
     // ローソク足の色
@@ -50,13 +49,16 @@ public class MacdInfo {
         this.comnInfo = commInfo;
     }
 
+    public void setAxisInverted(boolean inverted) {
+        axisInverted = inverted;
+    }
+
     public void calculate(StickInfo stickInfo) {
         this.stickInfo = stickInfo;
         int topInset = comnInfo.getMacdTopInset();
         this.macd_height = Math.max(1, comnInfo.getMacdPanelHeight()
                 - topInset - comnInfo.getMacdBottomInset());
         this.zero_axis = topInset + macd_height / 2;
-        this.fullValue = absMaxValue * 2;
         this.setColor();
         this.calcMacdOsciRect();
         this.calcMacdRect();
@@ -78,17 +80,9 @@ public class MacdInfo {
         macdOsciRect.left = stickInfo.getStickRect().left;
         // X軸計算
         macdOsciRect.right = stickInfo.getStickRect().right;
-        if (macd_osci >= 0f) {
-            // Y軸計算
-            macdOsciRect.top = getYPoint(macd_osci);
-            // Y軸計算
-            macdOsciRect.bottom = zero_axis;
-        } else {
-            // Y軸計算
-            macdOsciRect.top = zero_axis;
-            // Y軸計算
-            macdOsciRect.bottom = getYPoint(macd_osci);
-        }
+        int valueY = getYPoint(macd_osci);
+        macdOsciRect.top = Math.min(valueY, zero_axis);
+        macdOsciRect.bottom = Math.max(valueY, zero_axis);
     }
 
     private void calcMacdRect() {
@@ -96,17 +90,9 @@ public class MacdInfo {
         macdRect.left = stickInfo.getStickRect().left;
         // X軸計算
         macdRect.right = stickInfo.getStickRect().right;
-        if (macd >= 0f) {
-            // Y軸計算
-            macdRect.top = getYPoint(macd);
-            // Y軸計算
-            macdRect.bottom = zero_axis;
-        } else {
-            // Y軸計算
-            macdRect.top = zero_axis;
-            // Y軸計算
-            macdRect.bottom = getYPoint(macd);
-        }
+        int valueY = getYPoint(macd);
+        macdRect.top = Math.min(valueY, zero_axis);
+        macdRect.bottom = Math.max(valueY, zero_axis);
     }
 
     private void calcMacdPoint() {
@@ -121,20 +107,14 @@ public class MacdInfo {
 
     /* 縦軸の値から最大値までの差により縦軸の画素数を計算 */
     public int getYPoint(float value) {
-        float valueRate = 0f;
-        int yPoint = 0;
-        if (value >= 0f) {
-            valueRate = (absMaxValue - value) / fullValue;
-        } else {
-            valueRate = (absMaxValue + Math.abs(value)) / fullValue;
-        }
-        yPoint = comnInfo.getMacdTopInset() + (int) (valueRate * macd_height);
-        return yPoint;
+        return IndicatorAxis.macdY(value, absMaxValue, comnInfo.getMacdTopInset(),
+                macd_height, axisInverted);
     }
 
     /* getYPoint的逆运算：由MACD面板内的Y坐标求数值 */
     public float getValueAt(float y) {
-        return absMaxValue - (y - comnInfo.getMacdTopInset()) / macd_height * fullValue;
+        return IndicatorAxis.macdValue(y, absMaxValue, comnInfo.getMacdTopInset(),
+                macd_height, axisInverted);
     }
 
     public float getAbsMaxValue() {
