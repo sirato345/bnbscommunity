@@ -96,7 +96,7 @@ public class Const {
     // 表示モード（缩小）
     public static final int ZOOM_IN = 10;
     // 表示モード（放大）
-    public static final int ZOOM_OUT = 20;
+    public static final int ZOOM_OUT = 18;
 
     public static final String KEY_STICK_WIDTH = "StickWidth";
 
@@ -130,7 +130,7 @@ public class Const {
     // 設定画面Activityの戻り値取得用
     public final static int REQUEST_CODE = 1;
     // 画面の右側からのスペース数（DP）
-    public static final int DEFAULT_OFFSET = 4;
+    public static final int DEFAULT_OFFSET = 8;
 
     public static final int STATUS_BAR_HEIGHT = 75;
 }

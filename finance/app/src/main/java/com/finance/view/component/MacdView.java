@@ -165,6 +165,9 @@ public class MacdView  extends View {
     private List<String> fearGreedRecords = new ArrayList<>();
     private List<String> cachedFearGreedRecords = new ArrayList<>();
     private Map<String, Float> fearGreedValues = new HashMap<>();
+    private final Map<String, Float> fearGreedCandleValues = new HashMap<>();
+    private String fearGreedValuesTimeframe;
+    private float[] visibleFearGreedValues = new float[0];
 
     public MacdView(Context context) {
         super(context);
@@ -189,7 +192,7 @@ public class MacdView  extends View {
         if (!activity.isCryptoSymbol() || !FearGreedAlignment.supports(timeFrame)) {
             fearGreedPanel = false;
         }
-        updateFearGreedValues();
+        ensureFearGreedValues();
         this.macdType = macdType;
         this.kLine = kLine;
         this.comnInfo = comnInfo;
@@ -207,6 +210,7 @@ public class MacdView  extends View {
         this.start_Macd_Osci = sizeOfStick - EMA_SLOW - SIGNAL + 1;
         // 画面表示最大のローソクの数
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
+        updateVisibleFearGreedValues();
         this.calculate();
         this.calculateMacdDivergences();
         this.calculateKdj();
@@ -224,24 +228,36 @@ public class MacdView  extends View {
 
     public void setFearGreedPanel(boolean enabled) {
         fearGreedPanel = enabled;
+        if (enabled) {
+            updateVisibleFearGreedValues();
+        }
         invalidate();
     }
 
     public void setFearGreedRecords(List<String> records) {
         fearGreedRecords = new ArrayList<>(records);
-        updateFearGreedValues();
+        rebuildFearGreedValues();
         invalidate();
     }
 
     public void setCachedFearGreedRecords(List<String> records) {
         cachedFearGreedRecords = new ArrayList<>(records);
-        updateFearGreedValues();
+        rebuildFearGreedValues();
         invalidate();
     }
 
-    private void updateFearGreedValues() {
+    private void ensureFearGreedValues() {
+        if (timeFrame != null && !timeFrame.equals(fearGreedValuesTimeframe)) {
+            rebuildFearGreedValues();
+        }
+    }
+
+    private void rebuildFearGreedValues() {
+        fearGreedValuesTimeframe = timeFrame;
+        fearGreedCandleValues.clear();
         if (!FearGreedAlignment.supports(timeFrame)) {
             fearGreedValues.clear();
+            visibleFearGreedValues = new float[0];
             return;
         }
         try {
@@ -253,6 +269,26 @@ public class MacdView  extends View {
             LogWriter.getInstance(activity).error("Invalid fear and greed history", e);
             android.widget.Toast.makeText(activity, "恐慌指数数据格式错误",
                     android.widget.Toast.LENGTH_SHORT).show();
+        }
+        updateVisibleFearGreedValues();
+    }
+
+    private void updateVisibleFearGreedValues() {
+        if (!fearGreedPanel || stickList == null || !FearGreedAlignment.supports(timeFrame)) {
+            visibleFearGreedValues = new float[0];
+            return;
+        }
+        int count = Math.min(maxStickCount, stickList.size());
+        visibleFearGreedValues = new float[count];
+        for (int i = 0; i < count; i++) {
+            String date = stickList.get(i).getDate();
+            Float value = fearGreedCandleValues.get(date);
+            if (value == null) {
+                Float match = fearGreedValues.get(FearGreedAlignment.periodKey(date, timeFrame));
+                value = match == null ? Float.NaN : match;
+                fearGreedCandleValues.put(date, value);
+            }
+            visibleFearGreedValues[i] = value;
         }
     }
 
@@ -563,9 +599,8 @@ public class MacdView  extends View {
         return getTimeframeControlsTop() - 4 * getResources().getDisplayMetrics().density;
     }
 
-    private float fearGreedY(float value) {
-        return IndicatorAxis.yForValue(value, 0, 100, fearGreedTop(), fearGreedBottom(),
-                activity.isPriceAxisInverted());
+    private static float fearGreedY(float value, float top, float bottom, boolean inverted) {
+        return IndicatorAxis.yForValue(value, 0, 100, top, bottom, inverted);
     }
 
     private void drawFearGreedPanel(Canvas canvas) {
@@ -581,10 +616,11 @@ public class MacdView  extends View {
             return;
         }
         canvas.clipRect(0, top, getWidth(), bottom);
-        float y80 = fearGreedY(80);
-        float y100 = fearGreedY(100);
-        float y20 = fearGreedY(20);
-        float y0 = fearGreedY(0);
+        boolean inverted = activity.isPriceAxisInverted();
+        float y80 = fearGreedY(80, top, bottom, inverted);
+        float y100 = fearGreedY(100, top, bottom, inverted);
+        float y20 = fearGreedY(20, top, bottom, inverted);
+        float y0 = fearGreedY(0, top, bottom, inverted);
         paint.setColor(Color.parseColor("#1100C07A"));
         canvas.drawRect(0, Math.min(y80, y100), getWidth(), Math.max(y80, y100), paint);
         paint.setColor(Color.parseColor("#11FF3B3B"));
@@ -594,7 +630,7 @@ public class MacdView  extends View {
         paint.setTextSize(Const.FONT_SIZE);
         paint.setTextAlign(Paint.Align.RIGHT);
         for (int level = 0; level <= 100; level += 20) {
-            float y = fearGreedY(level);
+            float y = fearGreedY(level, top, bottom, inverted);
             paint.setPathEffect(level == 0 || level == 100 ? null
                     : new DashPathEffect(new float[] {10, 8}, 0));
             canvas.drawLine(0, y, getWidth(), y, paint);
@@ -603,35 +639,35 @@ public class MacdView  extends View {
         }
         paint.setStrokeWidth(3 * getResources().getDisplayMetrics().density);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        Float previous = null;
+        float previous = Float.NaN;
         float previousX = 0;
+        float previousY = 0;
         boolean hasValue = false;
-        for (int i = 0; i < maxStickCount; i++) {
+        for (int i = 0; i < visibleFearGreedValues.length; i++) {
             StickInfo stick = stickList.get(i);
-            Float value = fearGreedValues.get(
-                    FearGreedAlignment.periodKey(stick.getDate(), timeFrame));
-            if (value == null) {
-                previous = null;
+            float value = visibleFearGreedValues[i];
+            if (Float.isNaN(value)) {
+                previous = Float.NaN;
                 continue;
             }
             hasValue = true;
             float x = stick.getLineRect().centerX();
-            float y = fearGreedY(value);
-            if (previous != null) {
-                FearGreedLine.draw(canvas, paint, previousX, fearGreedY(previous), previous,
-                        x, y, value);
+            float y = fearGreedY(value, top, bottom, inverted);
+            if (!Float.isNaN(previous)) {
+                FearGreedLine.draw(canvas, paint, previousX, previousY, previous, x, y, value);
             } else {
                 paint.setColor(FearGreedLine.color(value));
                 canvas.drawPoint(x, y, paint);
             }
             previous = value;
             previousX = x;
+            previousY = y;
         }
         if (!hasValue) {
             paint.setColor(Color.LTGRAY);
             paint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText("该时段暂无恐慌指数数据", getWidth() / 2f,
-                    (fearGreedTop() + fearGreedBottom()) / 2, paint);
+                    (top + bottom) / 2, paint);
         }
         canvas.restore();
     }
@@ -742,8 +778,7 @@ public class MacdView  extends View {
                     android.widget.Toast.LENGTH_SHORT).show();
             return true;
         }
-        fearGreedPanel = !fearGreedPanel;
-        invalidate();
+        setFearGreedPanel(!fearGreedPanel);
         return true;
     }
 

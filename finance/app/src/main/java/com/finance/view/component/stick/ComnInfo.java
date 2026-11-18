@@ -104,8 +104,7 @@ public class ComnInfo {
     }
 
     public int getMinDispCount() {
-        int minDispCount = (int)Math.ceil(this.getScreenWidth() / activity.getStickWidth()) - Const.DEFAULT_OFFSET;
-        return minDispCount;
+        return Math.max(1, getMaxDispCount() - Const.DEFAULT_OFFSET);
     }
 
     public int getScreenWidth() {
