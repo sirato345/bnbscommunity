@@ -1135,19 +1135,6 @@ public class StickView extends View {
         }
     }
 
-    private int getFearGreedColor(float value) {
-        if (value >= 80) {
-            return Color.parseColor("#16C784");
-        } else if (value >= 60) {
-            return Color.parseColor("#7CFF00");
-        } else if (value >= 40) {
-            return Color.parseColor("#FFE600");
-        } else if (value >= 20) {
-            return Color.parseColor("#FF9500");
-        }
-        return Color.parseColor("#EA3943");
-    }
-
     /* 贪婪恐慌指数按数值区间分色的折线 */
     private void drawFearGreedLine(Canvas canvas) {
         if (stickList == null || stickList.isEmpty()) {
@@ -1164,25 +1151,8 @@ public class StickView extends View {
             float v2 = to.getClose();
             float x1 = from.getLineRect().left;
             float x2 = to.getLineRect().left;
-            // 线段跨过20/40/60/80时在分界线处切开，各段按所在区间着色
-            List<Float> cuts = new ArrayList<>();
-            cuts.add(0f);
-            for (int level = 20; level <= 80; level += 20) {
-                if ((v1 - level) * (v2 - level) < 0) {
-                    cuts.add((level - v1) / (v2 - v1));
-                }
-            }
-            cuts.add(1f);
-            Collections.sort(cuts);
-            for (int c = 0; c + 1 < cuts.size(); c++) {
-                float t1 = cuts.get(c);
-                float t2 = cuts.get(c + 1);
-                float va = v1 + (v2 - v1) * t1;
-                float vb = v1 + (v2 - v1) * t2;
-                paint.setColor(getFearGreedColor((va + vb) / 2));
-                canvas.drawLine(x1 + (x2 - x1) * t1, from.getYPoint(va),
-                        x1 + (x2 - x1) * t2, from.getYPoint(vb), paint);
-            }
+            FearGreedLine.draw(canvas, paint, x1, from.getYPoint(v1), v1,
+                    x2, to.getYPoint(v2), v2);
         }
     }
 

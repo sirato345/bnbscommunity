@@ -308,6 +308,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return;
         }
         if (isCryptoSymbol()) {
+            loadCachedFearGreedRecords();
             requestFearGreedIndex();
         }
         if (intradayInterval != null) {
@@ -351,9 +352,37 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     }
                 });
             } else if (isCryptoSymbol()) {
-                runOnUiThread(() -> macdView.invalidate());
+                runOnUiThread(() -> {
+                    if (isCryptoSymbol()) {
+                        macdView.setFearGreedRecords(records);
+                    }
+                });
             }
         });
+    }
+
+    private void loadCachedFearGreedRecords() {
+        new Thread(() -> {
+            try {
+                String fearSymbol = Const.Symbol.fng.toString();
+                int count = controller.getDataCount(fearSymbol, "d");
+                List<Object[]> data = controller.getData(fearSymbol, "d", count);
+                List<String> records = new ArrayList<>(data.size());
+                for (Object[] row : data) {
+                    records.add(row[0] + "," + row[1] + "," + row[2] + ","
+                            + row[3] + "," + row[4]);
+                }
+                runOnUiThread(() -> {
+                    if (isCryptoSymbol()) {
+                        macdView.setCachedFearGreedRecords(records);
+                    }
+                });
+            } catch (RuntimeException e) {
+                LogWriter.getInstance(this).error("读取恐慌指数历史失败", e);
+                runOnUiThread(() -> android.widget.Toast.makeText(this,
+                        "读取恐慌指数历史失败", android.widget.Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     @Override
@@ -1394,6 +1423,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean("Avg200Disp", this.isAvg200Disp);
         outState.putBoolean("SarDisp", this.isSarDisp);
         outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
+        outState.putBoolean("FearGreedPanel", macdView.isFearGreedPanel());
         outState.putFloat("PricePan", pricePan);
         outState.putBoolean("PriceAxisInverted", priceAxisInverted);
     }
@@ -1414,6 +1444,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp", true);
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
+        macdView.setFearGreedPanel(savedInstanceState.getBoolean("FearGreedPanel"));
         this.pricePan = savedInstanceState.getFloat("PricePan", 0f);
         this.priceAxisInverted = savedInstanceState.getBoolean("PriceAxisInverted", false);
     }
@@ -1656,6 +1687,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     return true;
                 }
                 if (isEditTouchBlocked(event)) {
+                    return true;
+                }
+                Point editPoint = this.ajustPoint(event);
+                if (macdView.isFearGreedPanel()
+                        && editPoint.y >= comnInfo.getStickHeight()
+                        && editPoint.y < comnInfo.getStickHeight() + comnInfo.getMacdHeight()) {
                     return true;
                 }
                 // 单手指操作
@@ -1902,6 +1939,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         if(isEidtMode) {
             Point point = this.ajustPoint(e);
+            if (macdView.isFearGreedPanel() && point.y >= comnInfo.getStickHeight()
+                    && point.y < comnInfo.getStickHeight() + comnInfo.getMacdHeight()) {
+                return true;
+            }
             if (point.y >= 0 && point.y < comnInfo.getStickHeight()) {
                 stickView.onDoubleTap(point);
                 this.showUI();
