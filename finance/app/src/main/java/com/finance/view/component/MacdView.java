@@ -59,6 +59,7 @@ public class MacdView  extends View {
     private static final int VISIBLE_CRYPTO_TIMEFRAMES = 5;
     private static final float CHART_TITLE_BASELINE = 45;
     private static final int GUIDE_COLOR = 0xFF80B8D0;
+    private static final int KDJ_J_COLOR = 0xFFFF7070;
     private static final String DIVERGENCE_PREFS = "divergence_lines";
     private static final float DIVERGENCE_HIT_RADIUS_DP = 24;
     private static final String DIVERGENCE_DELETED = "deleted";
@@ -968,7 +969,7 @@ public class MacdView  extends View {
         }
         drawKdjLine(canvas, kdjK, Color.rgb(255, 193, 7), top, bottom);
         drawKdjLine(canvas, kdjD, Color.rgb(3, 218, 198), top, bottom);
-        drawKdjLine(canvas, kdjJ, Color.rgb(255, 82, 82), top, bottom);
+        drawKdjLine(canvas, kdjJ, KDJ_J_COLOR, top, bottom);
     }
 
     private void drawGuideLabel(Canvas canvas, Paint paint, int level, float y,
@@ -996,7 +997,7 @@ public class MacdView  extends View {
         Path path = new Path();
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(color);
-        paint.setStrokeWidth(2.5f * getResources().getDisplayMetrics().density);
+        paint.setStrokeWidth(2f * getResources().getDisplayMetrics().density);
         paint.setStyle(Paint.Style.STROKE);
         boolean started = false;
         int pointCount = Math.min(maxStickCount, sizeOfStick);
@@ -1053,7 +1054,7 @@ public class MacdView  extends View {
         paint.setColor(Color.rgb(3, 218, 198));
         canvas.drawText(dValue, nextX, baseline, paint);
         nextX += paint.measureText(dValue) + 12;
-        paint.setColor(Color.rgb(255, 82, 82));
+        paint.setColor(KDJ_J_COLOR);
         canvas.drawText(jValue, nextX, baseline, paint);
     }
 
