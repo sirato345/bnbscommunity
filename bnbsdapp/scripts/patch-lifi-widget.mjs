@@ -13,6 +13,9 @@ if (widgetPackage.version !== '3.38.1') {
 const tokenListPath = resolve(
   'node_modules/@lifi/widget/dist/esm/utils/tokenList.js'
 )
+const tokenListItemPath = resolve(
+  'node_modules/@lifi/widget/dist/esm/components/TokenList/TokenListItem.js'
+)
 let source = await readFile(tokenListPath, 'utf8')
 
 const replaceLine = (label, originalPattern, patchedPattern, replacement) => {
@@ -127,4 +130,60 @@ if (!/^const prioritizeCategorizedTokens = /m.test(source)) {
     source.slice(index)
 }
 
+const warningHelper = `const isBnbsContract = (token) =>
+    token.chainId === 56 && token.address.toLowerCase() === '0xc07ef1c7af6112c34a110809c6c8efb343e63a64';
+export const isVisibleToken = (token) =>
+    isBnbsContract(token) || ![token.symbol, token.name].some((value) => value?.toLowerCase().includes('bnbs'));
+export const shouldShowTokenWarning = (token) =>
+    !token.verified && !isBnbsContract(token);
+`
+if (!/^export const isVisibleToken = /m.test(source)) {
+  const oldWarningPattern =
+    /^export const shouldShowTokenWarning = \(token\) =>\r?\n[^\r\n]*\r?\n/gm
+  const oldWarnings = source.match(oldWarningPattern)
+  if (oldWarnings) {
+    if (oldWarnings.length !== 1) {
+      throw new Error('Could not uniquely locate the LI.FI warning helper.')
+    }
+    source = source.replace(oldWarningPattern, () => warningHelper)
+  } else {
+    const marker = 'export const processTokenBalances = '
+    const index = source.indexOf(marker)
+    if (index < 0 || source.indexOf(marker, index + marker.length) >= 0) {
+      throw new Error('Could not uniquely locate the LI.FI token-list processor.')
+    }
+    source = source.slice(0, index) + warningHelper + source.slice(index)
+  }
+}
+
+replaceLine(
+  'the token-list processor inputs',
+  /^export const processTokenBalances = \(isBalanceLoading, noCategories, configTokens, selectedChainId, tokens, tokensWithBalances\) => \{$/gm,
+  /^    tokens = tokens\?\.filter\(isVisibleToken\);$/m,
+  `export const processTokenBalances = (isBalanceLoading, noCategories, configTokens, selectedChainId, tokens, tokensWithBalances) => {
+    tokens = tokens?.filter(isVisibleToken);
+    tokensWithBalances = tokensWithBalances?.filter(isVisibleToken);`
+)
+
+let itemSource = await readFile(tokenListItemPath, 'utf8')
+const warningImport = "import { shouldShowTokenWarning } from '../../utils/tokenList.js';"
+if (!itemSource.includes(warningImport)) {
+  const importMarker = "import { shortenAddress } from '../../utils/wallet.js';"
+  const index = itemSource.indexOf(importMarker)
+  if (index < 0 || itemSource.indexOf(importMarker, index + importMarker.length) >= 0) {
+    throw new Error('Could not uniquely locate the LI.FI token-list imports.')
+  }
+  itemSource = itemSource.replace(importMarker, `${warningImport}\n${importMarker}`)
+}
+const originalWarning = '!token.verified && (_jsx(Tooltip,'
+const patchedWarning = 'shouldShowTokenWarning(token) && (_jsx(Tooltip,'
+if (!itemSource.includes(patchedWarning)) {
+  const index = itemSource.indexOf(originalWarning)
+  if (index < 0 || itemSource.indexOf(originalWarning, index + originalWarning.length) >= 0) {
+    throw new Error('Could not uniquely locate the LI.FI unverified token warning.')
+  }
+  itemSource = itemSource.replace(originalWarning, patchedWarning)
+}
+
 await writeFile(tokenListPath, source)
+await writeFile(tokenListItemPath, itemSource)
