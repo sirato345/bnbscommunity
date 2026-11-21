@@ -1,21 +1,38 @@
 diff --git a/node_modules/@lifi/widget/dist/esm/utils/tokenList.js b/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
 --- a/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
 +++ b/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
-@@ -6,1 +6,6 @@
+@@ -6,1 +6,17 @@
  const sortByVolume = (a, b) => (b.volumeUSD24H ?? 0) - (a.volumeUSD24H ?? 0);
++const deduplicateTokens = (tokens, configTokens) => {
++    const includedTokens = new Map((configTokens?.include ?? []).map((token) => [`${token.chainId}-${token.address.toLowerCase()}`, token]));
++    const uniqueTokens = new Map();
++    for (const token of tokens) {
++        const key = `${token.chainId}-${token.address.toLowerCase()}`;
++        const configuredToken = includedTokens.get(key);
++        const normalizedToken = configuredToken ? { ...token, ...configuredToken } : token;
++        uniqueTokens.set(key, { ...uniqueTokens.get(key), ...normalizedToken });
++    }
++    return [...uniqueTokens.values()];
++};
 +const prioritizeFeaturedTokens = (tokens, configTokens) => {
 +    const featuredTokenKeys = new Set((configTokens?.featured ?? []).map((token) => `${token.chainId}-${token.address.toLowerCase()}`));
 +    return tokens.sort((a, b) => Number(featuredTokenKeys.has(`${b.chainId}-${b.address.toLowerCase()}`)) -
 +        Number(featuredTokenKeys.has(`${a.chainId}-${a.address.toLowerCase()}`)));
 +};
-@@ -14,5 +19,5 @@
+@@ -14,5 +30,5 @@
          if (noCategories) {
 -            const sortedTokens = [...(tokens ?? [])].sort(sortByVolume);
-+            const sortedTokens = prioritizeFeaturedTokens([...(tokens ?? [])].sort(sortByVolume), configTokens);
++            const sortedTokens = prioritizeFeaturedTokens(deduplicateTokens(tokens ?? [], configTokens).sort(sortByVolume), configTokens);
              return {
                  processedTokens: sortedTokens,
                  withCategories: false,
-@@ -33,6 +38,6 @@
+@@ -19,1 +35,1 @@
+-    const sortedTokensWithBalances = [...(tokensWithBalances ?? [])].sort(sortByBalances);
++    const sortedTokensWithBalances = deduplicateTokens(tokensWithBalances ?? [], configTokens).sort(sortByBalances);
+@@ -21,1 +37,1 @@
+-    const tokensWithoutBalances = tokens
++    const tokensWithoutBalances = deduplicateTokens(tokens ?? [], configTokens)
+@@ -33,6 +49,6 @@
      if (noCategories) {
          return {
 -            processedTokens: [...sortedTokensWithBalances, ...tokensWithoutBalances],
