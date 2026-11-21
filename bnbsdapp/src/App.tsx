@@ -6,6 +6,14 @@ import type { Route } from '@lifi/sdk';
 
 const BNBs_TOKEN_ADDRESS = "0xc07ef1c7af6112c34a110809c6c8efb343e63a64";
 const BSC_CHAIN_ID = 56; // BSC
+const BNBs_TOKEN = {
+  chainId: BSC_CHAIN_ID,
+  address: BNBs_TOKEN_ADDRESS,
+  symbol: "BNBs",
+  name: "BNBs Token",
+  decimals: 18,
+  logoURI: "BNBs.svg",
+};
 
 // Basic advanced configuration
 const basicFeeConfig: WidgetFeeConfig = {
@@ -92,15 +100,11 @@ function App() {
     },
 
     tokens: {
+      featured: [BNBs_TOKEN],
       include: [
         {
-          chainId: BSC_CHAIN_ID,           // BSC の場合
-          address: BNBs_TOKEN_ADDRESS,
-          symbol: "BNBs",
-          name: "BNBs Token",
-          decimals: 18,
-          logoURI: "BNBs.svg",  // ← カスタムロゴ
-          priceUSD: priceUSD
+          ...BNBs_TOKEN,
+          priceUSD: priceUSD,
         }
       ],
     },
