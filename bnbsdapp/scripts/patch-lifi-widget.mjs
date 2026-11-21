@@ -30,7 +30,36 @@ const replaceLine = (label, originalPattern, patchedPattern, replacement) => {
   source = source.replace(originalPattern, replacement)
 }
 
-if (!/^const prioritizeFeaturedTokens = /m.test(source)) {
+const helper = `const prioritizeFeaturedTokens = (tokens, configTokens, displayedTokens = tokens) => {
+    const key = (token) => \`\${token.chainId}-\${token.address.toLowerCase()}\`;
+    const featuredKeys = new Set((configTokens?.featured ?? []).map(key));
+    const included = new Map((configTokens?.include ?? []).filter((token) => featuredKeys.has(key(token))).map((token) => [key(token), token]));
+    const isCustom = (token) => {
+        const configured = included.get(key(token));
+        return configured && token.name === configured.name && token.symbol === configured.symbol && token.logoURI === configured.logoURI;
+    };
+    for (const token of displayedTokens ?? []) {
+        if (!isCustom(token) || tokens.some((item) => key(item) === key(token) && isCustom(item))) {
+            continue;
+        }
+        const balanceToken = tokens.find((item) => key(item) === key(token) && item.amount);
+        if (balanceToken) {
+            tokens.push({ ...token, amount: balanceToken.amount, blockNumber: balanceToken.blockNumber });
+        }
+    }
+    const priority = (token) => featuredKeys.has(key(token)) ? (isCustom(token) ? 2 : 1) : 0;
+    return tokens.sort((a, b) => priority(b) - priority(a));
+};
+`
+const existingHelperPattern =
+  /^const prioritizeFeaturedTokens = [^\r\n]*\r?\n[\s\S]*?^};\r?\n/gm
+const existingHelpers = source.match(existingHelperPattern)
+if (existingHelpers) {
+  if (existingHelpers.length !== 1) {
+    throw new Error('Could not uniquely locate the existing LI.FI priority helper.')
+  }
+  source = source.replace(existingHelperPattern, () => helper)
+} else {
   const sortByVolumePattern = /^(const sortByVolume = .*;)(\r?\n)/gm
   const sortByVolumeMatches = [...source.matchAll(sortByVolumePattern)]
   if (sortByVolumeMatches.length !== 1) {
@@ -39,12 +68,6 @@ if (!/^const prioritizeFeaturedTokens = /m.test(source)) {
     )
   }
 
-  const helper = `const prioritizeFeaturedTokens = (tokens, configTokens) => {
-    const featuredTokenKeys = new Set((configTokens?.featured ?? []).map((token) => \`\${token.chainId}-\${token.address.toLowerCase()}\`));
-    return tokens.sort((a, b) => Number(featuredTokenKeys.has(\`\${b.chainId}-\${b.address.toLowerCase()}\`)) -
-        Number(featuredTokenKeys.has(\`\${a.chainId}-\${a.address.toLowerCase()}\`)));
-};
-`
   source = source.replace(sortByVolumePattern, `$1$2${helper}`)
 }
 
@@ -56,9 +79,9 @@ replaceLine(
 )
 replaceLine(
   'the final token-list ordering',
-  /^\s*processedTokens: \[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\],$/gm,
-  /^\s*processedTokens: prioritizeFeaturedTokens\(/m,
-  '            processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens),'
+  /^[ \t]*processedTokens: (?:\[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\]|prioritizeFeaturedTokens\(\[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\], configTokens\)),$/gm,
+  /^[ \t]*processedTokens: prioritizeFeaturedTokens\(\[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\], configTokens, tokens\),$/m,
+  '            processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens, tokens),'
 )
 
 await writeFile(tokenListPath, source)
