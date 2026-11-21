@@ -15,60 +15,50 @@ const tokenListPath = resolve(
 )
 let source = await readFile(tokenListPath, 'utf8')
 
-const replaceOnce = (original, replacement) => {
-  if (source.includes(replacement)) {
+const replaceLine = (label, originalPattern, patchedPattern, replacement) => {
+  if (patchedPattern.test(source)) {
     return
   }
 
-  const firstIndex = source.indexOf(original)
-  if (firstIndex === -1 || source.indexOf(original, firstIndex + 1) !== -1) {
+  const matches = source.match(originalPattern)
+  if (!matches || matches.length !== 1) {
     throw new Error(
-      'Could not uniquely locate the expected LI.FI token-list code. Review the widget patch.'
+      `Could not uniquely locate ${label} in @lifi/widget ${widgetPackage.version}. Review the token-list patch.`
     )
   }
 
-  source =
-    source.slice(0, firstIndex) +
-    replacement +
-    source.slice(firstIndex + original.length)
+  source = source.replace(originalPattern, replacement)
 }
 
-replaceOnce(
-  "const sortByVolume = (a, b) => (b.volumeUSD24H ?? 0) - (a.volumeUSD24H ?? 0);",
-  `const sortByVolume = (a, b) => (b.volumeUSD24H ?? 0) - (a.volumeUSD24H ?? 0);
-const deduplicateTokens = (tokens, configTokens) => {
-    const includedTokens = new Map((configTokens?.include ?? []).map((token) => [\`\${token.chainId}-\${token.address.toLowerCase()}\`, token]));
-    const uniqueTokens = new Map();
-    for (const token of tokens) {
-        const key = \`\${token.chainId}-\${token.address.toLowerCase()}\`;
-        const configuredToken = includedTokens.get(key);
-        const normalizedToken = configuredToken ? { ...token, ...configuredToken } : token;
-        uniqueTokens.set(key, { ...uniqueTokens.get(key), ...normalizedToken });
-    }
-    return [...uniqueTokens.values()];
-};
-const prioritizeFeaturedTokens = (tokens, configTokens) => {
+if (!/^const prioritizeFeaturedTokens = /m.test(source)) {
+  const sortByVolumePattern = /^(const sortByVolume = .*;)(\r?\n)/gm
+  const sortByVolumeMatches = [...source.matchAll(sortByVolumePattern)]
+  if (sortByVolumeMatches.length !== 1) {
+    throw new Error(
+      `Could not uniquely locate the LI.FI volume sorter in @lifi/widget ${widgetPackage.version}. Review the token-list patch.`
+    )
+  }
+
+  const helper = `const prioritizeFeaturedTokens = (tokens, configTokens) => {
     const featuredTokenKeys = new Set((configTokens?.featured ?? []).map((token) => \`\${token.chainId}-\${token.address.toLowerCase()}\`));
     return tokens.sort((a, b) => Number(featuredTokenKeys.has(\`\${b.chainId}-\${b.address.toLowerCase()}\`)) -
         Number(featuredTokenKeys.has(\`\${a.chainId}-\${a.address.toLowerCase()}\`)));
-};`
-)
+};
+`
+  source = source.replace(sortByVolumePattern, `$1$2${helper}`)
+}
 
-replaceOnce(
-  'const sortedTokens = [...(tokens ?? [])].sort(sortByVolume);',
-  'const sortedTokens = prioritizeFeaturedTokens(deduplicateTokens(tokens ?? [], configTokens).sort(sortByVolume), configTokens);'
+replaceLine(
+  'the loading-state token sorter',
+  /^\s*const sortedTokens = [^\r\n]*\.sort\(sortByVolume\);/gm,
+  /^\s*const sortedTokens = prioritizeFeaturedTokens\(/m,
+  '            const sortedTokens = prioritizeFeaturedTokens([...(tokens ?? [])].sort(sortByVolume), configTokens);'
 )
-replaceOnce(
-  'const sortedTokensWithBalances = [...(tokensWithBalances ?? [])].sort(sortByBalances);',
-  'const sortedTokensWithBalances = deduplicateTokens(tokensWithBalances ?? [], configTokens).sort(sortByBalances);'
-)
-replaceOnce(
-  'const tokensWithoutBalances = tokens',
-  'const tokensWithoutBalances = deduplicateTokens(tokens ?? [], configTokens)'
-)
-replaceOnce(
-  'processedTokens: [...sortedTokensWithBalances, ...tokensWithoutBalances],',
-  'processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens),'
+replaceLine(
+  'the final token-list ordering',
+  /^\s*processedTokens: \[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\],$/gm,
+  /^\s*processedTokens: prioritizeFeaturedTokens\(/m,
+  '            processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens),'
 )
 
 await writeFile(tokenListPath, source)
