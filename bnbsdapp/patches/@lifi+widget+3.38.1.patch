@@ -1,0 +1,25 @@
+diff --git a/node_modules/@lifi/widget/dist/esm/utils/tokenList.js b/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
+--- a/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
++++ b/node_modules/@lifi/widget/dist/esm/utils/tokenList.js
+@@ -6,1 +6,6 @@
+ const sortByVolume = (a, b) => (b.volumeUSD24H ?? 0) - (a.volumeUSD24H ?? 0);
++const prioritizeFeaturedTokens = (tokens, configTokens) => {
++    const featuredTokenKeys = new Set((configTokens?.featured ?? []).map((token) => `${token.chainId}-${token.address.toLowerCase()}`));
++    return tokens.sort((a, b) => Number(featuredTokenKeys.has(`${b.chainId}-${b.address.toLowerCase()}`)) -
++        Number(featuredTokenKeys.has(`${a.chainId}-${a.address.toLowerCase()}`)));
++};
+@@ -14,5 +19,5 @@
+         if (noCategories) {
+-            const sortedTokens = [...(tokens ?? [])].sort(sortByVolume);
++            const sortedTokens = prioritizeFeaturedTokens([...(tokens ?? [])].sort(sortByVolume), configTokens);
+             return {
+                 processedTokens: sortedTokens,
+                 withCategories: false,
+@@ -33,6 +38,6 @@
+     if (noCategories) {
+         return {
+-            processedTokens: [...sortedTokensWithBalances, ...tokensWithoutBalances],
++            processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens),
+             withCategories: false,
+         };
+     }
