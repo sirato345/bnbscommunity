@@ -30,25 +30,44 @@ const replaceLine = (label, originalPattern, patchedPattern, replacement) => {
   source = source.replace(originalPattern, replacement)
 }
 
-const helper = `const prioritizeFeaturedTokens = (tokens, configTokens, displayedTokens = tokens) => {
-    const key = (token) => \`\${token.chainId}-\${token.address.toLowerCase()}\`;
+const helper = `const prioritizeFeaturedTokens = (tokens, configTokens, displayedTokens = tokens, prioritize = true) => {
+    const key = (token) => \`\${token.chainId}-\${/^0x[0-9a-f]{40}$/i.test(token.address) ? token.address.toLowerCase() : token.address}\`;
     const featuredKeys = new Set((configTokens?.featured ?? []).map(key));
     const included = new Map((configTokens?.include ?? []).filter((token) => featuredKeys.has(key(token))).map((token) => [key(token), token]));
     const isCustom = (token) => {
         const configured = included.get(key(token));
         return configured && token.name === configured.name && token.symbol === configured.symbol && token.logoURI === configured.logoURI;
     };
-    for (const token of displayedTokens ?? []) {
-        if (!isCustom(token) || tokens.some((item) => key(item) === key(token) && isCustom(item))) {
-            continue;
-        }
-        const balanceToken = tokens.find((item) => key(item) === key(token) && item.amount);
-        if (balanceToken) {
-            tokens.push({ ...token, amount: balanceToken.amount, blockNumber: balanceToken.blockNumber });
+    const customTokens = new Map((displayedTokens ?? []).filter(isCustom).map((token) => [key(token), token]));
+    const unique = new Map();
+    for (const token of tokens) {
+        const tokenKey = key(token);
+        const existing = unique.get(tokenKey);
+        if (!existing) {
+            unique.set(tokenKey, { ...token });
+        } else {
+            if (existing.amount == null && token.amount != null) {
+                existing.amount = token.amount;
+                existing.blockNumber = token.blockNumber;
+            }
+            if (existing.priceUSD == null && token.priceUSD != null) {
+                existing.priceUSD = token.priceUSD;
+            }
         }
     }
-    const priority = (token) => featuredKeys.has(key(token)) ? (isCustom(token) ? 2 : 1) : 0;
-    return tokens.sort((a, b) => priority(b) - priority(a));
+    for (const [tokenKey, token] of unique) {
+        const custom = customTokens.get(tokenKey);
+        if (custom) {
+            unique.set(tokenKey, {
+                ...token,
+                ...custom,
+                amount: token.amount,
+                blockNumber: token.blockNumber,
+            });
+        }
+    }
+    const result = [...unique.values()];
+    return prioritize ? result.sort((a, b) => Number(featuredKeys.has(key(b))) - Number(featuredKeys.has(key(a)))) : result;
 };
 `
 const existingHelperPattern =
@@ -83,5 +102,29 @@ replaceLine(
   /^[ \t]*processedTokens: prioritizeFeaturedTokens\(\[\.\.\.sortedTokensWithBalances, \.\.\.tokensWithoutBalances\], configTokens, tokens\),$/m,
   '            processedTokens: prioritizeFeaturedTokens([...sortedTokensWithBalances, ...tokensWithoutBalances], configTokens, tokens),'
 )
+
+replaceLine(
+  'the loading-state categorized token list',
+  /^[ \t]*return processedTypedTokens\(tokens \?\? \[\], \[\], selectedChainId, configTokens\);$/gm,
+  /^[ \t]*return prioritizeCategorizedTokens\(processedTypedTokens\(tokens \?\? \[\], \[\], selectedChainId, configTokens\), configTokens, tokens\);$/m,
+  '            return prioritizeCategorizedTokens(processedTypedTokens(tokens ?? [], [], selectedChainId, configTokens), configTokens, tokens);'
+)
+replaceLine(
+  'the categorized token list with balances',
+  /^[ \t]*return processedTypedTokens\(tokensWithoutBalances, sortedTokensWithBalances, selectedChainId, configTokens\);$/gm,
+  /^[ \t]*return prioritizeCategorizedTokens\(processedTypedTokens\(tokensWithoutBalances, sortedTokensWithBalances, selectedChainId, configTokens\), configTokens, tokens\);$/m,
+  '        return prioritizeCategorizedTokens(processedTypedTokens(tokensWithoutBalances, sortedTokensWithBalances, selectedChainId, configTokens), configTokens, tokens);'
+)
+
+if (!/^const prioritizeCategorizedTokens = /m.test(source)) {
+  const marker = 'export const processTokenBalances = '
+  const index = source.indexOf(marker)
+  if (index < 0 || source.indexOf(marker, index + marker.length) >= 0) {
+    throw new Error('Could not uniquely locate the LI.FI token-list processor.')
+  }
+  source = source.slice(0, index) +
+    'const prioritizeCategorizedTokens = (result, configTokens, tokens) => ({ ...result, processedTokens: prioritizeFeaturedTokens(result.processedTokens, configTokens, tokens, false) });\n' +
+    source.slice(index)
+}
 
 await writeFile(tokenListPath, source)

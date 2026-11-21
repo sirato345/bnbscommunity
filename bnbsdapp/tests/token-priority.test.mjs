@@ -27,29 +27,32 @@ const other = {
 const config = { featured: [custom], include: [custom] }
 
 for (const loading of [true, false]) {
-  test(`custom BNBs precedes the API duplicate while loading=${loading}`, () => {
-    const result = processTokenBalances(loading, true, config, 56, [
-      api,
-      other,
-      custom,
-    ], [])
-    assert.equal(result.processedTokens[0].name, custom.name)
-    assert.equal(result.processedTokens[0].logoURI, custom.logoURI)
-    assert.equal(result.processedTokens[1].name, api.name)
-    assert.equal(result.processedTokens.length, 3)
-  })
+  for (const chainId of [56, undefined]) {
+    test(`custom BNBs is unique and first while loading=${loading} chain=${chainId ?? 'all'}`, () => {
+      const result = processTokenBalances(loading, true, config, chainId, [
+        api,
+        other,
+        custom,
+      ], [])
+      assert.equal(result.processedTokens[0].name, custom.name)
+      assert.equal(result.processedTokens[0].logoURI, custom.logoURI)
+      assert.equal(result.processedTokens.length, 2)
+      assert.equal(result.processedTokens[1].address, other.address)
+    })
+  }
 }
 
-test('custom BNBs remains first when its API duplicate has a wallet balance', () => {
+test('custom BNBs is unique and retains the API duplicate wallet balance', () => {
   const result = processTokenBalances(false, true, config, 56, [
     api,
     other,
     custom,
-  ], [{ ...api, amount: 10n ** 18n }])
+  ], [{ ...api, amount: 10n ** 18n, blockNumber: 123n }])
   assert.equal(result.processedTokens[0].name, custom.name)
   assert.equal(result.processedTokens[0].logoURI, custom.logoURI)
   assert.equal(result.processedTokens[0].amount, 10n ** 18n)
-  assert.equal(result.processedTokens[1].name, api.name)
+  assert.equal(result.processedTokens[0].blockNumber, 123n)
+  assert.equal(result.processedTokens.length, 2)
 })
 
 test('a custom token that does not match the search is not added', () => {
@@ -69,4 +72,29 @@ test('other chains and addresses do not get BNBs priority', () => {
   ], [])
   assert.equal(result.processedTokens[0].chainId, 56)
   assert.equal(result.processedTokens[0].name, custom.name)
+  assert.equal(result.processedTokens.length, 3)
+})
+
+for (const loading of [true, false]) {
+  test(`categorized list does not duplicate featured BNBs while loading=${loading}`, () => {
+    const result = processTokenBalances(loading, false, config, 56, [
+      api,
+      custom,
+      other,
+    ], [{ ...api, amount: 123n, blockNumber: 456n }])
+    assert.equal(result.processedTokens[0].name, custom.name)
+    assert.equal(result.processedTokens[0].logoURI, custom.logoURI)
+    assert.equal(result.processedTokens.length, 2)
+    if (!loading) {
+      assert.equal(result.processedTokens[0].amount, 123n)
+      assert.equal(result.processedTokens[0].blockNumber, 456n)
+    }
+  })
+}
+
+test('case-sensitive non-EVM addresses remain distinct', () => {
+  const first = { ...other, chainId: 1151111081099710, address: 'AbCd123' }
+  const second = { ...first, address: 'aBcD123' }
+  const result = processTokenBalances(true, true, config, undefined, [first, second], [])
+  assert.equal(result.processedTokens.length, 2)
 })
