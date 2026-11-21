@@ -10,7 +10,7 @@ const BNBs_TOKEN = {
   chainId: BSC_CHAIN_ID,
   address: BNBs_TOKEN_ADDRESS,
   symbol: "BNBs",
-  name: "BNBs Token",
+  name: "BNBs Inscription",
   decimals: 18,
   logoURI: "BNBs.svg",
 };

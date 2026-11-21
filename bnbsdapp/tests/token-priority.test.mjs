@@ -7,7 +7,7 @@ const custom = {
   chainId: 56,
   address: '0xc07ef1c7af6112c34a110809c6c8efb343e63a64',
   symbol: 'BNBs',
-  name: 'BNBs Token',
+  name: 'BNBs Inscription',
   decimals: 18,
   logoURI: 'BNBs.svg',
   priceUSD: '1',
