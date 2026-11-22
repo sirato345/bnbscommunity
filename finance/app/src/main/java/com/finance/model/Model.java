@@ -196,4 +196,11 @@ public class Model {
         }
     }
 
+    public void deleteCandleTrendLines(@NonNull String symbol, @NonNull String timeFrame) {
+        if (dbOperator == null) {
+            throw new IllegalStateException("Database is not available");
+        }
+        dbOperator.deleteCandleTrendLines(symbol, timeFrame);
+    }
+
 }

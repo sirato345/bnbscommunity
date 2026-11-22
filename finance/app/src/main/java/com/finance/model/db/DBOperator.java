@@ -725,4 +725,20 @@ public class DBOperator {
         }
     }
 
+    public void deleteCandleTrendLines(String symbol, String timeFrame) {
+        dbWritable.beginTransactionNonExclusive();
+        try {
+            int deleted = deleteCandleTrendLines(dbWritable, symbol, timeFrame);
+            log("K线画线清除:" + symbol + " " + timeFrame + " " + deleted);
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
+        }
+    }
+
+    static int deleteCandleTrendLines(SQLiteDatabase db, String symbol, String timeFrame) {
+        return db.delete(Const.TREND_LINE_TABLE, "Symbol = ? AND Timeframe = ?",
+                new String[] {symbol, timeFrame});
+    }
+
 }

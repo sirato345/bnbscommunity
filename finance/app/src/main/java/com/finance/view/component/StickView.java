@@ -16,7 +16,9 @@ import android.view.View;
 
 import com.finance.common.Const;
 import com.finance.view.ChartActivity;
+import com.finance.view.component.stick.BollingerBandsCalculator;
 import com.finance.view.component.stick.ComnInfo;
+import com.finance.view.component.stick.IndicatorControlLayout;
 import com.finance.view.component.stick.LineSelectionGesture;
 import com.finance.view.component.stick.ParabolicSarCalculator;
 import com.finance.view.component.stick.PriceAxisPan;
@@ -56,16 +58,13 @@ public class StickView extends View {
     private List<Point> average200;
     // Parabolic SAR values aligned with the candle list
     private Map<String, Float> sarValuesByDate = new HashMap<>();
+    private BollingerBandsCalculator.Bands[] bollingerBands = new BollingerBandsCalculator.Bands[0];
+    private static final int BOLL_MIDDLE_COLOR = Color.YELLOW;
+    private static final int BOLL_OUTER_COLOR = Color.rgb(64, 196, 255);
+    private static final String[] INDICATOR_LABELS = {"10", "20", "50", "200", "SAR", "BOLL"};
+    public static final int ERASER_CONTROL = 6;
     // 画面表示最大のローソクの数
     private int maxStickCount;
-    // 当前10均线价格
-    private float current10;
-    // 当前20均线价格
-    private float current20;
-    // 当前50均线价格
-    private float current50;
-    // 当前200均线价格
-    private float current200;
     // 对小数四舍五入
     private final DecimalFormat digitFormat = new DecimalFormat(
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
@@ -129,16 +128,17 @@ public class StickView extends View {
         this.average20 = new ArrayList<>();
         this.average50 = new ArrayList<>();
         this.average200 = new ArrayList<>();
-        this.current10 = 0;
-        this.current20 = 0;
-        this.current50 = 0;
-        this.current200 = 0;
         this.calculate(this.stickList);
         this.calAverageLine(this.stickList, average10, 10);
         this.calAverageLine(this.stickList, average20, 20);
         this.calAverageLine(this.stickList, average50, 50);
         this.calAverageLine(this.stickList, average200, 200);
         this.calculateSar(this.stickList);
+        float[] closes = new float[this.stickList.size()];
+        for (int i = 0; i < closes.length; i++) {
+            closes[i] = this.stickList.get(i).getClose();
+        }
+        this.bollingerBands = BollingerBandsCalculator.calculate(closes);
         this.calTDtdSequential();
     }
 
@@ -242,17 +242,6 @@ public class StickView extends View {
             }
             stickInfo = stickList.get(i);
             averageValue = averageClose / average;
-            if (i == 0) {
-                if (average == 10) {
-                    current10 = averageValue;
-                } else if (average == 20) {
-                    current20 = averageValue;
-                } else if (average == 50) {
-                    current50 = averageValue;
-                } else if (average == 200) {
-                    current200 = averageValue;
-                }
-            }
             point.y = stickInfo.getYPoint(averageValue);
             point.x = stickInfo.getLineRect().centerX();
             averageList.add(point);
@@ -1088,10 +1077,14 @@ public class StickView extends View {
         if (activity.isSarDisp) {
             this.drawSar(canvas);
         }
+        if (activity.isBollDisp) {
+            this.drawBollingerBands(canvas);
+        }
         this.drawText(canvas);
         this.drawTouchedLine(canvas);
         this.drawTrandLine(canvas);
         this.drawTDtdSequential(canvas);
+        this.drawIndicatorControls(canvas);
     }
 
     /* 贪婪恐慌指数：黑底，80以上淡绿、20以下淡红，上下边界（100/0）各画一条白线 */
@@ -1158,6 +1151,28 @@ public class StickView extends View {
 
     private void drawSar(Canvas canvas) {
         drawSar(canvas, false);
+    }
+
+    private void drawBollingerBands(Canvas canvas) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Const.CHART_LINE_WIDTH);
+        for (int i = 0; i + 1 < maxStickCount; i++) {
+            BollingerBandsCalculator.Bands from = bollingerBands[i];
+            BollingerBandsCalculator.Bands to = bollingerBands[i + 1];
+            if (from == null || to == null) {
+                continue;
+            }
+            StickInfo first = stickList.get(i);
+            StickInfo second = stickList.get(i + 1);
+            float x1 = first.getLineRect().centerX();
+            float x2 = second.getLineRect().centerX();
+            paint.setColor(BOLL_MIDDLE_COLOR);
+            canvas.drawLine(x1, first.getYPoint(from.middle), x2, second.getYPoint(to.middle), paint);
+            paint.setColor(BOLL_OUTER_COLOR);
+            canvas.drawLine(x1, first.getYPoint(from.upper), x2, second.getYPoint(to.upper), paint);
+            canvas.drawLine(x1, first.getYPoint(from.lower), x2, second.getYPoint(to.lower), paint);
+        }
     }
 
     private void drawSar(Canvas canvas, boolean outlined) {
@@ -1242,41 +1257,6 @@ public class StickView extends View {
         paint.setStrokeWidth(2);
         for (int i = 0; i < maxStickCount; i++) {
             StickInfo stickInfo = stickList.get(i);
-            // 最新の移動平均価格
-            if (i == 0) {
-                // 文字粗体
-                paint.setFakeBoldText(true);
-                // 10平均線の色
-                paint.setColor(Color.CYAN);
-                if (current10 != 0) {
-                    // 10平均線設定
-                    canvas.drawText("(10) " + getLimitDigit(current10), 0, indicatorBaseline(paint, 0), paint);
-                }
-                // 20平均線の色
-                paint.setColor(Color.YELLOW);
-                if (current20 != 0) {
-                    // 20平均線設定
-                    canvas.drawText("(20) " + getLimitDigit(current20), 0, indicatorBaseline(paint, 1), paint);
-                }
-                // 50平均線の色
-                paint.setColor(Color.parseColor("#FF9900"));
-                if (current50 != 0) {
-                    // 50平均線設定
-                    canvas.drawText("(50) " + getLimitDigit(current50), 0, indicatorBaseline(paint, 2), paint);
-                }
-                paint.setColor(Color.MAGENTA);
-                if (current200 != 0) {
-                    canvas.drawText("(200) " + getLimitDigit(current200), 0,
-                            indicatorBaseline(paint, 3), paint);
-                }
-                Float sar = sarValuesByDate.get(stickInfo.getDate());
-                if (sar != null && !Float.isNaN(sar)) {
-                    paint.setColor(sar < stickInfo.getClose()
-                            ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
-                    canvas.drawText("(SAR) " + getLimitDigit(sar), 0,
-                            indicatorBaseline(paint, 4), paint);
-                }
-            }
             // 缩放后最高最低价格线显示在区域上下沿
             boolean zoomed = (activity.getPriceZoom() > 1f || activity.getPricePan() != 0f)
                     && !activity.isFearGreedSymbol();
@@ -1347,8 +1327,88 @@ public class StickView extends View {
         return false;
     }
 
-    private float indicatorBaseline(Paint paint, int row) {
-        return -paint.ascent() + row * Const.FONT_SIZE_LARGE;
+    private Paint indicatorPaint() {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(Const.FONT_SIZE_LARGE);
+        paint.setFakeBoldText(true);
+        paint.setUnderlineText(true);
+        return paint;
+    }
+
+    private IndicatorControlLayout indicatorLayout(Paint paint) {
+        float[] widths = new float[INDICATOR_LABELS.length + 1];
+        for (int i = 0; i < INDICATOR_LABELS.length; i++) {
+            widths[i] = paint.measureText(INDICATOR_LABELS[i]);
+        }
+        widths[ERASER_CONTROL] = paint.getTextSize();
+        IndicatorControlLayout layout = new IndicatorControlLayout(widths,
+                8 * getResources().getDisplayMetrics().density, getWidth());
+        paint.setTextSize(paint.getTextSize() * layout.getScale());
+        return layout;
+    }
+
+    private float indicatorBaseline(Paint paint) {
+        return getHeight() - paint.descent() - 2 * getResources().getDisplayMetrics().density;
+    }
+
+    private void drawIndicatorControls(Canvas canvas) {
+        if (stickList == null || stickList.isEmpty()) {
+            return;
+        }
+        Paint paint = indicatorPaint();
+        IndicatorControlLayout layout = indicatorLayout(paint);
+        StickInfo latest = stickList.get(0);
+        Float sar = sarValuesByDate.get(latest.getDate());
+        int sarColor = sar != null && !Float.isNaN(sar)
+                ? (sar < latest.getClose() ? Color.parseColor("#00E676")
+                : Color.parseColor("#FF5252")) : Color.WHITE;
+        int[] colors = {Color.CYAN, Color.YELLOW, Color.parseColor("#FF9900"),
+                Color.MAGENTA, sarColor, BOLL_OUTER_COLOR};
+        for (int i = 0; i < INDICATOR_LABELS.length; i++) {
+            paint.setColor(colors[i]);
+            canvas.drawText(INDICATOR_LABELS[i], layout.getStart(i), indicatorBaseline(paint), paint);
+        }
+        drawEraser(canvas, layout.getStart(ERASER_CONTROL), indicatorBaseline(paint), paint);
+    }
+
+    private void drawEraser(Canvas canvas, float left, float baseline, Paint textPaint) {
+        float width = textPaint.getTextSize();
+        float stroke = Math.max(1f, width * 0.05f);
+        float bottom = baseline + textPaint.descent() - stroke / 2
+                - 2 * getResources().getDisplayMetrics().density;
+        float height = Math.min(width, textPaint.descent() - textPaint.ascent()) - stroke;
+        float top = bottom - height;
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setStrokeWidth(stroke);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        Path outline = new Path();
+        outline.moveTo(left + width * 0.08f, top + height * 0.64f);
+        outline.lineTo(left + width * 0.57f, top + height * 0.08f);
+        outline.quadTo(left + width * 0.64f, top, left + width * 0.72f, top + height * 0.07f);
+        outline.lineTo(left + width * 0.91f, top + height * 0.25f);
+        outline.quadTo(left + width * 0.98f, top + height * 0.32f,
+                left + width * 0.91f, top + height * 0.40f);
+        outline.lineTo(left + width * 0.43f, bottom);
+        outline.lineTo(left + width * 0.30f, bottom);
+        outline.close();
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(255, 128, 171));
+        canvas.drawPath(outline, paint);
+        Path tip = new Path();
+        tip.moveTo(left + width * 0.08f, top + height * 0.64f);
+        tip.lineTo(left + width * 0.29f, top + height * 0.40f);
+        tip.lineTo(left + width * 0.62f, top + height * 0.68f);
+        tip.lineTo(left + width * 0.43f, bottom);
+        tip.lineTo(left + width * 0.30f, bottom);
+        tip.close();
+        paint.setColor(Color.rgb(128, 216, 255));
+        canvas.drawPath(tip, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(Color.WHITE);
+        canvas.drawPath(outline, paint);
+        canvas.drawLine(left + width * 0.29f, top + height * 0.40f,
+                left + width * 0.62f, top + height * 0.68f, paint);
     }
 
     public int getIndicatorControlRow(MotionEvent event) {
@@ -1356,35 +1416,16 @@ public class StickView extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        if (x < 0 || y < 0 || stickList == null || stickList.isEmpty()) {
+        if (x < 0 || y < 0 || stickList == null || stickList.isEmpty()
+                || activity.isFearGreedSymbol()) {
             return -1;
         }
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setTextSize(Const.FONT_SIZE_LARGE);
-        paint.setFakeBoldText(true);
-        Float sar = sarValuesByDate.get(stickList.get(0).getDate());
-        String[] labels = {
-                current10 != 0 ? "(10) " + getLimitDigit(current10) : "",
-                current20 != 0 ? "(20) " + getLimitDigit(current20) : "",
-                current50 != 0 ? "(50) " + getLimitDigit(current50) : "",
-                current200 != 0 ? "(200) " + getLimitDigit(current200) : "",
-                sar != null && !Float.isNaN(sar) ? "(SAR) " + getLimitDigit(sar) : ""
-        };
-        Paint.FontMetrics metrics = paint.getFontMetrics();
-        int selected = -1;
-        float nearest = Float.MAX_VALUE;
-        for (int row = 0; row < labels.length; row++) {
-            float baseline = indicatorBaseline(paint, row);
-            float top = Math.min(row * Const.FONT_SIZE_LARGE, baseline + metrics.ascent);
-            float bottom = Math.max((row + 1) * Const.FONT_SIZE_LARGE, baseline + metrics.descent);
-            float width = Math.max(220, paint.measureText(labels[row]));
-            float distance = Math.abs(y - (baseline + (metrics.ascent + metrics.descent) / 2));
-            if (x <= width && y >= top && y <= bottom && distance < nearest) {
-                selected = row;
-                nearest = distance;
-            }
+        Paint paint = indicatorPaint();
+        IndicatorControlLayout layout = indicatorLayout(paint);
+        if (y < indicatorBaseline(paint) + paint.ascent() || y > getHeight()) {
+            return -1;
         }
-        return selected;
+        return layout.hitTest(x);
     }
 
     /* タッチ箇所の価格と日付を描く */
@@ -1780,13 +1821,13 @@ public class StickView extends View {
                 // LIME
                 paint.setColor(Color.parseColor("#00FF00"));
                 // 最新価格設定
-                canvas.drawText(String.valueOf(stickInfo.getTdSequentialUp()), x, comnInfo.getStickHeight() - 8, paint);
+                canvas.drawText(String.valueOf(stickInfo.getTdSequentialUp()), x, -paint.ascent(), paint);
             }
             if (stickInfo.getTdSequentialDown() >= 8) {
                 // PINK
                 paint.setColor(Color.parseColor("#FFB6C1"));
                 // 最新価格設定
-                canvas.drawText(String.valueOf(stickInfo.getTdSequentialDown()), x, comnInfo.getStickHeight() - 8, paint);
+                canvas.drawText(String.valueOf(stickInfo.getTdSequentialDown()), x, -paint.ascent(), paint);
             }
         }
     }

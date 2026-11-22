@@ -111,6 +111,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private float cryptoSwitchDownY;
     private boolean editTouchBlocked;
     private boolean editIconTouch;
+    private boolean eraserTouch;
+    private boolean eraserTouchMoved;
+    private float eraserDownX;
+    private float eraserDownY;
     private float editIconDownX;
     private float editIconDownY;
     private boolean editIconTouchMoved;
@@ -236,6 +240,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean isAvg50Disp;
     public boolean isAvg200Disp = true;
     public boolean isSarDisp;
+    public boolean isBollDisp;
     public boolean isFearGreedSarDisp;
 
     @Override
@@ -1422,6 +1427,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean(Const.KEY_AVG_50_DISP, this.isAvg50Disp);
         outState.putBoolean("Avg200Disp", this.isAvg200Disp);
         outState.putBoolean("SarDisp", this.isSarDisp);
+        outState.putBoolean("BollDisp", this.isBollDisp);
         outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
         outState.putBoolean("FearGreedPanel", macdView.isFearGreedPanel());
         outState.putFloat("PricePan", pricePan);
@@ -1443,6 +1449,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isAvg50Disp = savedInstanceState.getBoolean(Const.KEY_AVG_50_DISP);
         this.isAvg200Disp = savedInstanceState.getBoolean("Avg200Disp", true);
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
+        this.isBollDisp = savedInstanceState.getBoolean("BollDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
         macdView.setFearGreedPanel(savedInstanceState.getBoolean("FearGreedPanel"));
         this.pricePan = savedInstanceState.getFloat("PricePan", 0f);
@@ -1555,6 +1562,31 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN && !isLongPress && stickView != null
+                && stickView.getIndicatorControlRow(event) == StickView.ERASER_CONTROL) {
+            eraserTouch = true;
+            eraserTouchMoved = false;
+            eraserDownX = event.getRawX();
+            eraserDownY = event.getRawY();
+            return true;
+        }
+        if (eraserTouch) {
+            float slop = ViewConfiguration.get(this).getScaledTouchSlop();
+            if (action == MotionEvent.ACTION_POINTER_DOWN
+                    || Math.hypot(event.getRawX() - eraserDownX,
+                            event.getRawY() - eraserDownY) > slop) {
+                eraserTouchMoved = true;
+            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                boolean click = action == MotionEvent.ACTION_UP && !eraserTouchMoved
+                        && stickView.getIndicatorControlRow(event) == StickView.ERASER_CONTROL;
+                eraserTouch = false;
+                if (click) {
+                    clearCandleChart();
+                }
+            }
+            return true;
+        }
         if (action == MotionEvent.ACTION_DOWN) {
             editIconTouch = isEditIconTouch(event.getRawX(), event.getRawY());
             if (editIconTouch) {
@@ -1584,6 +1616,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return true;
         }
         return super.dispatchTouchEvent(event);
+    }
+
+    private void clearCandleChart() {
+        controller.deleteCandleTrendLines(symbol, getTrendLineTimeFrame());
+        stickView.clearLineSelection();
+        isAvg10Disp = false;
+        isAvg20Disp = false;
+        isAvg50Disp = false;
+        isAvg200Disp = false;
+        isSarDisp = false;
+        isBollDisp = false;
+        showUI();
     }
 
     private boolean isEditIconTouch(float x, float y) {
@@ -1749,7 +1793,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                     this.isAvg200Disp = !this.isAvg200Disp;
                                     isDispOperate = true;
                                     this.showUI();
-                                } else {
+                                } else if (indicatorRow == 4) {
                                     if (isFearGreedSymbol()) {
                                         isDispOperate = true;
                                     } else {
@@ -1757,6 +1801,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
                                         isDispOperate = true;
                                         this.showUI();
                                     }
+                                } else if (indicatorRow == 5 && !isFearGreedSymbol()) {
+                                    this.isBollDisp = !this.isBollDisp;
+                                    isDispOperate = true;
+                                    this.showUI();
                                 }
                             }
                             int chartY = ajustPoint(event).y;

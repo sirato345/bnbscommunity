@@ -170,4 +170,11 @@ public class Controller {
         }
     }
 
+    public void deleteCandleTrendLines(@NonNull String symbol, @NonNull String timeFrame) {
+        if (model == null) {
+            throw new IllegalStateException("Model is not available");
+        }
+        model.deleteCandleTrendLines(symbol, timeFrame);
+    }
+
 }
