@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Header from '../components/Header';
 import AiDexFrame from '../components/AiDexFrame';
+import KyberSwapSession from '../components/KyberSwapSession';
 
 export const metadata: Metadata = {
   icons: {
@@ -33,6 +34,7 @@ export default function RootLayout({
         <main>
           {children}
           <AiDexFrame />
+          <KyberSwapSession />
         </main>
       </body>
     </html>
