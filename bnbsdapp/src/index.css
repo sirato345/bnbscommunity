@@ -3,11 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background:
-    radial-gradient(ellipse at 50% 12%, rgba(91, 111, 245, 0.08), transparent 38%),
-    #f8f9fc;
+  color-scheme: light;
+  color: #202431;
+  background: #fff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
