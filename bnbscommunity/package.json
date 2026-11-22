@@ -10,10 +10,17 @@
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.2.8",
+    "@kyberswap/widgets": "^2.5.2",
+    "@langchain/core": "^1.2.4",
+    "@langchain/openai": "^1.5.5",
+    "axios": "^1.13.4",
     "firebase": "^12.12.1",
+    "lucide-react": "^1.28.0",
     "next": "^16.2.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-device-detect": "^2.2.3",
+    "react-dom": "^18",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",
