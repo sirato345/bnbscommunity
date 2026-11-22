@@ -9,10 +9,25 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@bigmi/client": "^0.6.5",
+    "@bigmi/core": "^0.6.5",
+    "@bigmi/react": "^0.6.4",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@fontsource/orbitron": "^5.2.8",
     "@kyberswap/widgets": "^2.5.2",
     "@langchain/core": "^1.2.4",
     "@langchain/openai": "^1.5.5",
+    "@lifi/sdk": "^3.14.1",
+    "@lifi/wallet-management": "^3.21.0",
+    "@mui/material": "^7.3.6",
+    "@mysten/dapp-kit": "^0.19.11",
+    "@mysten/sui": "^1.45.2",
+    "@solana/wallet-adapter-react": "^0.15.39",
+    "@tanstack/react-query": "^5.90.13",
+    "@x402/core": "^2.32.0",
+    "@x402/evm": "^2.32.0",
+    "@x402/svm": "^2.32.0",
     "axios": "^1.13.4",
     "firebase": "^12.12.1",
     "lucide-react": "^1.28.0",
@@ -20,7 +35,9 @@
     "react": "^18",
     "react-device-detect": "^2.2.3",
     "react-dom": "^18",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "viem": "^2.42.1",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@types/node": "^20",

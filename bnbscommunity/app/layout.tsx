@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Header from '../components/Header';
+import AiDexFrame from '../components/AiDexFrame';
 
 export const metadata: Metadata = {
   icons: {
@@ -31,6 +32,7 @@ export default function RootLayout({
         <Header />
         <main>
           {children}
+          <AiDexFrame />
         </main>
       </body>
     </html>

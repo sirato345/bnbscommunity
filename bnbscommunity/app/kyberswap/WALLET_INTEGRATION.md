@@ -19,6 +19,7 @@
 ## 配置
 
 - 如需使用自己的 WalletConnect 项目，设置公开环境变量 `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` 并重启应用；未设置时，LI.FI 钱包菜单使用其默认配置。
+- Vercel 部署必须同时提交 `bnbscommunity/package.json` 和 `bnbscommunity/package-lock.json` 中的 LI.FI、Wagmi 等依赖修改。提交 `87930c5` 包含钱包代码，但不包含这些依赖声明；仅在本机安装依赖不会让远程构建可用。
 
 ## 验证
 
