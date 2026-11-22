@@ -28,7 +28,7 @@ function parseToken(value: unknown): KyberToken | undefined {
     symbol: value.symbol,
     name: value.name,
     decimals: value.decimals,
-    logoURI: value.logoURI,
+    logoURI: value.logoURI.trim() || '/token-placeholder.svg',
   };
 }
 

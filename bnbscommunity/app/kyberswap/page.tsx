@@ -3,8 +3,11 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Copy, ExternalLink, Power } from 'lucide-react';
+import { getConnectorIcon, useWalletMenu } from '@lifi/wallet-management';
 import type { TxData, WidgetProps } from '@kyberswap/widgets';
+import { useAccount as useWagmiAccount, useDisconnect } from 'wagmi';
 import { fetchKyberTokenList, type KyberToken } from './token-data';
+import { KyberWalletProviders } from './wallet-providers';
 import styles from './page.module.css';
 
 const KyberWidget = dynamic(
@@ -93,46 +96,6 @@ const theme: NonNullable<WidgetProps['theme']> = {
 
 interface Eip1193Provider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on?: (event: 'accountsChanged' | 'chainChanged', listener: (value: unknown) => void) => void;
-  removeListener?: (
-    event: 'accountsChanged' | 'chainChanged',
-    listener: (value: unknown) => void,
-  ) => void;
-}
-
-interface WalletOption {
-  id: string;
-  name: string;
-  provider: Eip1193Provider;
-  icon?: string;
-}
-
-interface Eip6963ProviderDetail {
-  info: {
-    uuid: string;
-    name: string;
-    rdns: string;
-    icon?: string;
-  };
-  provider: Eip1193Provider;
-}
-
-declare global {
-  interface Window {
-    ethereum?: Eip1193Provider & { providers?: Eip1193Provider[] };
-  }
-}
-
-interface WalletState {
-  address?: string;
-  chainId: number;
-}
-
-function getChainId(value: unknown): number | undefined {
-  if (typeof value !== 'string' || !/^0x[0-9a-f]+$/i.test(value)) {
-    return undefined;
-  }
-  return Number.parseInt(value, 16);
 }
 
 function getWalletError(error: unknown): string {
@@ -160,23 +123,19 @@ function getErrorCode(error: unknown): number | undefined {
   return undefined;
 }
 
-function getInjectedWalletName(provider: Eip1193Provider, index: number): string {
-  const flags = provider as Eip1193Provider & Record<string, unknown>;
-  if (flags.isMetaMask) return 'MetaMask';
-  if (flags.isRabby) return 'Rabby';
-  if (flags.isCoinbaseWallet) return 'Coinbase Wallet';
-  if (flags.isBraveWallet) return 'Brave Wallet';
-  if (flags.isTrust) return 'Trust Wallet';
-  if (flags.isOkxWallet) return 'OKX Wallet';
-  return index === 0 ? 'Browser wallet' : `Browser wallet ${index + 1}`;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-export default function KyberSwapPage() {
-  const [wallet, setWallet] = useState<WalletState>({ chainId: BNB_CHAIN_ID });
+function isEip1193Provider(value: unknown): value is Eip1193Provider {
+  return isRecord(value) && typeof value.request === 'function';
+}
+
+function KyberSwapContent() {
+  const [connectedProvider, setConnectedProvider] = useState<{
+    connector: NonNullable<ReturnType<typeof useWagmiAccount>['connector']>;
+    provider: Eip1193Provider;
+  } | null>(null);
   const [walletError, setWalletError] = useState('');
   const [tokenError, setTokenError] = useState('');
   const [tokenList, setTokenList] = useState<KyberToken[]>([]);
@@ -184,15 +143,25 @@ export default function KyberSwapPage() {
   const [reloadTokenList, setReloadTokenList] = useState(0);
   const [selectedChainId, setSelectedChainId] = useState(BNB_CHAIN_ID);
   const [widgetWidth, setWidgetWidth] = useState(375);
-  const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
-  const [selectedWalletId, setSelectedWalletId] = useState('');
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
-  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const widthRef = useRef<HTMLDivElement>(null);
   const walletAreaRef = useRef<HTMLDivElement>(null);
-  const walletConnectedRef = useRef(false);
-  const activeProvider = walletOptions.find((option) => option.id === selectedWalletId)?.provider;
+  const account = useWagmiAccount();
+  const { disconnectAsync } = useDisconnect();
+  const { openWalletMenu } = useWalletMenu();
+  const activeProvider =
+    account.isConnected && connectedProvider && connectedProvider.connector === account.connector
+      ? connectedProvider.provider
+      : undefined;
+  const wallet = {
+    address: activeProvider ? account.address : undefined,
+    chainId: account.chainId ?? BNB_CHAIN_ID,
+  };
+  const selectedWalletName = account.connector?.name;
+  const selectedWalletIcon = account.connector
+    ? getConnectorIcon(account.connector)
+    : undefined;
   const selectedNetwork = NETWORKS.find((network) => network.chainId === selectedChainId) ?? NETWORKS[0];
 
   useEffect(() => {
@@ -234,108 +203,35 @@ export default function KyberSwapPage() {
   }, []);
 
   useEffect(() => {
-    const detected = new Map<string, WalletOption>();
-    let injectedIndex = 0;
+    let disposed = false;
+    const connector = account.connector;
 
-    const publish = () => {
-      const options = [...detected.values()];
-      setWalletOptions(options);
-      setSelectedWalletId((current) => current || options[0]?.id || '');
-    };
-
-    const addProvider = (
-      id: string,
-      name: string,
-      provider: Eip1193Provider,
-      icon?: string,
-    ) => {
-      const existing = [...detected.values()].find((option) => option.provider === provider);
-      if (existing) {
-        if (existing.id.startsWith('injected-') && !id.startsWith('injected-')) {
-          detected.set(existing.id, { ...existing, name, icon });
-          publish();
-        }
-        return;
-      }
-      detected.set(id, { id, name, provider, icon });
-      publish();
-    };
-
-    const onAnnounceProvider = (event: Event) => {
-      const detail = (event as CustomEvent<unknown>).detail;
-      if (!isRecord(detail) || !isRecord(detail.info) || !isRecord(detail.provider)) return;
-      if (
-        typeof detail.info.uuid !== 'string' ||
-        typeof detail.info.name !== 'string' ||
-        typeof detail.info.rdns !== 'string' ||
-        typeof detail.provider.request !== 'function' ||
-        (detail.info.icon !== undefined && typeof detail.info.icon !== 'string')
-      ) {
-        return;
-      }
-
-      const providerDetail = detail as unknown as Eip6963ProviderDetail;
-      addProvider(
-        providerDetail.info.uuid,
-        providerDetail.info.name,
-        providerDetail.provider,
-        providerDetail.info.icon,
-      );
-    };
-
-    window.addEventListener('eip6963:announceProvider', onAnnounceProvider);
-    window.dispatchEvent(new Event('eip6963:requestProvider'));
-
-    const injectedProviders = window.ethereum?.providers ?? (window.ethereum ? [window.ethereum] : []);
-    for (const provider of injectedProviders) {
-      addProvider(
-        `injected-${injectedIndex}`,
-        getInjectedWalletName(provider, injectedIndex),
-        provider,
-      );
-      injectedIndex += 1;
+    if (!account.isConnected || !connector || !account.address) {
+      setConnectedProvider(null);
+      return;
     }
 
-    const discoveryTimeout = window.setTimeout(publish, 300);
-    return () => {
-      window.clearTimeout(discoveryTimeout);
-      window.removeEventListener('eip6963:announceProvider', onAnnounceProvider);
-    };
-  }, []);
+    void connector.getProvider()
+      .then((provider) => {
+        if (!isEip1193Provider(provider)) {
+          throw new Error('The connected wallet does not provide an EVM provider.');
+        }
+        if (disposed) return;
 
-  useEffect(() => {
-    walletConnectedRef.current = false;
-    if (!activeProvider) return;
-    let disposed = false;
-
-    const syncChain = async () => {
-      const chain = await activeProvider.request({ method: 'eth_chainId' });
-      if (!disposed) {
-        setWallet((current) => ({ ...current, chainId: getChainId(chain) ?? current.chainId }));
-      }
-    };
-
-    const onAccountsChanged = (accounts: unknown) => {
-      if (!walletConnectedRef.current) return;
-      const address =
-        Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0] : undefined;
-      setWallet((current) => ({ ...current, address }));
-      if (!address) walletConnectedRef.current = false;
-    };
-    const onChainChanged = (chain: unknown) => {
-      setWallet((current) => ({ ...current, chainId: getChainId(chain) ?? current.chainId }));
-    };
-
-    void syncChain().catch((error: unknown) => setWalletError(getWalletError(error)));
-    activeProvider.on?.('accountsChanged', onAccountsChanged);
-    activeProvider.on?.('chainChanged', onChainChanged);
+        setConnectedProvider({ connector, provider });
+        setWalletError('');
+      })
+      .catch((error: unknown) => {
+        if (!disposed) {
+          setConnectedProvider(null);
+          setWalletError(getWalletError(error));
+        }
+      });
 
     return () => {
       disposed = true;
-      activeProvider.removeListener?.('accountsChanged', onAccountsChanged);
-      activeProvider.removeListener?.('chainChanged', onChainChanged);
     };
-  }, [activeProvider]);
+  }, [account.address, account.connector, account.isConnected]);
 
   useEffect(() => {
     if (!walletMenuOpen) return;
@@ -356,15 +252,6 @@ export default function KyberSwapPage() {
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [walletMenuOpen]);
-
-  useEffect(() => {
-    if (!walletModalOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setWalletModalOpen(false);
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [walletModalOpen]);
 
   const switchToSelectedChain = useCallback(async () => {
     const provider = activeProvider;
@@ -394,7 +281,6 @@ export default function KyberSwapPage() {
         });
       }
 
-      setWallet((current) => ({ ...current, chainId: selectedChainId }));
       setWalletError('');
     } catch (error) {
       setWalletError(
@@ -405,52 +291,16 @@ export default function KyberSwapPage() {
     }
   }, [activeProvider, selectedChainId, selectedNetwork.name]);
 
-  const connectWallet = useCallback(async (walletOption?: WalletOption) => {
-    const option = walletOption ?? walletOptions.find((item) => item.id === selectedWalletId);
-    const provider = option?.provider;
-    if (!provider) {
-      setWalletError('No EVM wallet found. Install or enable a browser wallet to continue.');
-      return;
-    }
-
-    walletConnectedRef.current = false;
-    setSelectedWalletId(option.id);
-    setWallet((current) => ({ ...current, address: undefined }));
-    setWalletError('');
-
+  const disconnectWallet = useCallback(async () => {
+    setWalletMenuOpen(false);
     try {
-      try {
-        await provider.request({
-          method: 'wallet_requestPermissions',
-          params: [{ eth_accounts: {} }],
-        });
-      } catch (error) {
-        const code = getErrorCode(error);
-        if (code !== -32601 && code !== 4200) throw error;
-      }
-
-      const accounts = await provider.request({ method: 'eth_requestAccounts' });
-      if (!Array.isArray(accounts) || typeof accounts[0] !== 'string') {
-        throw new Error('The wallet did not return an account.');
-      }
-      const chain = await provider.request({ method: 'eth_chainId' });
-      walletConnectedRef.current = true;
-      if (option) setSelectedWalletId(option.id);
-      setWallet({ address: accounts[0], chainId: getChainId(chain) ?? BNB_CHAIN_ID });
+      await disconnectAsync();
+      setConnectedProvider(null);
       setWalletError('');
-      setWalletMenuOpen(false);
-      setWalletModalOpen(false);
     } catch (error) {
       setWalletError(getWalletError(error));
     }
-  }, [selectedWalletId, walletOptions]);
-
-  const disconnectWallet = useCallback(() => {
-    walletConnectedRef.current = false;
-    setWallet((current) => ({ ...current, address: undefined }));
-    setWalletError('');
-    setWalletMenuOpen(false);
-  }, []);
+  }, [disconnectAsync]);
 
   const copyWalletAddress = useCallback(async () => {
     if (!wallet.address) return;
@@ -494,7 +344,6 @@ export default function KyberSwapPage() {
   );
 
   const walletButtonLabel = wallet.address ? `Switch to ${selectedNetwork.name}` : 'Connect wallet';
-  const selectedWallet = walletOptions.find((option) => option.id === selectedWalletId);
 
   return (
     <div className={styles.page}>
@@ -532,11 +381,11 @@ export default function KyberSwapPage() {
                   onClick={() => setWalletMenuOpen((open) => !open)}
                   type="button"
                 >
-                  {selectedWallet?.icon ? (
-                    <img className={styles.walletIcon} src={selectedWallet.icon} alt="" />
+                  {selectedWalletIcon ? (
+                    <img className={styles.walletIcon} src={selectedWalletIcon} alt="" />
                   ) : (
                     <span className={styles.walletIconFallback}>
-                      {selectedWallet?.name.slice(0, 1) ?? 'W'}
+                      {selectedWalletName?.slice(0, 1) ?? 'W'}
                     </span>
                   )}
                   <span>{wallet.address.slice(0, 6)}...{wallet.address.slice(-5)}</span>
@@ -545,11 +394,11 @@ export default function KyberSwapPage() {
                 {walletMenuOpen && (
                   <div className={styles.accountMenu} role="dialog" aria-label="Connected wallet">
                     <div className={styles.accountDetails}>
-                      {selectedWallet?.icon ? (
-                        <img className={styles.walletIconLarge} src={selectedWallet.icon} alt="" />
+                      {selectedWalletIcon ? (
+                        <img className={styles.walletIconLarge} src={selectedWalletIcon} alt="" />
                       ) : (
                         <span className={styles.walletIconLargeFallback}>
-                          {selectedWallet?.name.slice(0, 1) ?? 'W'}
+                          {selectedWalletName?.slice(0, 1) ?? 'W'}
                         </span>
                       )}
                       <span className={styles.accountMenuAddress}>
@@ -580,7 +429,7 @@ export default function KyberSwapPage() {
                         <button
                           aria-label="Disconnect wallet"
                           className={styles.accountAction}
-                          onClick={disconnectWallet}
+                          onClick={() => void disconnectWallet()}
                           title="Disconnect"
                           type="button"
                         >
@@ -601,7 +450,7 @@ export default function KyberSwapPage() {
                       className={styles.connectAnotherButton}
                       onClick={() => {
                         setWalletMenuOpen(false);
-                        setWalletModalOpen(true);
+                        openWalletMenu();
                       }}
                       type="button"
                     >
@@ -616,7 +465,7 @@ export default function KyberSwapPage() {
                 className={styles.walletButton}
                 onClick={() => {
                   setWalletError('');
-                  setWalletModalOpen(true);
+                  openWalletMenu();
                 }}
                 type="button"
               >
@@ -673,67 +522,14 @@ export default function KyberSwapPage() {
           transaction information before confirming.
         </p>
       </section>
-      {walletModalOpen && (
-        <div
-          className={styles.modalBackdrop}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setWalletModalOpen(false);
-          }}
-        >
-          <section
-            aria-labelledby="wallet-modal-title"
-            aria-modal="true"
-            className={styles.walletModal}
-            role="dialog"
-          >
-            <div className={styles.modalHeader}>
-              <h2 id="wallet-modal-title">Connect a wallet</h2>
-              <button
-                aria-label="Close"
-                className={styles.modalClose}
-                onClick={() => setWalletModalOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
-            </div>
-            {walletOptions.length > 0 ? (
-              <div className={styles.walletOptionList}>
-                {walletOptions.map((option) => (
-                  <button
-                    className={styles.walletOption}
-                    key={option.id}
-                    onClick={() => void connectWallet(option)}
-                    type="button"
-                  >
-                    {option.icon ? (
-                      <img className={styles.walletIconLarge} src={option.icon} alt="" />
-                    ) : (
-                      <span className={styles.walletIconLargeFallback}>
-                        {option.name.slice(0, 1)}
-                      </span>
-                    )}
-                    <span>{option.name}</span>
-                    {option.id === selectedWalletId && wallet.address && (
-                      <span className={styles.connectedLabel}>Connected</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.noWallets}>
-                No browser wallets were detected. Install a supported wallet extension, then refresh
-                this page.
-              </p>
-            )}
-            {walletError && (
-              <p className={styles.modalError} role="alert">
-                {walletError}
-              </p>
-            )}
-          </section>
-        </div>
-      )}
     </div>
+  );
+}
+
+export default function KyberSwapPage() {
+  return (
+    <KyberWalletProviders>
+      <KyberSwapContent />
+    </KyberWalletProviders>
   );
 }
