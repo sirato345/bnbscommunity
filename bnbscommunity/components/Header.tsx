@@ -15,15 +15,13 @@ export default function Header() {
   
   const menuItems: MenuItem[] = [
     { name: 'BNBs', path: '/', isExternal: false },
-    { name: 'Holders', path: '/holders', isExternal: false, externalUrl: 'https://bnbchain.bnbscommunity.com' },
+    { name: 'Holders', path: '/holders', isExternal: false },
     { name: 'AI Swap', path: '/kyberswap', isExternal: false },
     { name: 'AI DEX', path: '/ai-dex', isExternal: false, externalUrl: 'https://aiexchange.bnbscommunity.com' },
-    // { name: 'AI Analyse', path: '/ai-analyse', isExternal: false, externalUrl: 'https://godseye.bnbscommunity.com' },
-    // { name: 'AI Trading', path: '/ai-trading', isExternal: false }
   ];
 
   const isActive = (item: MenuItem) => {
-    return pathname === item.path;
+    return pathname === item.path || (item.path === '/holders' && pathname.startsWith('/holders/'));
   };
 
   return (

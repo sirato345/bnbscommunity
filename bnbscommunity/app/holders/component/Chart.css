@@ -1,0 +1,61 @@
+.Chart-lable {
+  text-align: center;
+  font-size: 15px;
+  border-collapse: collapse;
+  margin: 0 auto;
+  font-weight: bold;
+  color: black;
+}
+
+.Chart-div, Chart-div1, Chart-div2, Chart-div3 {
+  padding: 0px;
+  width: 100%;
+}
+
+.Chart-div1 {
+  height: 200px;
+}
+
+.Chart-div2 {
+  height: 170px;
+}
+
+.Chart-div3 {
+  height: 20px;
+  width: 80px;
+  margin-bottom: 3px;
+  display: flex;
+  margin-left: 33%;
+}
+
+.Chart-square {
+  width: 10px; /* 任意の幅 */
+  height: 10px;
+  border-radius: 3px;
+  margin-top: 5px;
+}
+
+.Chart-square-mobile {
+  width: 10px; /* 任意の幅 */
+  height: 10px;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+.Chart-div1-mobile {
+  width: 100%;
+}
+
+.Chart-div2-mobile {
+  width: 100%;
+  height: 150px;
+}
+
+.Chart-div3-mobile {
+  height: 20px;
+  width: 70px;
+  display: flex;
+  margin-left: 30%;
+  padding-right: 5px;
+  padding-top: 2px;
+}

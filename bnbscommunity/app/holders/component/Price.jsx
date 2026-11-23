@@ -1,0 +1,218 @@
+import React from "react";
+import axios from "axios";
+import { useEffect, useRef, useState } from "react";
+import BNBLogo from "../image/BNB.jpg";
+import BNBsLogo from "../image/BNBs.svg";
+import "./Price.css";
+import { BrowserView, MobileView } from "react-device-detect";
+
+function Price() {
+  const [bnbPriceForm, setBNBPrice] = React.useState(null);
+  const [bnbsPriceForm, setBNBsPrice] = React.useState(null);
+  const [rateForm, setRate] = React.useState(null);
+  const [marketCapForm, setMarketCap] = React.useState(null);
+  const [isUpdating, setIsUpdating] = useState(false); // 添加加载状态
+  const [error, setError] = useState(false);
+
+  const BNBs_PRICE_API =
+    "https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=56&contractAddress=0xC07ef1C7af6112C34A110809C6c8Efb343e63A64";
+  const BNB_PRICE_API =
+    "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT";
+
+  // 调整axios配置
+  const instance = axios.create({
+    timeout: 20000, // 增加超时时间
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const refresh = async () => {
+    setIsUpdating(true); // 开始加载
+    setError(false);
+    try {
+      const bnbPrice = await getBNBPrice();
+      const [bnbsPrice, marketCap] = await getBNBsInfo();
+      setBNBPrice(bnbPrice);
+      setBNBsPrice(bnbsPrice);
+      setMarketCap(marketCap);
+      setRate(Math.trunc(bnbPrice / bnbsPrice));
+    } catch (error) {
+      console.error("更新失败:", error);
+      setError(true);
+    } finally {
+      setIsUpdating(false); // 结束加载
+    }
+  };
+
+  const getBNBPrice = async () => {
+    const res = await instance.get(BNB_PRICE_API);
+    const bnbPrice = Number(res.data["price"]).toFixed(2);
+    return bnbPrice;
+  };
+
+  const getBNBsInfo = async () => {
+    const res = await instance.get(BNBs_PRICE_API, { timeout: 15000 });
+    const payload =
+      typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+    const data =
+      payload?.data && typeof payload.data === "object" ? payload.data : null;
+    const bnbsPrice = Number(data?.price);
+    const marketCap = Number(data?.marketCap ?? data?.market_cap);
+
+    if (Number.isFinite(bnbsPrice) && bnbsPrice > 0 &&
+        Number.isFinite(marketCap) && marketCap >= 0) {
+      return [bnbsPrice.toFixed(6), Math.trunc(marketCap)];
+    }
+    throw new Error("Invalid BNBs price response");
+  };
+
+  const initOnce = useRef(false);
+  useEffect(() => {
+    if (initOnce.current) {
+      return;
+    }
+    refresh();
+    initOnce.current = true;
+  }); // 添加空依赖数组
+
+  return (
+    <div>
+      {error && <p role="alert">Unable to update prices. Please try again.</p>}
+      <BrowserView>
+        <table className="Price-table">
+          <tbody>
+            <tr className="Price-tr2"></tr>
+            <tr className="Price-tr">
+              <td className="Price-td">
+                <img src={BNBLogo.src} alt="BNBLogo" className="holders-circle-image"></img>
+                <span className="Price-span"> BNB</span>
+              </td>
+              <td>
+                <span className="Price-span4">
+                  {bnbPriceForm === null ? "update" : bnbPriceForm} $
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td className="Price-td">
+                <img src={BNBsLogo.src} alt="BNBsLogo" className="holders-circle-image"></img>
+                <span className="Price-span"> BNBs</span>
+              </td>
+              <td>
+                <span className="Price-span4">
+                  {bnbsPriceForm === null ? "update" : bnbsPriceForm} $
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td>
+                <span className="Price-span2">1 BNB = </span>
+              </td>
+              <td>
+                <span>
+                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm.toLocaleString()}{" "}
+                  BNBs
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td>
+                <span className="Price-span3">MarketCap</span>
+              </td>
+              <td>
+                <span>{marketCapForm === null ? "update" : marketCapForm.toLocaleString()} $</span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td></td>
+              <td className="Price-td2">
+                <button 
+                  onClick={refresh} 
+                  className={`Price-search-btn ${isUpdating ? 'loading' : ''}`}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <span className="holders-spinner"></span>
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </BrowserView>
+      <MobileView>
+        <table className="Price-table-mobile">
+          <colgroup>
+            <col className="Price-col1-mobile"></col>
+            <col className="Price-col2-mobile"></col>
+          </colgroup>
+          <tbody>
+            <tr className="Price-tr2-mobile"></tr>
+            <tr className="Price-tr">
+              <td className="Price-td-mobile">
+                <img src={BNBLogo.src} alt="BNBLogo" className="holders-circle-image"></img>
+                <span className="Price-span"> BNB</span>
+              </td>
+              <td>
+                <span className="Price-span4">
+                  {bnbPriceForm === null ? "update" : bnbPriceForm} $
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td className="Price-td-mobile">
+                <img src={BNBsLogo.src} alt="BNBsLogo" className="holders-circle-image"></img>
+                <span className="Price-span"> BNBs</span>
+              </td>
+              <td>
+                <span className="Price-span4">
+                  {bnbsPriceForm === null ? "update" : bnbsPriceForm} $
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td>
+                <span className="Price-span2">1 BNB = </span>
+              </td>
+              <td>
+                <span>
+                  {rateForm === null || isNaN(rateForm) ? "update" : rateForm.toLocaleString()}{" "}
+                  BNBs
+                </span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td>
+                <span className="Price-span3">MarketCap</span>
+              </td>
+              <td>
+                <span>{marketCapForm === null ? "update" : marketCapForm.toLocaleString()} $</span>
+              </td>
+            </tr>
+            <tr className="Price-tr">
+              <td></td>
+              <td className="Price-td2">
+                <button 
+                  onClick={refresh} 
+                  className={`Price-search-btn-mobile ${isUpdating ? 'loading' : ''}`}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <span className="holders-spinner"></span>
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </MobileView>
+    </div>
+  );
+}
+
+export default Price;
