@@ -55,7 +55,6 @@ function App() {
   return (
     <div>
       {error && <p role="alert">Unable to load holders. Please try again later.</p>}
-      {!data && !error && <p role="status">Loading holders...</p>}
       {data && (
         <div>
           <BrowserView>

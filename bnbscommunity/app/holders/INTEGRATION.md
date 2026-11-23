@@ -25,4 +25,6 @@
 - Compared computed font and control styles with the deployed BNBs Light page; verified desktop and emulated mobile scrolling, search, and mobile chart selection. Physical-device validation remains pending.
 - Restored normal button font weight so the Update button does not inherit the price table's bold text.
 - Verified the Update button font family, size, and weight in desktop and emulated mobile browsers against the original desktop button.
+- Removed the holders loading messages while retaining the data-loading error message.
+- Verified the loading message is absent during a pending request and that mocked success and failure still display the table and error respectively.
 - Validation and any remaining limitations will be recorded here.
