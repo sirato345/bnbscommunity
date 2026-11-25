@@ -44,4 +44,24 @@ public class YahooIndexQuoteTest {
         assertEquals("Stale", quote.status(1299));
         assertFalse(quote.isMarketOpen(1300));
     }
+
+    @Test
+    public void premarketRequiresMatchingActiveSessionAndDetectsStalePrices() {
+        YahooIndexQuote market = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                500, 1000, 1300, 700, 1000);
+        PremarketQuote quote = new PremarketQuote(101, 800, 700, 1000);
+        assertFalse(market.isPremarket(699));
+        assertTrue(market.isPremarket(700));
+        assertTrue(quote.isCurrent(market, 920));
+        assertFalse(quote.isStale(920));
+        assertTrue(quote.isStale(921));
+        assertTrue(quote.isStale(739));
+        assertFalse(quote.isCurrent(market, 1000));
+        YahooIndexQuote nextDay = new YahooIndexQuote("20261130", 100, 105, 98, 102,
+                1500, 2000, 2300, 1700, 2000);
+        assertFalse(quote.isCurrent(nextDay, 1800));
+        YahooIndexQuote invalid = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                500, 1000, 1300, 700, 999);
+        assertFalse(invalid.isPremarket(800));
+    }
 }

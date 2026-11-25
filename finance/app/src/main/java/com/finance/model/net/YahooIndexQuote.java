@@ -9,9 +9,17 @@ public final class YahooIndexQuote {
     public final long quoteTime;
     public final long marketOpen;
     public final long marketClose;
+    public final long premarketOpen;
+    public final long premarketClose;
 
     public YahooIndexQuote(String date, float open, float high, float low, float price,
                            long quoteTime, long marketOpen, long marketClose) {
+        this(date, open, high, low, price, quoteTime, marketOpen, marketClose, 0, 0);
+    }
+
+    public YahooIndexQuote(String date, float open, float high, float low, float price,
+                           long quoteTime, long marketOpen, long marketClose,
+                           long premarketOpen, long premarketClose) {
         this.date = date;
         this.open = open;
         this.high = high;
@@ -20,6 +28,14 @@ public final class YahooIndexQuote {
         this.quoteTime = quoteTime;
         this.marketOpen = marketOpen;
         this.marketClose = marketClose;
+        this.premarketOpen = premarketOpen;
+        this.premarketClose = premarketClose;
+    }
+
+    public boolean isPremarket(long nowSeconds) {
+        return premarketOpen > 0 && premarketClose == marketOpen
+                && premarketClose > premarketOpen
+                && nowSeconds >= premarketOpen && nowSeconds < premarketClose;
     }
 
     public boolean isMarketOpen(long nowSeconds) {

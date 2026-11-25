@@ -23,6 +23,7 @@ import com.finance.R;
 import com.finance.common.Const;
 import com.finance.common.LogWriter;
 import com.finance.model.net.YahooIndexQuote;
+import com.finance.model.net.PremarketQuote;
 import com.finance.model.net.UsMarketSchedule;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdDivergenceCalculator;
@@ -42,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -2343,7 +2345,9 @@ public class MacdView  extends View {
             YahooIndexQuote quote = activity.getIndexQuote();
             long now = System.currentTimeMillis() / 1000;
             String label;
-            if (activity.isIndexQuoteFailed()) {
+            if (Const.Symbol.bmnr.toString().equals(symbol) && activity.isBmnrRateLimited()) {
+                label = getResources().getString(R.string.index_quote_rate_limited);
+            } else if (activity.isIndexQuoteFailed()) {
                 label = getResources().getString(R.string.index_quote_error);
             } else if (quote == null) {
                 label = getResources().getString(R.string.index_quote_loading);
@@ -2361,8 +2365,35 @@ public class MacdView  extends View {
             paint.setTextSize(Const.FONT_SIZE_MIDDLE * 1.1f);
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
-            canvas.drawText(label, getWidth() - 8 * density,
-                    labelBaseline, paint);
+            String premarketLabel = null;
+            if (Const.Symbol.bmnr.toString().equals(symbol)
+                    && quote != null && quote.isPremarket(now)) {
+                PremarketQuote premarket = activity.getPremarketQuote();
+                if (activity.isBmnrRateLimited()) {
+                    premarketLabel = getResources().getString(R.string.premarket_rate_limited);
+                } else if (activity.isPremarketQuoteFailed()) {
+                    premarketLabel = getResources().getString(R.string.premarket_error);
+                } else if (premarket == null || !premarket.isCurrent(quote, now)) {
+                    premarketLabel = getResources().getString(R.string.premarket_loading);
+                } else {
+                    SimpleDateFormat time = new SimpleDateFormat("HH:mm", Locale.US);
+                    time.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
+                    premarketLabel = getResources().getString(premarket.isStale(now)
+                                    ? R.string.premarket_price_stale : R.string.premarket_price,
+                            marketPriceFormat.format(premarket.price),
+                            time.format(new Date(premarket.quoteTime * 1000)));
+                }
+            }
+            if (premarketLabel == null) {
+                canvas.drawText(label, getWidth() - 8 * density, labelBaseline, paint);
+            } else {
+                float left = getWidth() - 8 * density
+                        - Math.max(paint.measureText(label), paint.measureText(premarketLabel));
+                paint.setTextAlign(Paint.Align.LEFT);
+                canvas.drawText(label, left, labelBaseline, paint);
+                canvas.drawText(premarketLabel, left,
+                        labelBaseline + paint.getFontSpacing(), paint);
+            }
         }
     }
 

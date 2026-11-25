@@ -33,6 +33,7 @@ import com.finance.controller.Controller;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
+import com.finance.model.net.PremarketQuote;
 import com.finance.model.net.YahooIndexQuote;
 import com.finance.view.component.DateView;
 import com.finance.view.component.MacdView;
@@ -66,6 +67,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private static final long BINANCE_REQUEST_STUCK_MS = 8000L;
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
     private static final long INDEX_REFRESH_INTERVAL_MS = 15000L;
+    private static final long PREMARKET_REFRESH_INTERVAL_MS = 30000L;
+    private static final long YAHOO_RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000L;
     private static final int MIN_STICK_WIDTH = 1;
     private static final int MAX_STICK_WIDTH = 60;
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
@@ -123,6 +126,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean indexQuoteFailed;
     private boolean indexQuoteLoading;
     private int indexRequestId;
+    private PremarketQuote premarketQuote;
+    private boolean premarketQuoteFailed;
+    private boolean premarketQuoteLoading;
+    private int premarketRequestId;
+    private long nextPremarketRequestAt;
+    private long yahooRateLimitedUntil;
+    private final Runnable premarketRefreshRunnable = this::requestBmnrPremarketIfDue;
     private final Runnable indexRefreshRunnable = new Runnable() {
         @Override
         public void run() {
@@ -132,6 +142,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             if (isUsIndexSymbol() && !indexQuoteLoading) {
                 requestYahooIndex();
             }
+            requestBmnrPremarketIfDue();
             handler.postDelayed(this, INDEX_REFRESH_INTERVAL_MS);
         }
     };
@@ -302,8 +313,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
         handler.removeCallbacks(binanceRefreshRunnable);
         handler.removeCallbacks(fearGreedRefreshRunnable);
         handler.removeCallbacks(indexRefreshRunnable);
+        handler.removeCallbacks(premarketRefreshRunnable);
         indexRequestId++;
         indexQuoteLoading = false;
+        premarketRequestId++;
+        premarketQuoteLoading = false;
         super.onPause();
     }
 
@@ -780,7 +794,29 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return indexQuoteFailed;
     }
 
+    public PremarketQuote getPremarketQuote() {
+        return premarketQuote;
+    }
+
+    public boolean isPremarketQuoteFailed() {
+        return premarketQuoteFailed;
+    }
+
+    public boolean isBmnrRateLimited() {
+        return SystemClock.elapsedRealtime() < yahooRateLimitedUntil;
+    }
+
+    private void noteYahooRateLimit() {
+        yahooRateLimitedUntil = SystemClock.elapsedRealtime() + YAHOO_RATE_LIMIT_BACKOFF_MS;
+        handler.removeCallbacks(premarketRefreshRunnable);
+        indexQuoteFailed = true;
+        premarketQuoteFailed = true;
+    }
+
     private void requestYahooIndex() {
+        if (Const.Symbol.bmnr.toString().equals(symbol) && isBmnrRateLimited()) {
+            return;
+        }
         indexQuoteLoading = true;
         int requestId = ++indexRequestId;
         String requestedSymbol = symbol;
@@ -793,10 +829,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 return;
             }
             if (error != null || quote == null) {
+                if (Const.Symbol.bmnr.toString().equals(responseSymbol)
+                        && "Yahoo index HTTP 429".equals(error)) {
+                    noteYahooRateLimit();
+                }
                 indexQuoteFailed = true;
                 LogWriter.getInstance(this).error("Yahoo index quote failed: " + responseSymbol
                         + ": " + (error == null ? "empty response" : error));
                 macdView.invalidate();
+                return;
+            }
+            if (Const.Symbol.bmnr.toString().equals(responseSymbol) && isBmnrRateLimited()) {
                 return;
             }
             if (indexQuote != null && quote.quoteTime < indexQuote.quoteTime) {
@@ -818,6 +861,51 @@ public class ChartActivity extends FragmentActivity implements Observer,
             } else {
                 macdView.invalidate();
             }
+            requestBmnrPremarketIfDue();
+        });
+    }
+
+    private void requestBmnrPremarketIfDue() {
+        long now = SystemClock.elapsedRealtime();
+        if (!activityResumed || !Const.Symbol.bmnr.toString().equals(symbol)
+                || indexQuote == null || !indexQuote.isPremarket(System.currentTimeMillis() / 1000)
+                || premarketQuoteLoading || isBmnrRateLimited()) {
+            return;
+        }
+        handler.removeCallbacks(premarketRefreshRunnable);
+        if (now < nextPremarketRequestAt) {
+            handler.postDelayed(premarketRefreshRunnable, nextPremarketRequestAt - now);
+            return;
+        }
+        premarketQuoteLoading = true;
+        nextPremarketRequestAt = now + PREMARKET_REFRESH_INTERVAL_MS;
+        handler.postDelayed(premarketRefreshRunnable, PREMARKET_REFRESH_INTERVAL_MS);
+        int requestId = ++premarketRequestId;
+        controller.loadBmnrPremarket((quote, error) -> {
+            if (requestId != premarketRequestId) {
+                return;
+            }
+            premarketQuoteLoading = false;
+            if (!activityResumed || !Const.Symbol.bmnr.toString().equals(symbol)) {
+                return;
+            }
+            if ("Yahoo premarket HTTP 429".equals(error)) {
+                noteYahooRateLimit();
+            }
+            if (error != null || quote == null) {
+                premarketQuoteFailed = true;
+                LogWriter.getInstance(this).error("BMNR premarket quote failed: "
+                        + (error == null ? "empty response" : error));
+            } else if (!isBmnrRateLimited()
+                    && quote.isCurrent(indexQuote, System.currentTimeMillis() / 1000)) {
+                premarketQuote = quote;
+                premarketQuoteFailed = false;
+            } else if (!isBmnrRateLimited()) {
+                premarketQuoteFailed = true;
+                LogWriter.getInstance(this).error("BMNR premarket quote session changed");
+            }
+            macdView.invalidate();
+            requestBmnrPremarketIfDue();
         });
     }
 
@@ -1393,6 +1481,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             indexQuoteFailed = false;
             indexQuoteLoading = false;
             indexRequestId++;
+            premarketQuote = null;
+            premarketQuoteFailed = false;
+            premarketQuoteLoading = false;
+            premarketRequestId++;
+            handler.removeCallbacks(premarketRefreshRunnable);
             pricePan = 0f;
         }
         if (intradayInterval != null && isCryptoSymbol()

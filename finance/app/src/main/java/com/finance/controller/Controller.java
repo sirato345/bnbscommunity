@@ -8,6 +8,7 @@ import com.finance.model.Model;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
 import com.finance.model.net.NetConnectorYahooIndex;
+import com.finance.model.net.NetConnectorBmnrPremarket;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -123,6 +124,10 @@ public class Controller {
     public void loadYahooIndex(@NonNull String symbol,
                                @NonNull NetConnectorYahooIndex.Callback callback) {
         model.loadYahooIndex(symbol, callback);
+    }
+
+    public void loadBmnrPremarket(@NonNull NetConnectorBmnrPremarket.Callback callback) {
+        model.loadBmnrPremarket(callback);
     }
 
     /**

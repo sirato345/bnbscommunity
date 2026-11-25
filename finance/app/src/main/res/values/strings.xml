@@ -35,7 +35,13 @@
     <string name="index_quote_error">Quote error</string>
     <string name="index_quote_loading">Loading</string>
     <string name="index_quote_stale">Quote stale</string>
+    <string name="index_quote_rate_limited">Yahoo rate limited</string>
     <string name="index_next_open">Next open ~%1$dh %2$02dm</string>
     <string name="index_next_close">Close in %1$dh %2$02dm</string>
+    <string name="premarket_price">Pre %1$s %2$s</string>
+    <string name="premarket_price_stale">Pre stale %1$s %2$s</string>
+    <string name="premarket_loading">Pre loading</string>
+    <string name="premarket_error">Pre quote error</string>
+    <string name="premarket_rate_limited">Pre rate limited</string>
     <string name="icon_label">BNBs Finance</string>
 </resources>

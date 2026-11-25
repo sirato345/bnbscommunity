@@ -95,6 +95,25 @@ public class MarketDataParserTest {
     }
 
     @Test
+    public void parsesLatestValidBmnrPremarketMinute() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"currentTradingPeriod\":{"
+                + "\"pre\":{\"start\":700,\"end\":1000},"
+                + "\"regular\":{\"start\":1000,\"end\":1300}}},"
+                + "\"timestamp\":[500,850,810,870,1000,980],"
+                + "\"indicators\":{\"quote\":[{\"close\":[90,102,101,null,103,104]}]}}]}}";
+        PremarketQuote quote = NetConnectorBmnrPremarket.parse(response, 880);
+        assertEquals(850, quote.quoteTime);
+        assertEquals(102f, quote.price, 0f);
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(response, 1000));
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
+                response.replace("\"BMNR\"", "\"OTHER\""), 880));
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
+                response.replace("\"close\":[90,102,101,null,103,104]",
+                        "\"close\":[null,null,null,null,null,null]"), 880));
+    }
+
+    @Test
     public void rejectsYahooQuoteWithoutMatchingDailyCandle() {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"^DJI\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"

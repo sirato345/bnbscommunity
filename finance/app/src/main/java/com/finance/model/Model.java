@@ -9,6 +9,7 @@ import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
 import com.finance.model.net.NetConnectorYahooIndex;
+import com.finance.model.net.NetConnectorBmnrPremarket;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.Collections;
@@ -115,6 +116,15 @@ public class Model {
         } catch (RuntimeException e) {
             LogWriter.getInstance(view).error("Yahoo index request setup failed: " + symbol, e);
             callback.onComplete(symbol, null, "Yahoo index request setup failed");
+        }
+    }
+
+    public void loadBmnrPremarket(@NonNull NetConnectorBmnrPremarket.Callback callback) {
+        try {
+            new NetConnectorBmnrPremarket(callback).executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
+        } catch (RuntimeException e) {
+            LogWriter.getInstance(view).error("BMNR premarket request setup failed", e);
+            callback.onComplete(null, "BMNR premarket request setup failed");
         }
     }
 
