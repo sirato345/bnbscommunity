@@ -876,15 +876,19 @@ public class MacdView  extends View {
     }
 
     private Rect getPriceTextBounds(float textSize) {
-        String price = getCurrentPriceText();
+        return getPriceTextBounds(getCurrentPriceText(), textSize);
+    }
+
+    static Rect getPriceTextBounds(String price, float textSize) {
         if (price == null) {
             return null;
         }
+        String measuredPrice = "--".equals(price) ? "0" : price;
         Paint pricePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         pricePaint.setTextSize(textSize);
         pricePaint.setFakeBoldText(true);
         Rect priceBounds = new Rect();
-        pricePaint.getTextBounds(price, 0, price.length(), priceBounds);
+        pricePaint.getTextBounds(measuredPrice, 0, measuredPrice.length(), priceBounds);
         return priceBounds;
     }
 
