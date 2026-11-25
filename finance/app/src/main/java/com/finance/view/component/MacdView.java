@@ -2460,6 +2460,9 @@ public class MacdView  extends View {
         if (Const.Symbol.usbond.toString().equals(symbol)) {
             return replace(getResources().getString(R.string.symbol_usbond));
         }
+        if (Const.Symbol.bmnr.toString().equals(symbol)) {
+            return replace(getResources().getString(R.string.symbol_bmnr));
+        }
         if (Const.Symbol.xauusd.toString().equals(symbol)) {
             return replace(getResources().getString(R.string.symbol_gold));
         }
@@ -2514,7 +2517,8 @@ public class MacdView  extends View {
                 ? new Const.Symbol[] {Const.Symbol.btc, Const.Symbol.eth,
                                         Const.Symbol.fng}
                 : new Const.Symbol[] {Const.Symbol.dow, Const.Symbol.sp500,
-                        Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond};
+                        Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond,
+                        Const.Symbol.bmnr};
         List<Const.Symbol> otherSymbols = new ArrayList<>();
         for (Const.Symbol optionSymbol : symbols) {
             if (optionSymbol != selectedSymbol) {
@@ -2609,6 +2613,8 @@ public class MacdView  extends View {
                 return replace(getResources().getString(R.string.symbol_dollor));
             case usbond:
                 return replace(getResources().getString(R.string.symbol_usbond));
+            case bmnr:
+                return replace(getResources().getString(R.string.symbol_bmnr));
             case xauusd:
                 return replace(getResources().getString(R.string.symbol_gold));
             case xagusd:

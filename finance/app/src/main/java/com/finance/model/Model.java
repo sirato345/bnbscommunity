@@ -36,6 +36,7 @@ public class Model {
     public Model(@NonNull Activity view) {
         this.view = view;
         this.dbOperator = new DBOperator(view);
+        this.dbOperator.enforceBmnrHistoryStart();
         this.netOperatorYahoo = new NetOperatorYahoo(dbOperator, (Observer)view);
     }
 
@@ -47,6 +48,10 @@ public class Model {
     }
 
     // ② ネットからDBにデータをロード
+    public boolean needsBmnrBackfill(@NonNull String symbol) {
+        return netOperatorYahoo.needsBmnrBackfill(symbol);
+    }
+
     public boolean loadPastData(@NonNull String symbol) {
         if (netOperatorYahoo != null) {
             try {

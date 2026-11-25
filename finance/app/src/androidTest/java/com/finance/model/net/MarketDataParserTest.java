@@ -79,6 +79,22 @@ public class MarketDataParserTest {
     }
 
     @Test
+    public void parsesBmnrQuoteWithUsMarketSession() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
+                + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793889000,"
+                + "\"end\":1793912400}}},\"timestamp\":[1793889000],"
+                + "\"indicators\":{\"quote\":[{\"open\":[100],\"high\":[103],"
+                + "\"low\":[98]}]}}]}}";
+        YahooIndexQuote quote = NetConnectorYahooIndex.parse(response, "BMNR");
+        assertEquals("20261105", quote.date);
+        assertEquals(100f, quote.open, 0f);
+        assertEquals(102f, quote.price, 0f);
+        assertEquals(1793889000L, quote.marketOpen);
+        assertEquals(1793912400L, quote.marketClose);
+    }
+
+    @Test
     public void rejectsYahooQuoteWithoutMatchingDailyCandle() {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"^DJI\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"

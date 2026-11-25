@@ -31,11 +31,12 @@ public class NetConnectorYahooIndex
         this.callback = callback;
     }
 
-    private static String ticker(String symbol) {
+    static String ticker(String symbol) {
         switch (symbol) {
             case "dow": return "%5EDJI";
             case "sp500": return "%5EGSPC";
             case "nasdaq": return "%5EIXIC";
+            case "bmnr": return "BMNR";
             default: throw new IllegalArgumentException("Unsupported index: " + symbol);
         }
     }

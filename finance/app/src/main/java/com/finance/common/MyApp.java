@@ -52,8 +52,8 @@ public class MyApp extends Application {
         }
     }
 
-    public boolean isHistorySyncDue(@NonNull String symbol) {
-        return !isHistorySyncSuccessfulToday(symbol);
+    public boolean isHistorySyncDue(@NonNull String symbol, boolean backfillNeeded) {
+        return backfillNeeded || !isHistorySyncSuccessfulToday(symbol);
     }
 
     public void markHistorySyncAttempted(@NonNull String symbol) {

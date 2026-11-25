@@ -32,6 +32,7 @@ public class DBOperator {
     private static SQLiteDatabase dbReadable;
     private static SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
     private static SimpleDateFormat sf2 = new SimpleDateFormat("MM/dd/yyyy");
+    private static final String BMNR_CUTOFF_PREF = "bmnr_cutoff_20210501";
     private Context context;
 
     public DBOperator(Context context) {
@@ -63,6 +64,35 @@ public class DBOperator {
     private void logError(String message) {
         if (context != null) {
             LogWriter.getInstance(context).error(message);
+        }
+    }
+
+    public void enforceBmnrHistoryStart() {
+        android.content.SharedPreferences preferences =
+                context.getSharedPreferences("market_history", Context.MODE_PRIVATE);
+        String earliest = getMinDBDate("bmnr");
+        if (preferences.getBoolean(BMNR_CUTOFF_PREF, false)
+                && (earliest == null || earliest.compareTo(Const.BMNR_HISTORY_START) >= 0)) {
+            return;
+        }
+        trimBmnrHistory();
+        if (!preferences.edit().putBoolean(BMNR_CUTOFF_PREF, true).commit()) {
+            throw new IllegalStateException("Failed to save BMNR history cutoff status");
+        }
+    }
+
+    void trimBmnrHistory() {
+        dbWritable.beginTransactionNonExclusive();
+        try {
+            dbWritable.delete("bmnr_d", "Date < ?", new String[] {Const.BMNR_HISTORY_START});
+            dbWritable.delete("bmnr_w", "Date <= ?", new String[] {"20210425"});
+            dbWritable.delete("bmnr_m", "Date < ?", new String[] {Const.BMNR_HISTORY_START});
+            dbWritable.delete("bmnr_q", "Date <= ?", new String[] {"20210630"});
+            dbWritable.delete("bmnr_y", "Date <= ?", new String[] {"20211231"});
+            calculateWMQY("bmnr", true);
+            dbWritable.setTransactionSuccessful();
+        } finally {
+            dbWritable.endTransaction();
         }
     }
 
@@ -105,6 +135,11 @@ public class DBOperator {
     }
 
     public void updateDB(String symbol, String timeFrame, List<String> records) {
+        updateDB(symbol, timeFrame, records, false);
+    }
+
+    public void updateDB(String symbol, String timeFrame, List<String> records,
+                         boolean rebuildHistory) {
         if (records == null || records.isEmpty()) {
             return;
         }
@@ -114,6 +149,10 @@ public class DBOperator {
             if (fields == null) {
                 throw new IllegalArgumentException("Invalid market data record: " + record);
             }
+            if ("bmnr".equals(symbol) && "d".equals(timeFrame)
+                    && fields[0].compareTo(Const.BMNR_HISTORY_START) < 0) {
+                continue;
+            }
             ContentValues values = new ContentValues();
             values.put("Date", fields[0]);
             values.put("Open", fields[1]);
@@ -122,11 +161,20 @@ public class DBOperator {
             values.put("Close", fields[4]);
             valuesList.add(values);
         }
+        if (valuesList.isEmpty()) {
+            return;
+        }
 
         dbWritable.beginTransactionNonExclusive();
         try {
             String table = symbol + "_" + timeFrame;
             for (ContentValues values : valuesList) {
+                if (rebuildHistory && "bmnr".equals(symbol)
+                        && values.getAsString("Date").compareTo("20250605") < 0
+                        && DatabaseUtils.queryNumEntries(dbWritable, table, "Date = ?",
+                        new String[] {values.getAsString("Date")}) > 0) {
+                    continue;
+                }
                 long rowId = dbWritable.insertWithOnConflict(
                         table, null, values, SQLiteDatabase.CONFLICT_REPLACE);
                 if (rowId == -1) {
@@ -139,7 +187,7 @@ public class DBOperator {
             dbWritable.endTransaction();
         }
         if ("d".equals(timeFrame)) {
-            calculateWMQY(symbol);
+            calculateWMQY(symbol, rebuildHistory);
         }
     }
 
@@ -274,13 +322,17 @@ public class DBOperator {
 
     // タイムフレーム計算
     public void calculateWMQY(String symbol) {
+        calculateWMQY(symbol, false);
+    }
+
+    private void calculateWMQY(String symbol, boolean rebuildHistory) {
         if (isCryptoSymbol(symbol)) {
             calculateThreeDay(symbol);
         }
-        this.calculateWeek(symbol);
-        this.calculateMonth(symbol);
-        this.calculateQuarter(symbol);
-        this.calculateYear(symbol);
+        this.calculateWeek(symbol, rebuildHistory);
+        this.calculateMonth(symbol, rebuildHistory);
+        this.calculateQuarter(symbol, rebuildHistory);
+        this.calculateYear(symbol, rebuildHistory);
     }
 
     private boolean isCryptoSymbol(String symbol) {
@@ -342,11 +394,12 @@ public class DBOperator {
     }
 
     // 周线计算
-    private void calculateWeek(String symbol) {
+    private void calculateWeek(String symbol, boolean rebuildHistory) {
         String tableDaily = symbol + "_d";
         String tableWeek = symbol + "_w";
         normalizeWeekDates(symbol, tableWeek);
-        String query = "select * from " + tableDaily + " where DATE >= coalesce("
+        String query = rebuildHistory ? "select * from " + tableDaily + " order by DATE"
+                : "select * from " + tableDaily + " where DATE >= coalesce("
                 + "(select strftime('%Y%m%d', date(substr(max(DATE),1,4) || '-' "
                 + "|| substr(max(DATE),5,2) || '-' || substr(max(DATE),7,2),"
                 + "'-6 day')) from " + tableWeek + "), '') order by DATE";
@@ -421,10 +474,11 @@ public class DBOperator {
     }
 
     // 月线计算
-    private void calculateMonth(String symbol) {
+    private void calculateMonth(String symbol, boolean rebuildHistory) {
         String tableDaily = symbol + "_d";
         String tableMonth = symbol + "_m";
-        String query = "select * from " + tableDaily + " where DATE >= coalesce(" +
+        String query = rebuildHistory ? "select * from " + tableDaily + " order by DATE"
+                : "select * from " + tableDaily + " where DATE >= coalesce(" +
                 "(select substr(max(DATE),1,4) || substr(max(DATE),5,2) from "
                 + tableMonth + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
@@ -455,10 +509,11 @@ public class DBOperator {
     }
 
     // 季度线计算
-    private void calculateQuarter(String symbol) {
+    private void calculateQuarter(String symbol, boolean rebuildHistory) {
         String tableMonthly = symbol + "_m";
         String tableQuarter = symbol + "_q";
-        String query = "select * from " + tableMonthly + " where DATE >= coalesce(" +
+        String query = rebuildHistory ? "select * from " + tableMonthly + " order by DATE"
+                : "select * from " + tableMonthly + " where DATE >= coalesce(" +
                 " (select substr(max(DATE),1,4) || CASE " +
                 " WHEN cast(substr(max(DATE),5,2) as integer) BETWEEN 1 AND 3 THEN '01'" +
                 " WHEN cast(substr(max(DATE),5,2) as integer) BETWEEN 4 and 6 THEN '04'" +
@@ -493,10 +548,11 @@ public class DBOperator {
     }
 
     // 年线计算
-    private void calculateYear(String symbol) {
+    private void calculateYear(String symbol, boolean rebuildHistory) {
         String tableDaily = symbol + "_d";
         String tableYear = symbol + "_y";
-        String query = "select * from " + tableDaily + " where DATE >= coalesce(" +
+        String query = rebuildHistory ? "select * from " + tableDaily + " order by DATE"
+                : "select * from " + tableDaily + " where DATE >= coalesce(" +
                 "(select substr(max(DATE),1,4) from "
                 + tableYear + "), '') order by DATE";
         Cursor cursor = dbReadable.rawQuery(query, null);
@@ -638,8 +694,16 @@ public class DBOperator {
         while (cursor.moveToNext()) {
             maxDate = cursor.getString(0);
         }
+
         cursor.close();
         return maxDate;
+    }
+
+    public String getMinDBDate(String symbol) {
+        try (Cursor cursor = dbReadable.rawQuery(
+                "select min(date) from " + symbol + "_d", null)) {
+            return cursor.moveToFirst() ? cursor.getString(0) : null;
+        }
     }
 
     /* 取得小于指定日期的数据数量作为偏移量 */

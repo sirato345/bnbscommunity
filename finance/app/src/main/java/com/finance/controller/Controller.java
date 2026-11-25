@@ -37,6 +37,10 @@ public class Controller {
     /**
      * 過日データをロード
      */
+    public boolean needsBmnrBackfill(@NonNull String symbol) {
+        return model.needsBmnrBackfill(symbol);
+    }
+
     public boolean loadPastData(@NonNull String symbol) {
         if (model != null) {
             return model.loadPastData(symbol);

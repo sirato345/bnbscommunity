@@ -1,5 +1,7 @@
 package com.finance.model.net;
 
+import com.finance.common.Const;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -7,6 +9,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class YahooIndexQuoteTest {
+    @Test
+    public void bmnrUsesUsMarketQuoteAndSessionPath() {
+        assertEquals("BMNR", NetConnectorYahooIndex.ticker("bmnr"));
+        assertTrue(Const.isUsIndexSymbol("bmnr"));
+        assertTrue(Const.isUsIndexSymbol("dow"));
+        assertTrue(Const.isUsIndexSymbol("sp500"));
+        assertTrue(Const.isUsIndexSymbol("nasdaq"));
+        assertFalse(Const.isUsIndexSymbol("usbond"));
+        assertFalse(Const.isUsIndexSymbol("btc"));
+    }
+
     @Test
     public void reportsMarketSessionAndStaleness() {
         YahooIndexQuote quote = new YahooIndexQuote("20261106", 100, 105, 98, 102,

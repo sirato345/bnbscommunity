@@ -3,7 +3,9 @@ package com.finance.model.net;
 import android.app.Activity;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.widget.Toast;
 
+import com.finance.R;
 import com.finance.common.Const;
 import com.finance.common.LogWriter;
 import com.finance.model.db.DBOperator;
@@ -31,6 +33,7 @@ public class NetOperatorYahoo extends Observable {
     private static final long SECONDS_PER_DAY = 24L * 60L * 60L;
     /* 历史更新时，从DB最新日期往前重取的天数（含前一天，修正其最终值） */
     private static final long HISTORY_REFETCH_DAYS = 2L;
+    private static final String BMNR_BACKFILL_PREF = "bmnr_history_2021";
 
     private final DBOperator dbOperator;
     private final Activity view;
@@ -52,7 +55,8 @@ public class NetOperatorYahoo extends Observable {
         }
 
         String latestDate = dbOperator.getMaxDBDate(symbol);
-        long period1 = latestDate == null ? 0L : toEpochSeconds(latestDate) - HISTORY_REFETCH_DAYS * SECONDS_PER_DAY;
+        long period1 = latestDate == null || needsBmnrBackfill(symbol) ? 0L
+                : toEpochSeconds(latestDate) - HISTORY_REFETCH_DAYS * SECONDS_PER_DAY;
         new NetConnectorYahoo(this).execute(
                 symbol, createChartUrl(symbolCode, period1, getPeriod2()), true);
         return true;
@@ -134,6 +138,10 @@ public class NetOperatorYahoo extends Observable {
     }
 
     public void updateHistory(String symbol, List<String> records) {
+        if (needsBmnrBackfill(symbol)) {
+            new NetConnectorBmnrHistory(this, records).execute();
+            return;
+        }
         if (!hasCompleteCryptoHistory(symbol, records)) {
             long[] missingDateRange = getMissingCryptoHistoryRange(symbol, records);
             if (missingDateRange != null) {
@@ -145,6 +153,46 @@ public class NetOperatorYahoo extends Observable {
             return;
         }
         updateDB(symbol, records, true);
+    }
+
+    public boolean needsBmnrBackfill(String symbol) {
+        if (!"bmnr".equals(symbol)) {
+            return false;
+        }
+        String earliest = dbOperator.getMinDBDate(symbol);
+        String importedFrom = view.getSharedPreferences("market_history", Activity.MODE_PRIVATE)
+                .getString(BMNR_BACKFILL_PREF, null);
+        return earliest == null || importedFrom == null || earliest.compareTo(importedFrom) > 0;
+    }
+
+    void updateBmnrHistory(List<String> records) {
+        try {
+            dbOperator.updateDB("bmnr", Const.TimeFrame.d.toString(), records, true);
+            String importedFrom = records.get(0).substring(0, 10).replace("-", "");
+            if (!view.getSharedPreferences("market_history", Activity.MODE_PRIVATE)
+                    .edit().putString(BMNR_BACKFILL_PREF, importedFrom).commit()) {
+                throw new IllegalStateException("Failed to save BMNR history status");
+            }
+            Toast.makeText(view, R.string.bmnr_history_source,
+                    Toast.LENGTH_LONG).show();
+            setChanged();
+            notifyObservers(new Object[] {true, "bmnr", true});
+        } catch (RuntimeException e) {
+            LogWriter.getWriter().printLog("BMNR history save failed: " + e.getMessage());
+            notifyError("bmnr", e.getMessage() == null
+                    ? "Failed to save BMNR history" : e.getMessage(), true);
+        }
+    }
+
+    void notifyBmnrBackfillError(List<String> yahoo, String error) {
+        try {
+            dbOperator.updateDB("bmnr", Const.TimeFrame.d.toString(), yahoo);
+        } catch (RuntimeException e) {
+            LogWriter.getWriter().printLog("Yahoo BMNR save failed: " + e.getMessage());
+            notifyError("bmnr", "Failed to save Yahoo BMNR data: " + e.getMessage(), true);
+            return;
+        }
+        notifyError("bmnr", error, true);
     }
 
     public void updateHistoryFromFallback(String symbol, List<String> records) {

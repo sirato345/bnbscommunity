@@ -322,7 +322,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
             return;
         }
-        boolean historySyncDue = app.isHistorySyncDue(symbol);
+        boolean historySyncDue = app.isHistorySyncDue(symbol,
+                controller.needsBmnrBackfill(symbol));
         boolean updateIntraday = Const.TimeFrame.d.toString().equals(timeFrame)
                 || isCryptoSymbol();
         String latestDbDate = getLatestDailyDataDate(symbol);
@@ -439,6 +440,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             loadIntradayAfterHistory.remove(updSymbol);
             app.setResult(updSymbol, false);
             if (symbol.equals(updSymbol)) {
+                if ("bmnr".equals(updSymbol) && resultParam.length > 2) {
+                    android.widget.Toast.makeText(this,
+                            getString(R.string.bmnr_history_error, resultParam[2]),
+                            android.widget.Toast.LENGTH_LONG).show();
+                }
                 candleDatesKey = null;
                 this.showUI();
             }
@@ -763,9 +769,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     public boolean isUsIndexSymbol() {
-        return Const.Symbol.dow.toString().equals(symbol)
-                || Const.Symbol.sp500.toString().equals(symbol)
-                || Const.Symbol.nasdaq.toString().equals(symbol);
+        return Const.isUsIndexSymbol(symbol);
     }
 
     public YahooIndexQuote getIndexQuote() {

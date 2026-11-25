@@ -97,6 +97,9 @@ public class ChildActivity extends Activity {
         if (symbol.equals(Const.Symbol.usbond.toString())) {
             button = (Button)this.findViewById(R.id.button_usbond);
         }
+        if (symbol.equals(Const.Symbol.bmnr.toString())) {
+            button = (Button)this.findViewById(R.id.button_bmnr);
+        }
         if (symbol.equals(Const.Symbol.fng.toString())) {
             button = (Button)this.findViewById(R.id.button_fng);
         }
@@ -203,6 +206,9 @@ public class ChildActivity extends Activity {
     }
     public void onClick_Usbond(View v) {
         setResult(Const.Symbol.usbond);
+    }
+    public void onClick_Bmnr(View v) {
+        setResult(Const.Symbol.bmnr);
     }
     public void onClick_Fng(View v) {
         setResult(Const.Symbol.fng);

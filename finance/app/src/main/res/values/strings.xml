@@ -7,6 +7,9 @@
     <string name="symbol_nikkei">Nikkei</string>
     <string name="symbol_dollor">Dollor Index</string>
     <string name="symbol_usbond">10-year Yield</string>
+    <string name="symbol_bmnr">BMNR</string>
+    <string name="bmnr_history_source">BMNR 历史数据来源：The Trading Tools（TradeStation）</string>
+    <string name="bmnr_history_error">BMNR 历史数据更新失败：%1$s</string>
     <string name="symbol_gold">Gold</string>
     <string name="symbol_silver">Silver</string>
     <string name="symbol_fng">Fear &amp; Greed</string>

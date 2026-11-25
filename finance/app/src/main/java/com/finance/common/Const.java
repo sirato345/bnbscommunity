@@ -7,6 +7,8 @@ public class Const {
 
     public static final String DB_NAME = "finance.db";
 
+    public static final String BMNR_HISTORY_START = "20210501";
+
     public static final String SYMBOL_PROPERTY = "symbol.properties";
 
     public static final String TREND_LINE_TABLE = "trendline";
@@ -15,7 +17,7 @@ public class Const {
 
     public static final String ERR_FILE = "finance_err_";
 
-    public static final int DB_VERSION = 12;
+    public static final int DB_VERSION = 13;
 
     public static String[] timeFrames = new String[] { "d", "w", "m", "q", "y" };
 
@@ -91,7 +93,14 @@ public class Const {
     }
     // ローソク線タイプ
     public enum Symbol {
-        btc, eth, dow, sp500, nasdaq, nikkei, usdx, usbond, xauusd, xagusd, fng
+        btc, eth, dow, sp500, nasdaq, nikkei, usdx, usbond, bmnr, xauusd, xagusd, fng
+    }
+
+    public static boolean isUsIndexSymbol(String symbol) {
+        return Symbol.dow.toString().equals(symbol)
+                || Symbol.sp500.toString().equals(symbol)
+                || Symbol.nasdaq.toString().equals(symbol)
+                || Symbol.bmnr.toString().equals(symbol);
     }
     // 表示モード（缩小）
     public static final int ZOOM_IN = 10;

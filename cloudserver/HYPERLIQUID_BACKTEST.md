@@ -1,5 +1,34 @@
 # Hyperliquid 现货指标回测
 
+## 工作交接摘要（2026-11-25）
+
+### 已实现
+
+| 文件 | 作用 |
+| --- | --- |
+| [finance_indicators.py](finance_indicators.py) | finance 指标计算模块，可独立导入；不获取行情或下单 |
+| [hyperliquid_backtest.py](hyperliquid_backtest.py) | 读取 Hyperliquid UETH/USDC 现货公开 K 线，运行组合 1 的历史行情事件统计 |
+| [test_finance_indicators.py](test_finance_indicators.py) | 指标、时间确认及异常输入测试 |
+| [test_hyperliquid_backtest.py](test_hyperliquid_backtest.py) | 数据缺失、周期对齐和回测事件边界测试 |
+| [ETH_INTRADAY_STRATEGY.md](../finance/ETH_INTRADAY_STRATEGY.md) | 指标和周期的研究计划、五组候选条件及待确认事项 |
+
+回测脚本固定使用主网现货市场 `@151`，启动时校验该市场是 UETH/USDC；默认回看 14 天，每次取数最多 500 根一批，各周期预热至少 200 根。输出逐级筛选数量、完整窗口的上涨事件统计和最近 20 个信号，不保存回测结果。详细规则和命令见下文。
+
+### 已验证与限制
+
+- 2026-11-24 上次执行了 13 项 Python 单元测试，全部通过；本次文档整理没有重新运行测试。
+- 同日使用固定窗口 `2026-11-10 00:35` 至 `2026-11-24 00:35 UTC` 验证了模块提取前后的回测输出一致；当时没有最终信号，不能据此推断胜率或收益。
+- 指标实现参考 finance 代码及测试案例；Python 双精度不保证与 Java 单精度逐位一致，也未完成两套程序的大样本逐值对照。
+- 当前没有其他四组策略的回测、交易成本模型、止盈止损、资金管理、样本外评估、实时监控或订单功能。
+- 当前脚本只做本地控制台执行；此前没有部署该脚本到 Cloud Run。本次未检查云端实际状态。
+
+### 后续工作入口
+
+1. 在开始新的策略工作前，确定需要研究的组合、信号有效期和入出场规则；先不要把图表标注位置当作实时可用时间。
+2. 评估并准备足够长且连续的历史数据，按时间划分研究、验证和测试区间，再比较信号表现及交易成本。
+3. 如需自动交易，另行设计模拟/测试网、风险限制、订单幂等、对账、告警和密钥管理；尚未授权或实现真实下单。
+4. 如需云端定时运行，单独设计 Cloud Run Job、调度、日志和结果存储；不要直接假定现有 Django HTTP 服务能持续执行后台任务。
+
 ## 当前范围
 
 `hyperliquid_backtest.py` 使用 Hyperliquid 主网的公开行情接口，只读 UETH/USDC 现货（当前市场代码 `@151`），不需要钱包、密钥或账户，也不会下单。程序每次启动会检查市场代码是否仍对应 UETH/USDC；UETH 是 Unit Ethereum，并非直接使用 Binance 的 ETH/USDT 行情。
