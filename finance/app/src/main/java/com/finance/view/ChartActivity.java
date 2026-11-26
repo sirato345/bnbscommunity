@@ -34,6 +34,7 @@ import com.finance.controller.Controller;
 import com.finance.model.net.NetOperatorYahoo;
 import com.finance.model.net.NetConnectorBinanceIntraday;
 import com.finance.model.net.NetConnectorBinanceRealtime;
+import com.finance.model.net.ExtendedHoursQuote;
 import com.finance.model.net.PremarketQuote;
 import com.finance.model.net.YahooIndexQuote;
 import com.finance.view.component.DateView;
@@ -77,6 +78,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
     private static final String TREND_SNAP_PREF = "trend_snap_enabled";
     private static final String PREMARKET_PREF = "bmnr_premarket";
+    private static final String POSTMARKET_PREF = "bmnr_postmarket";
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -134,13 +136,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean indexQuoteLoading;
     private int indexRequestId;
     private PremarketQuote premarketQuote;
+    private ExtendedHoursQuote postmarketQuote;
     private boolean premarketQuoteFailed;
+    private boolean postmarketQuoteFailed;
     private boolean premarketQuoteLoading;
     private int premarketRequestId;
     private long nextPremarketRequestAt;
     private long yahooRateLimitedUntil;
     private long finalizedPremarketSessionEnd;
+    private long finalizedPostmarketSessionEnd;
     private boolean premarketNeedsRefresh = true;
+    private boolean postmarketNeedsRefresh = true;
     private final Runnable premarketRefreshRunnable = this::requestBmnrPremarketIfDue;
     private final Runnable indexRefreshRunnable = new Runnable() {
         @Override
@@ -310,6 +316,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 LogWriter.getInstance(this).error("Invalid cached BMNR premarket quote");
             }
         }
+        SharedPreferences postmarketPrefs = getSharedPreferences(POSTMARKET_PREF, MODE_PRIVATE);
+        if (postmarketPrefs.contains("quoteTime")) {
+            ExtendedHoursQuote cached = new ExtendedHoursQuote(postmarketPrefs.getFloat("price", 0),
+                    postmarketPrefs.getLong("quoteTime", 0),
+                    postmarketPrefs.getLong("sessionStart", 0),
+                    postmarketPrefs.getLong("sessionEnd", 0));
+            if (cached.isAvailable(System.currentTimeMillis() / 1000)) {
+                postmarketQuote = cached;
+            } else {
+                LogWriter.getInstance(this).error("Invalid cached BMNR postmarket quote");
+            }
+        }
         if (savedInstanceState != null) {
             intradayInterval = savedInstanceState.getString("IntradayInterval");
         }
@@ -338,6 +356,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         super.onResume();
         activityResumed = true;
         premarketNeedsRefresh = true;
+        postmarketNeedsRefresh = true;
         handler.removeCallbacks(binanceRefreshRunnable);
         handler.removeCallbacks(fearGreedRefreshRunnable);
         handler.removeCallbacks(indexRefreshRunnable);
@@ -843,6 +862,14 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return premarketQuoteFailed;
     }
 
+    public ExtendedHoursQuote getPostmarketQuote() {
+        return postmarketQuote;
+    }
+
+    public boolean isPostmarketQuoteFailed() {
+        return postmarketQuoteFailed;
+    }
+
     public boolean isBmnrRateLimited() {
         return SystemClock.elapsedRealtime() < yahooRateLimitedUntil;
     }
@@ -852,6 +879,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         handler.removeCallbacks(premarketRefreshRunnable);
         indexQuoteFailed = true;
         premarketQuoteFailed = true;
+        postmarketQuoteFailed = true;
     }
 
     private void requestYahooIndex() {
@@ -913,12 +941,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 || premarketQuoteLoading || isBmnrRateLimited()) {
             return;
         }
-        boolean active = (indexQuote != null && indexQuote.isPremarket(nowSeconds))
+        boolean active = (indexQuote != null && (indexQuote.isPremarket(nowSeconds)
+                || indexQuote.isPostmarket(nowSeconds)))
                 || (premarketQuote != null && nowSeconds >= premarketQuote.sessionStart
-                && nowSeconds < premarketQuote.sessionEnd);
+                && nowSeconds < premarketQuote.sessionEnd)
+                || (postmarketQuote != null && nowSeconds >= postmarketQuote.sessionStart
+                && nowSeconds < postmarketQuote.sessionEnd);
         boolean needsFinal = premarketQuote != null && nowSeconds >= premarketQuote.sessionEnd
                 && premarketQuote.sessionEnd > finalizedPremarketSessionEnd;
-        if (!premarketNeedsRefresh && !active && !needsFinal) {
+        needsFinal |= postmarketQuote != null && nowSeconds >= postmarketQuote.sessionEnd
+                && postmarketQuote.sessionEnd > finalizedPostmarketSessionEnd;
+        if (!premarketNeedsRefresh && !postmarketNeedsRefresh && !active && !needsFinal) {
             return;
         }
         handler.removeCallbacks(premarketRefreshRunnable);
@@ -931,7 +964,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
         nextPremarketRequestAt = now + interval;
         handler.postDelayed(premarketRefreshRunnable, interval);
         int requestId = ++premarketRequestId;
-        controller.loadBmnrPremarket(premarketNeedsRefresh || needsFinal, (quote, error) -> {
+        controller.loadBmnrPremarket(premarketNeedsRefresh || postmarketNeedsRefresh || needsFinal,
+                (quote, error, postQuote, postError) -> {
             if (requestId != premarketRequestId) {
                 return;
             }
@@ -971,10 +1005,43 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     finalizedPremarketSessionEnd = premarketQuote.sessionEnd;
                 }
             }
+            if (postError != null || postQuote == null) {
+                postmarketQuoteFailed = true;
+                LogWriter.getInstance(this).error("BMNR postmarket quote failed: "
+                        + (postError == null ? "empty response" : postError));
+            } else if (!isBmnrRateLimited()
+                    && postQuote.isAvailable(System.currentTimeMillis() / 1000)
+                    && (postmarketQuote == null || postQuote.quoteTime >= postmarketQuote.quoteTime)) {
+                postmarketQuote = postQuote;
+                postmarketQuoteFailed = false;
+                postmarketNeedsRefresh = false;
+                if (System.currentTimeMillis() / 1000 >= postQuote.sessionEnd) {
+                    finalizedPostmarketSessionEnd = postQuote.sessionEnd;
+                }
+                if (!getSharedPreferences(POSTMARKET_PREF, MODE_PRIVATE).edit()
+                        .putFloat("price", postQuote.price)
+                        .putLong("quoteTime", postQuote.quoteTime)
+                        .putLong("sessionStart", postQuote.sessionStart)
+                        .putLong("sessionEnd", postQuote.sessionEnd).commit()) {
+                    LogWriter.getInstance(this).error("Failed to save BMNR postmarket quote");
+                }
+            } else if (!isBmnrRateLimited()) {
+                postmarketQuoteFailed = true;
+                LogWriter.getInstance(this).error("BMNR postmarket quote is invalid or older than cached");
+                if (postQuote.isAvailable(System.currentTimeMillis() / 1000)
+                        && postmarketQuote != null && postQuote.quoteTime < postmarketQuote.quoteTime
+                        && System.currentTimeMillis() / 1000 >= postmarketQuote.sessionEnd) {
+                    postmarketNeedsRefresh = false;
+                    finalizedPostmarketSessionEnd = postmarketQuote.sessionEnd;
+                }
+            }
             long currentSeconds = System.currentTimeMillis() / 1000;
-            if ((indexQuote != null && indexQuote.isPremarket(currentSeconds))
+            if ((indexQuote != null && (indexQuote.isPremarket(currentSeconds)
+                    || indexQuote.isPostmarket(currentSeconds)))
                     || (premarketQuote != null && currentSeconds >= premarketQuote.sessionStart
-                    && currentSeconds < premarketQuote.sessionEnd)) {
+                    && currentSeconds < premarketQuote.sessionEnd)
+                    || (postmarketQuote != null && currentSeconds >= postmarketQuote.sessionStart
+                    && currentSeconds < postmarketQuote.sessionEnd)) {
                 nextPremarketRequestAt = Math.min(nextPremarketRequestAt,
                         now + PREMARKET_REFRESH_INTERVAL_MS);
             }
@@ -1565,8 +1632,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
             indexQuoteLoading = false;
             indexRequestId++;
             premarketQuoteFailed = false;
+            postmarketQuoteFailed = false;
             premarketQuoteLoading = false;
             premarketNeedsRefresh = true;
+            postmarketNeedsRefresh = true;
             premarketRequestId++;
             handler.removeCallbacks(premarketRefreshRunnable);
             pricePan = 0f;

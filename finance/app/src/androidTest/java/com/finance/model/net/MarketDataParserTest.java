@@ -83,7 +83,8 @@ public class MarketDataParserTest {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
                 + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793889000,"
-                + "\"end\":1793912400}}},\"timestamp\":[1793889000],"
+                + "\"end\":1793912400},\"post\":{\"start\":1793912400,"
+                + "\"end\":1793926800}}},\"timestamp\":[1793889000],"
                 + "\"indicators\":{\"quote\":[{\"open\":[100],\"high\":[103],"
                 + "\"low\":[98]}]}}]}}";
         YahooIndexQuote quote = NetConnectorYahooIndex.parse(response, "BMNR");
@@ -92,6 +93,8 @@ public class MarketDataParserTest {
         assertEquals(102f, quote.price, 0f);
         assertEquals(1793889000L, quote.marketOpen);
         assertEquals(1793912400L, quote.marketClose);
+        assertEquals(1793912400L, quote.postmarketOpen);
+        assertEquals(1793926800L, quote.postmarketClose);
     }
 
     @Test
@@ -131,6 +134,29 @@ public class MarketDataParserTest {
         assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
                 response.replace("\"start\":2000,\"end\":2300",
                         "\"start\":2001,\"end\":2300"), 2500));
+    }
+
+    @Test
+    public void findsLatestPostmarketWithoutUsingPreOrRegularPrices() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"tradingPeriods\":{"
+                + "\"post\":[[{\"start\":1300,\"end\":1600}],[{\"start\":2300,\"end\":2600}]],"
+                + "\"regular\":[[{\"start\":1000,\"end\":1300}],"
+                + "[{\"start\":2000,\"end\":2300}]]}},"
+                + "\"timestamp\":[850,1200,1300,1550,1600,1900,2300,2490,2500,2590],"
+                + "\"indicators\":{\"quote\":[{\"close\":[10,20,30,31,40,50,60,61,null,62]}]}}]}}";
+        ExtendedHoursQuote previous = NetConnectorBmnrPremarket.parsePostmarket(response, 2200);
+        assertEquals(1550, previous.quoteTime);
+        assertEquals(31f, previous.price, 0f);
+        ExtendedHoursQuote current = NetConnectorBmnrPremarket.parsePostmarket(response, 2500);
+        assertEquals(2490, current.quoteTime);
+        assertEquals(61f, current.price, 0f);
+        assertEquals(2590, NetConnectorBmnrPremarket.parsePostmarket(response, 2700).quoteTime);
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parsePostmarket(
+                response.replace("\"start\":2300,\"end\":2600",
+                        "\"start\":2301,\"end\":2600"), 2700));
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parsePostmarket(
+                response.replace("\"BMNR\"", "\"OTHER\""), 2700));
     }
 
     @Test

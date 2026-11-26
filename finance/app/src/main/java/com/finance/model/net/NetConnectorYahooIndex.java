@@ -94,6 +94,9 @@ public class NetConnectorYahooIndex
         JSONObject premarket = periods.optJSONObject("pre");
         long premarketOpen = premarket == null ? 0 : premarket.optLong("start", 0);
         long premarketClose = premarket == null ? 0 : premarket.optLong("end", 0);
+        JSONObject postmarket = periods.optJSONObject("post");
+        long postmarketOpen = postmarket == null ? 0 : postmarket.optLong("start", 0);
+        long postmarketClose = postmarket == null ? 0 : postmarket.optLong("end", 0);
         if (quoteTime <= 0 || openTime <= 0 || closeTime <= openTime
                 || !Float.isFinite(price) || price <= 0) {
             throw new IOException("Invalid Yahoo index quote or market session");
@@ -123,7 +126,7 @@ public class NetConnectorYahooIndex
             }
             return new YahooIndexQuote(date, open, Math.max(high, price),
                     Math.min(low, price), price, quoteTime, openTime, closeTime,
-                    premarketOpen, premarketClose);
+                    premarketOpen, premarketClose, postmarketOpen, postmarketClose);
         }
         throw new IOException("Yahoo index quote has no matching daily candle");
     }

@@ -1,16 +1,8 @@
 package com.finance.model.net;
 
-public final class PremarketQuote {
-    public final float price;
-    public final long quoteTime;
-    public final long sessionStart;
-    public final long sessionEnd;
-
+public final class PremarketQuote extends ExtendedHoursQuote {
     public PremarketQuote(float price, long quoteTime, long sessionStart, long sessionEnd) {
-        this.price = price;
-        this.quoteTime = quoteTime;
-        this.sessionStart = sessionStart;
-        this.sessionEnd = sessionEnd;
+        super(price, quoteTime, sessionStart, sessionEnd);
     }
 
     public boolean isCurrent(YahooIndexQuote market, long nowSeconds) {
@@ -19,14 +11,4 @@ public final class PremarketQuote {
                 && quoteTime >= sessionStart && quoteTime < sessionEnd;
     }
 
-    public boolean isAvailable(long nowSeconds) {
-        return Float.isFinite(price) && price > 0 && sessionStart > 0
-                && sessionEnd > sessionStart && nowSeconds >= sessionStart
-                && quoteTime >= sessionStart && quoteTime < sessionEnd
-                && quoteTime <= nowSeconds + 60;
-    }
-
-    public boolean isStale(long nowSeconds) {
-        return quoteTime > nowSeconds + 60 || nowSeconds - quoteTime > 120;
-    }
 }

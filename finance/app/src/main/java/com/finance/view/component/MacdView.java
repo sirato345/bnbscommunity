@@ -24,6 +24,7 @@ import com.finance.common.Const;
 import com.finance.common.LogWriter;
 import com.finance.model.net.YahooIndexQuote;
 import com.finance.model.net.PremarketQuote;
+import com.finance.model.net.ExtendedHoursQuote;
 import com.finance.model.net.UsMarketSchedule;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdDivergenceCalculator;
@@ -43,7 +44,6 @@ import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -2397,23 +2397,34 @@ public class MacdView  extends View {
             paint.setTextSize(Const.FONT_SIZE_MIDDLE * 1.1f);
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
-            String premarketLabel = null;
+            String extendedLabel = null;
             if (Const.Symbol.bmnr.toString().equals(symbol)) {
                 PremarketQuote premarket = activity.getPremarketQuote();
-                if (premarket == null || !premarket.isAvailable(now)) {
-                    premarketLabel = getResources().getString(activity.isBmnrRateLimited()
+                ExtendedHoursQuote postmarket = activity.getPostmarketQuote();
+                if (showPostmarketQuote(premarket, postmarket, quote, now)) {
+                    if (postmarket == null || !postmarket.isAvailable(now)) {
+                        extendedLabel = getResources().getString(activity.isBmnrRateLimited()
+                                ? R.string.postmarket_rate_limited : activity.isPostmarketQuoteFailed()
+                                ? R.string.postmarket_error : R.string.postmarket_loading);
+                    } else {
+                        boolean active = now < postmarket.sessionEnd
+                                || (quote != null && quote.isPostmarket(now));
+                        boolean stale = active && (postmarket.isStale(now)
+                                || (quote != null && quote.isPostmarket(now)
+                                && (postmarket.sessionStart != quote.postmarketOpen
+                                || postmarket.sessionEnd != quote.postmarketClose)));
+                        int resource = activity.isBmnrRateLimited() ? R.string.postmarket_price_limited
+                                : activity.isPostmarketQuoteFailed() ? R.string.postmarket_price_error
+                                : stale ? R.string.postmarket_price_stale : R.string.postmarket_price;
+                        extendedLabel = getResources().getString(resource,
+                                marketPriceFormat.format(postmarket.price),
+                                formatExtendedQuoteTime(postmarket.quoteTime));
+                    }
+                } else if (premarket == null || !premarket.isAvailable(now)) {
+                    extendedLabel = getResources().getString(activity.isBmnrRateLimited()
                             ? R.string.premarket_rate_limited : activity.isPremarketQuoteFailed()
                             ? R.string.premarket_error : R.string.premarket_loading);
                 } else {
-                    TimeZone japan = TimeZone.getTimeZone("Asia/Tokyo");
-                    Calendar today = Calendar.getInstance(japan);
-                    today.setTimeInMillis(now * 1000);
-                    Calendar quoted = Calendar.getInstance(japan);
-                    quoted.setTimeInMillis(premarket.quoteTime * 1000);
-                    String pattern = today.get(Calendar.YEAR) == quoted.get(Calendar.YEAR)
-                            ? "MM-dd HH:mm" : "yyyy-MM-dd HH:mm";
-                    SimpleDateFormat time = new SimpleDateFormat(pattern, Locale.US);
-                    time.setTimeZone(japan);
                     boolean active = now < premarket.sessionEnd
                             || (quote != null && quote.isPremarket(now));
                     boolean stale = active && (premarket.isStale(now)
@@ -2422,22 +2433,38 @@ public class MacdView  extends View {
                     int resource = activity.isBmnrRateLimited() ? R.string.premarket_price_limited
                             : activity.isPremarketQuoteFailed() ? R.string.premarket_price_error
                             : stale ? R.string.premarket_price_stale : R.string.premarket_price;
-                    premarketLabel = getResources().getString(resource,
+                    extendedLabel = getResources().getString(resource,
                             marketPriceFormat.format(premarket.price),
-                            time.format(new Date(premarket.quoteTime * 1000)));
+                            formatExtendedQuoteTime(premarket.quoteTime));
                 }
             }
-            if (premarketLabel == null) {
+            if (extendedLabel == null) {
                 canvas.drawText(label, getWidth() - 8 * density, labelBaseline, paint);
             } else {
-                float left = getWidth() - 8 * density
-                        - Math.max(paint.measureText(label), paint.measureText(premarketLabel));
+                float textWidth = Math.max(paint.measureText(label), paint.measureText(extendedLabel));
+                float left = getWidth() - 8 * density - textWidth;
                 paint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(label, left, labelBaseline, paint);
-                canvas.drawText(premarketLabel, left,
-                        labelBaseline + paint.getFontSpacing(), paint);
+                canvas.drawText(label, left, labelBaseline - 7, paint);
+                canvas.drawText(extendedLabel, left,
+                        labelBaseline + paint.getFontSpacing() - 15, paint);
             }
         }
+    }
+
+    static boolean showPostmarketQuote(PremarketQuote premarket, ExtendedHoursQuote postmarket,
+                                       YahooIndexQuote market, long now) {
+        boolean hasPre = premarket != null && premarket.isAvailable(now);
+        boolean hasPost = postmarket != null && postmarket.isAvailable(now);
+        if (hasPre || hasPost) {
+            return hasPost && (!hasPre || postmarket.quoteTime > premarket.quoteTime);
+        }
+        return market != null && market.isPostmarket(now);
+    }
+
+    static String formatExtendedQuoteTime(long quoteTime) {
+        SimpleDateFormat time = new SimpleDateFormat("HH:mm", Locale.US);
+        time.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
+        return time.format(new Date(quoteTime * 1000));
     }
 
     static int fearGreedPriceColor(float current, String currentDate, Float previous,

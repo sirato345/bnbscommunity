@@ -126,7 +126,8 @@ public class Model {
                     .executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
         } catch (RuntimeException e) {
             LogWriter.getInstance(view).error("BMNR premarket request setup failed", e);
-            callback.onComplete(null, "BMNR premarket request setup failed");
+            callback.onComplete(null, "BMNR premarket request setup failed",
+                    null, "BMNR postmarket request setup failed");
         }
     }
 

@@ -16,7 +16,8 @@ import java.nio.charset.StandardCharsets;
 public class NetConnectorBmnrPremarket
         extends AsyncTask<Void, Void, NetConnectorBmnrPremarket.Result> {
     public interface Callback {
-        void onComplete(PremarketQuote quote, String error);
+        void onComplete(PremarketQuote pre, String preError,
+                        ExtendedHoursQuote post, String postError);
     }
 
     private final Callback callback;
@@ -54,10 +55,26 @@ public class NetConnectorBmnrPremarket
                     }
                 }
             }
-            return new Result(parse(body.toString(), System.currentTimeMillis() / 1000), null);
-        } catch (IOException | JSONException | IllegalArgumentException e) {
-            return new Result(null, e.getMessage() == null
-                    ? "Yahoo premarket request failed" : e.getMessage());
+            String response = body.toString();
+            long nowSeconds = System.currentTimeMillis() / 1000;
+            PremarketQuote pre = null;
+            ExtendedHoursQuote post = null;
+            String preError = null;
+            String postError = null;
+            try {
+                pre = parse(response, nowSeconds);
+            } catch (IOException | JSONException | IllegalArgumentException e) {
+                preError = e.getMessage() == null ? "Yahoo premarket parse failed" : e.getMessage();
+            }
+            try {
+                post = parsePostmarket(response, nowSeconds);
+            } catch (IOException | JSONException | IllegalArgumentException e) {
+                postError = e.getMessage() == null ? "Yahoo postmarket parse failed" : e.getMessage();
+            }
+            return new Result(pre, preError, post, postError);
+        } catch (IOException | IllegalArgumentException e) {
+            String error = e.getMessage() == null ? "Yahoo premarket request failed" : e.getMessage();
+            return new Result(null, error, null, error);
         } finally {
             if (connection != null) {
                 connection.disconnect();
@@ -66,6 +83,17 @@ public class NetConnectorBmnrPremarket
     }
 
     static PremarketQuote parse(String response, long nowSeconds) throws JSONException, IOException {
+        ExtendedHoursQuote quote = parseSession(response, nowSeconds, false);
+        return new PremarketQuote(quote.price, quote.quoteTime, quote.sessionStart, quote.sessionEnd);
+    }
+
+    static ExtendedHoursQuote parsePostmarket(String response, long nowSeconds)
+            throws JSONException, IOException {
+        return parseSession(response, nowSeconds, true);
+    }
+
+    private static ExtendedHoursQuote parseSession(String response, long nowSeconds, boolean post)
+            throws JSONException, IOException {
         JSONObject chart = new JSONObject(response).getJSONObject("chart");
         if (!chart.isNull("error")) {
             throw new IOException("Yahoo premarket error: "
@@ -77,7 +105,7 @@ public class NetConnectorBmnrPremarket
             throw new IOException("Unexpected premarket symbol");
         }
         JSONObject periods = meta.getJSONObject("tradingPeriods");
-        JSONArray prePeriods = periods.getJSONArray("pre");
+        JSONArray extendedPeriods = periods.getJSONArray(post ? "post" : "pre");
         JSONArray regularPeriods = periods.getJSONArray("regular");
         JSONArray times = result.getJSONArray("timestamp");
         JSONArray closes = result.getJSONObject("indicators").getJSONArray("quote")
@@ -86,20 +114,22 @@ public class NetConnectorBmnrPremarket
         long sessionStart = 0;
         long sessionEnd = 0;
         float price = 0;
-        if (prePeriods.length() != regularPeriods.length()) {
-            throw new IOException("BMNR premarket session count mismatch");
+        if (extendedPeriods.length() != regularPeriods.length()) {
+            throw new IOException("BMNR extended-hours session count mismatch");
         }
-        for (int day = 0; day < prePeriods.length(); day++) {
-            JSONArray preDay = prePeriods.getJSONArray(day);
+        for (int day = 0; day < extendedPeriods.length(); day++) {
+            JSONArray extendedDay = extendedPeriods.getJSONArray(day);
             JSONArray regularDay = regularPeriods.getJSONArray(day);
-            if (preDay.length() != 1 || regularDay.length() != 1) {
+            if (extendedDay.length() != 1 || regularDay.length() != 1) {
                 throw new IOException("Invalid BMNR trading periods");
             }
-            JSONObject pre = preDay.getJSONObject(0);
-            long start = pre.getLong("start");
-            long end = pre.getLong("end");
-            if (start <= 0 || end <= start || end != regularDay.getJSONObject(0).getLong("start")) {
-                throw new IOException("Invalid BMNR premarket session");
+            JSONObject extended = extendedDay.getJSONObject(0);
+            JSONObject regular = regularDay.getJSONObject(0);
+            long start = extended.getLong("start");
+            long end = extended.getLong("end");
+            if (start <= 0 || end <= start || (post
+                    ? start != regular.getLong("end") : end != regular.getLong("start"))) {
+                throw new IOException("Invalid BMNR extended-hours session");
             }
             for (int i = 0; i < times.length(); i++) {
                 if (i >= closes.length() || times.isNull(i) || closes.isNull(i)) {
@@ -112,7 +142,7 @@ public class NetConnectorBmnrPremarket
                 }
                 float value = (float) closes.getDouble(i);
                 if (!Float.isFinite(value) || value <= 0) {
-                    throw new IOException("Invalid BMNR premarket price");
+                    throw new IOException("Invalid BMNR extended-hours price");
                 }
                 latest = time;
                 sessionStart = start;
@@ -121,23 +151,28 @@ public class NetConnectorBmnrPremarket
             }
         }
         if (latest < 0) {
-            throw new IOException("No BMNR premarket price in the response");
+            throw new IOException("No BMNR " + (post ? "postmarket" : "premarket")
+                    + " price in the response");
         }
-        return new PremarketQuote(price, latest, sessionStart, sessionEnd);
+        return new ExtendedHoursQuote(price, latest, sessionStart, sessionEnd);
     }
 
     @Override
     protected void onPostExecute(Result result) {
-        callback.onComplete(result.quote, result.error);
+        callback.onComplete(result.pre, result.preError, result.post, result.postError);
     }
 
     static final class Result {
-        final PremarketQuote quote;
-        final String error;
+        final PremarketQuote pre;
+        final String preError;
+        final ExtendedHoursQuote post;
+        final String postError;
 
-        Result(PremarketQuote quote, String error) {
-            this.quote = quote;
-            this.error = error;
+        Result(PremarketQuote pre, String preError, ExtendedHoursQuote post, String postError) {
+            this.pre = pre;
+            this.preError = preError;
+            this.post = post;
+            this.postError = postError;
         }
     }
 }

@@ -45,5 +45,12 @@
     <string name="premarket_loading">Pre loading</string>
     <string name="premarket_error">Pre quote error</string>
     <string name="premarket_rate_limited">Pre rate limited</string>
+    <string name="postmarket_price">Post %1$s %2$s</string>
+    <string name="postmarket_price_stale">Post stale %1$s %2$s</string>
+    <string name="postmarket_price_error">Post error %1$s %2$s</string>
+    <string name="postmarket_price_limited">Post limited %1$s %2$s</string>
+    <string name="postmarket_loading">Post loading</string>
+    <string name="postmarket_error">Post quote error</string>
+    <string name="postmarket_rate_limited">Post rate limited</string>
     <string name="icon_label">BNBs Finance</string>
 </resources>

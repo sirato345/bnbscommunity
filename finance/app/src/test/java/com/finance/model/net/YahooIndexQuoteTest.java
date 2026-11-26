@@ -68,4 +68,23 @@ public class YahooIndexQuoteTest {
                 500, 1000, 1300, 700, 999);
         assertFalse(invalid.isPremarket(800));
     }
+
+    @Test
+    public void postmarketUsesItsOwnSessionAndKeepsTheLastValidQuote() {
+        YahooIndexQuote market = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                1200, 1000, 1300, 700, 1000, 1300, 1600);
+        ExtendedHoursQuote quote = new ExtendedHoursQuote(103, 1400, 1300, 1600);
+        assertFalse(market.isPostmarket(1299));
+        assertTrue(market.isPostmarket(1300));
+        assertTrue(market.isPostmarket(1599));
+        assertFalse(market.isPostmarket(1600));
+        assertTrue(quote.isAvailable(1700));
+        assertFalse(quote.isAvailable(1299));
+        assertFalse(new ExtendedHoursQuote(103, 1600, 1300, 1600).isAvailable(1700));
+        assertFalse(quote.isStale(1520));
+        assertTrue(quote.isStale(1521));
+        YahooIndexQuote invalid = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                1200, 1000, 1300, 700, 1000, 1301, 1600);
+        assertFalse(invalid.isPostmarket(1400));
+    }
 }
