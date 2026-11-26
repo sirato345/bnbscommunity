@@ -80,6 +80,12 @@ public class MacdView  extends View {
     // ローソク線の情報
     private List<MacdInfo> macdList;
     private MacdDivergenceCalculator.Divergence[] macdDivergences;
+    private List<StickInfo> indicatorHistory;
+    private MacdCalculator.Series indicatorSeries;
+    private final Map<String, Integer> indicatorIndexByDate = new HashMap<>();
+    private final List<Integer> divergenceIndices = new ArrayList<>();
+    private int indicatorOffset;
+    private boolean indicatorInverted;
     // 正在拖动的背离线端点
     private String draggingDivergenceKey;
     private boolean draggingDivergenceStart;
@@ -119,18 +125,13 @@ public class MacdView  extends View {
         float endMacd;
         Point startPoint;
         Point endPoint;
+
     }
     private float[] kdjK;
     private float[] kdjD;
     private float[] kdjJ;
     // 最大表示ローソクの数
     private int maxStickCount;
-    // EMA快线的计算开始位置
-    private int start_Ema_Fast;
-    // EMA慢线的计算开始位置
-    private int start_Ema_Slow;
-    // 双线中的MACD线的计算开始位置
-    private int start_Macd;
     // 信号线的计算开始位置
     private int start_Signal;
     // 双线柱体的计算开始位置
@@ -181,6 +182,12 @@ public class MacdView  extends View {
     /* ローソク足のデータを設定し、MACD情報を自動計算させる */
     public void setData(ComnInfo comnInfo, List<StickInfo> stickList,
                         String symbol, String timeFrame, String macdType, String kLine) {
+        setData(comnInfo, stickList, stickList, symbol, timeFrame, macdType, kLine);
+    }
+
+    public void setData(ComnInfo comnInfo, List<StickInfo> stickList,
+                        List<StickInfo> history, String symbol, String timeFrame,
+                        String macdType, String kLine) {
         this.stickList = stickList;
         this.macdList = new ArrayList<>();
         this.sizeOfStick = stickList.size();
@@ -199,23 +206,42 @@ public class MacdView  extends View {
         this.macdType = macdType;
         this.kLine = kLine;
         this.comnInfo = comnInfo;
+        if (indicatorHistory != history || indicatorInverted != activity.isPriceAxisInverted()) {
+            calculateIndicatorHistory(history, activity.isPriceAxisInverted());
+        }
+        indicatorOffset = 0;
+        if (!stickList.isEmpty()) {
+            Integer index = indicatorIndexByDate.get(stickList.get(0).getDate());
+            if (index == null) {
+                throw new IllegalStateException("Visible candle is missing from indicator history");
+            }
+            indicatorOffset = index;
+        }
         // MACDオブジェクト生成
         for (int i = 0; i < sizeOfStick; i ++) {
             MacdInfo macdInfo = new MacdInfo(comnInfo);
             macdInfo.setAxisInverted(activity.isPriceAxisInverted());
             macdInfo.setDate(stickList.get(i).getDate());
+            int historyIndex = indicatorOffset + i;
+            if (historyIndex >= history.size()
+                    || !stickList.get(i).getDate().equals(history.get(historyIndex).getDate())) {
+                throw new IllegalStateException("Visible candles do not match indicator history");
+            }
+            macdInfo.setMacd(indicatorSeries.dif[historyIndex]);
+            macdInfo.setSignal(indicatorSeries.dea[historyIndex]);
+            if (historyIndex <= indicatorSeries.lastValidIndex) {
+                macdInfo.setMacd_osci(MacdCalculator.calculateHistogram(
+                        macdInfo.getMacd(), macdInfo.getSignal()));
+            }
             macdList.add(macdInfo);
         }
-        this.start_Ema_Fast = sizeOfStick - EMA_FAST;
-        this.start_Ema_Slow = sizeOfStick - EMA_SLOW;
-        this.start_Macd = sizeOfStick - EMA_SLOW;
-        this.start_Signal = sizeOfStick - EMA_SLOW - SIGNAL + 1;
-        this.start_Macd_Osci = sizeOfStick - EMA_SLOW - SIGNAL + 1;
+        this.start_Signal = Math.max(-1, Math.min(sizeOfStick - 1,
+                indicatorSeries.lastValidIndex - indicatorOffset));
+        this.start_Macd_Osci = start_Signal;
         // 画面表示最大のローソクの数
         this.maxStickCount = comnInfo.getMaxStickCount(stickList.size());
         updateVisibleFearGreedValues();
         this.calculate();
-        this.calculateMacdDivergences();
         this.calculateKdj();
         this.calculateSignals();
     }
@@ -290,21 +316,31 @@ public class MacdView  extends View {
         }
     }
 
-    private void calculateMacdDivergences() {
-        float[] highs = new float[sizeOfStick];
-        float[] lows = new float[sizeOfStick];
-        float[] macd = new float[sizeOfStick];
-        float[] signal = new float[sizeOfStick];
-        for (int i = 0; i < sizeOfStick; i++) {
-            highs[i] = stickList.get(i).getHigh();
-            lows[i] = stickList.get(i).getLow();
-            macd[i] = macdList.get(i).getMacd();
-            signal[i] = macdList.get(i).getSignal();
+    private void calculateIndicatorHistory(List<StickInfo> history, boolean inverted) {
+        int size = history.size();
+        float[] highs = new float[size];
+        float[] lows = new float[size];
+        float[] closes = new float[size];
+        indicatorIndexByDate.clear();
+        for (int i = 0; i < size; i++) {
+            StickInfo stick = history.get(i);
+            highs[i] = stick.getHigh();
+            lows[i] = stick.getLow();
+            closes[i] = stick.getClose();
+            indicatorIndexByDate.put(stick.getDate(), i);
         }
-        int lastValidIndex = Math.max(-1, Math.min(start_Macd_Osci, sizeOfStick - 1));
+        indicatorSeries = MacdCalculator.calculateSeries(closes, EMA_FAST, EMA_SLOW, SIGNAL);
         macdDivergences = MacdDivergenceCalculator.findDivergences(
-                highs, lows, macd, signal, macd, maxStickCount, lastValidIndex,
-                activity.isPriceAxisInverted());
+                highs, lows, indicatorSeries.dif, indicatorSeries.dea,
+                indicatorSeries.lastValidIndex, inverted);
+        divergenceIndices.clear();
+        for (int i = 0; i < size; i++) {
+            if (macdDivergences[i].getType() != MacdDivergenceCalculator.Type.NONE) {
+                divergenceIndices.add(i);
+            }
+        }
+        indicatorHistory = history;
+        indicatorInverted = inverted;
     }
 
     private void calculateKdj() {
@@ -336,94 +372,8 @@ public class MacdView  extends View {
 
     /* MACDの自身情報を計算 */
     private void calculate() {
-        this.calcEMA_Fast();
-        this.calcEMA_Slow();
-        this.calcMacd();
-        this.calcSignal();
-        this.calcMacd_osci();
         this.calcMaxValue();
         this.calcPosition();
-    }
-
-    /* 短期指数平滑移動平均線(EMA)計算 */
-    private void calcEMA_Fast() {
-        for (int i = start_Ema_Fast; i >= endOfStick; i--) {
-            StickInfo stickInfo = stickList.get(i);
-            MacdInfo macdInfo = macdList.get(i);
-            // EMAが最初かどうかを判断
-            if (i == start_Ema_Fast) {// 一番目
-                float simpleAvg = getSimpleAvg_EMA(start_Ema_Fast, EMA_FAST);
-                // 最初の日のEMAを単純移動平均で計算
-                macdInfo.setEmaFast(simpleAvg);
-            } else {// 二番目以降
-                MacdInfo macdBefore = macdList.get(i + 1);
-                float close = stickInfo.getClose();
-                // 指数平滑移動平均計算
-                float emaBefore = macdBefore.getEmaFast();
-                float emaCurrent = getCurrentEMA(close, EMA_FAST, emaBefore);
-                macdInfo.setEmaFast(emaCurrent);
-            }
-        }
-    }
-
-    /* 長期指数平滑移動平均線(EMA) */
-    private void calcEMA_Slow() {
-        for (int i = start_Ema_Slow; i >= endOfStick; i--) {
-            StickInfo stickInfo = stickList.get(i);
-            MacdInfo macdInfo = macdList.get(i);
-            // EMAが最初かどうかを判断
-            if (i == start_Ema_Slow) {// 一番目
-                float simpleAvg = getSimpleAvg_EMA(start_Ema_Slow, EMA_SLOW);
-                // 最初の日のEMAを単純移動平均で計算
-                macdInfo.setEmaSlow(simpleAvg);
-            } else {// 二番目以降
-                MacdInfo macdBefore = macdList.get(i + 1);
-                float close = stickInfo.getClose();
-                // 指数平滑移動平均計算
-                float emaBefore = macdBefore.getEmaSlow();
-                float emaCurrent = getCurrentEMA(close, EMA_SLOW, emaBefore);
-                macdInfo.setEmaSlow(emaCurrent);
-            }
-        }
-    }
-
-    /* MACD = EMA(FAST) - EMA(SLOW) */
-    private void calcMacd() {
-        for (int i = start_Macd; i >= endOfStick; i--) {
-            MacdInfo macdInfo = macdList.get(i);
-            float macd = MacdCalculator.calculateMacd(
-                    macdInfo.getEmaFast(), macdInfo.getEmaSlow());
-            macdInfo.setMacd(macd);
-        }
-    }
-
-    /* シグナル = MACDの指数平滑化移動平均 */
-    private void calcSignal() {
-        for (int i = start_Signal; i >= endOfStick; i--) {
-            MacdInfo macdInfo = macdList.get(i);
-            // EMAが最初かどうかを判断
-            if (i == start_Signal) {// 一番目
-                // 最初の日のEMAを単純移動平均で計算
-                macdInfo.setSignal(getSimpleAvg_Signal());
-            } else {// 二番目以降
-                MacdInfo macdBefore = macdList.get(i + 1);
-                float macd = macdInfo.getMacd();
-                // 指数平滑移動平均計算
-                float signalBefore = macdBefore.getSignal();
-                float signalCurrent = getCurrentEMA(macd, SIGNAL, signalBefore);
-                macdInfo.setSignal(signalCurrent);
-            }
-        }
-    }
-
-    /* MACD柱体(MACD－シグナル) */
-    private void calcMacd_osci() {
-        for (int i = start_Macd_Osci; i >= endOfStick; i--) {
-            MacdInfo macdInfo = macdList.get(i);
-            float macd_osci = MacdCalculator.calculateHistogram(
-                    macdInfo.getMacd(), macdInfo.getSignal());
-            macdInfo.setMacd_osci(macd_osci);
-        }
     }
 
     /* MACDとシグナル絶対最大値を取得 */
@@ -448,29 +398,6 @@ public class MacdView  extends View {
             MacdInfo macdInfo = macdList.get(i);
             macdInfo.calculate(stickInfo);
         }
-    }
-
-    /* 終値の平均値を計算 */
-    private float getSimpleAvg_EMA(int start, int period) {
-        float sumValue = 0f;
-        for (int i = sizeOfStick - 1; i >= start; i--) {
-            sumValue = sumValue + stickList.get(i).getClose();
-        }
-        return sumValue / period;
-    }
-
-    /* MACDの平均値を計算 */
-    private float getSimpleAvg_Signal() {
-        float sumValue = 0f;
-        for (int i = start_Ema_Slow; i >= start_Signal; i--) {
-            sumValue = sumValue + macdList.get(i).getMacd();
-        }
-        return sumValue / SIGNAL;
-    }
-
-    /* 指数平滑移動平均計算 */
-    private float getCurrentEMA(float close, int peroid, float emaBefore) {
-        return MacdCalculator.calculateNextEma(close, peroid, emaBefore);
     }
 
     @Override
@@ -1333,7 +1260,7 @@ public class MacdView  extends View {
                     endPoint = dragged;
                 }
             }
-            paint.setColor(isTop ? Color.rgb(255, 82, 82) : Color.GREEN);
+            paint.setColor(isTop ? StickInfo.FALLING_COLOR : Color.GREEN);
             paint.getTextBounds(line.label, 0, line.label.length(), textBounds);
             float baseline = isTop
                     ? endPoint.y - gap - textBounds.bottom
@@ -1351,24 +1278,16 @@ public class MacdView  extends View {
     /* 自动计算的背离线，叠加用户手动调整过的端点 */
     private List<DivergenceLine> buildDivergenceLines() {
         List<DivergenceLine> lines = new ArrayList<>();
-        if (macdDivergences == null) {
+        if (macdDivergences == null || maxStickCount == 0 || start_Signal < 0) {
             return lines;
         }
         SharedPreferences prefs = getContext()
                 .getSharedPreferences(DIVERGENCE_PREFS, Context.MODE_PRIVATE);
-        Map<String, Integer> indexByDate = new HashMap<>();
-        for (int i = 0; i < macdList.size(); i++) {
-            indexByDate.put(macdList.get(i).getDate(), i);
-        }
-        int count = Math.min(maxStickCount, macdDivergences.length);
-        for (int i = 0; i < count; i++) {
+        for (int i : divergenceIndices) {
             MacdDivergenceCalculator.Divergence divergence = macdDivergences[i];
             MacdDivergenceCalculator.Type type = divergence.getType();
-            if (type == MacdDivergenceCalculator.Type.NONE) {
-                continue;
-            }
             DivergenceLine line = new DivergenceLine();
-            line.key = symbol + "|" + timeFrame + "|" + macdList.get(i).getDate();
+            line.key = symbol + "|" + timeFrame + "|" + indicatorHistory.get(i).getDate();
             line.isTop = type == MacdDivergenceCalculator.Type.TOP
                     || type == MacdDivergenceCalculator.Type.TOP_DEATH_CROSS;
             if (line.isTop) {
@@ -1378,13 +1297,13 @@ public class MacdView  extends View {
                 line.label = type == MacdDivergenceCalculator.Type.BOTTOM_GOLDEN_CROSS
                         ? "金叉底背离" : "底背离";
             }
-            line.startIndex = divergence.getComparisonIndex();
-            line.endIndex = i;
-            line.startDate = macdList.get(line.startIndex).getDate();
-            line.endDate = macdList.get(i).getDate();
-            line.startMacd = macdList.get(line.startIndex).getMacd();
-            line.endMacd = macdList.get(i).getMacd();
-            int referenceIndex = i;
+            int previous = divergence.getComparisonIndex();
+            line.startIndex = previous - indicatorOffset;
+            line.endIndex = i - indicatorOffset;
+            line.startDate = indicatorHistory.get(previous).getDate();
+            line.endDate = indicatorHistory.get(i).getDate();
+            line.startMacd = indicatorSeries.dif[previous];
+            line.endMacd = indicatorSeries.dif[i];
             String saved = prefs.getString(line.key, null);
             if (DIVERGENCE_DELETED.equals(saved)) {
                 continue;
@@ -1392,40 +1311,34 @@ public class MacdView  extends View {
             if (saved != null) {
                 String[] fields = saved.split("\\|", -1);
                 try {
-                    Integer start = indexByDate.get(fields[0]);
-                    Integer end = indexByDate.get(fields[1]);
-                    boolean startVisible = start != null && start < maxStickCount;
-                    boolean endVisible = end != null && end < maxStickCount;
+                    if (fields.length != 5) {
+                        throw new IllegalArgumentException("Invalid field count");
+                    }
+                    Integer start = indicatorIndexByDate.get(fields[0]);
+                    Integer end = indicatorIndexByDate.get(fields[1]);
                     int span = Integer.parseInt(fields[4]);
-                    if (!startVisible && !endVisible) {
-                        // 两端都已滑出屏幕
-                        continue;
+                    float startValue = Float.parseFloat(fields[2]);
+                    float endValue = Float.parseFloat(fields[3]);
+                    if (!Float.isFinite(startValue) || !Float.isFinite(endValue)
+                            || (start == null && end == null)) {
+                        throw new IllegalArgumentException("Invalid saved endpoints");
                     }
                     line.startDate = fields[0];
                     line.endDate = fields[1];
-                    line.startMacd = Float.parseFloat(fields[2]);
-                    line.endMacd = Float.parseFloat(fields[3]);
-                    if (startVisible) {
-                        line.startIndex = start;
-                        line.endIndex = endVisible ? end : start - span;
-                        referenceIndex = start;
-                    } else {
-                        line.endIndex = end;
-                        line.startIndex = end + span;
-                        referenceIndex = end;
-                    }
-                } catch (RuntimeException e) {
-                    // 保存的数据不可用时，恢复自动计算的位置
-                    line.startIndex = divergence.getComparisonIndex();
-                    line.endIndex = i;
-                    line.startDate = macdList.get(line.startIndex).getDate();
-                    line.endDate = macdList.get(i).getDate();
-                    line.startMacd = macdList.get(line.startIndex).getMacd();
-                    line.endMacd = macdList.get(i).getMacd();
-                    referenceIndex = i;
+                    line.startMacd = startValue;
+                    line.endMacd = endValue;
+                    line.startIndex = (start != null ? start : end + span) - indicatorOffset;
+                    line.endIndex = (end != null ? end : start - span) - indicatorOffset;
+                } catch (IllegalArgumentException e) {
+                    LogWriter.getInstance(activity).error(
+                            "Invalid saved divergence line: " + line.key, e);
                 }
             }
-            resolveDivergencePoints(line, referenceIndex);
+            if (Math.max(line.startIndex, line.endIndex) < 0
+                    || Math.min(line.startIndex, line.endIndex) >= maxStickCount) {
+                continue;
+            }
+            resolveDivergencePoints(line, 0);
             lines.add(line);
         }
         return lines;
@@ -1438,16 +1351,14 @@ public class MacdView  extends View {
         int stickWidth = comnInfo.getStickWidth();
         line.startPoint = new Point(
                 referenceRect.centerX() - (line.startIndex - referenceIndex) * stickWidth,
-                getPivotY(referenceInfo, line.startMacd, line.isTop));
+                getPivotY(referenceInfo, line.startMacd));
         line.endPoint = new Point(
                 referenceRect.centerX() - (line.endIndex - referenceIndex) * stickWidth,
-                getPivotY(referenceInfo, line.endMacd, line.isTop));
+                getPivotY(referenceInfo, line.endMacd));
     }
 
-    private int getPivotY(MacdInfo info, float macd, boolean isTop) {
-        boolean actualTop = isTop != activity.isPriceAxisInverted();
-        boolean useValue = actualTop ? macd >= 0f : macd < 0f;
-        return info.getYPoint(useValue ? macd : 0f);
+    private int getPivotY(MacdInfo info, float macd) {
+        return info.getYPoint(macd);
     }
 
     private float macdOffsetY() {

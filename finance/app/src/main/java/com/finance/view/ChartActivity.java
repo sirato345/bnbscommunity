@@ -102,6 +102,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private String candleDatesKey;
     private List<String> candleDates;
     private CandleDateIndex candleDateIndex;
+    private String indicatorHistoryKey;
+    private List<StickInfo> indicatorHistory;
     private String intradayInterval;
     private final List<String> intradayRecords = new ArrayList<>();
     private boolean intradayLoading;
@@ -371,6 +373,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         handler.postDelayed(indexRefreshRunnable, INDEX_REFRESH_INTERVAL_MS);
         if (intradayInterval == null) {
             controller.calculateWMQY(symbol);
+            indicatorHistory = null;
         }
         // DBからデータを取得し、UIに表示
         this.showUI();
@@ -603,6 +606,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         } else {// 平均K線図
             stickList = getSticksOfAvgKLine(this.timeFrame);
         }
+        if (candleDatesKey == null) {
+            indicatorHistory = null;
+        }
         updateCandleDateIndex(stickList);
         List<TrendLine> trendLines = this.loadTrendLines();
         List<StickInfo> fearGreedSarHistory = null;
@@ -614,7 +620,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
             stickView.setSarHistory(fearGreedSarHistory);
         }
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
-        macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
+        macdView.setData(comnInfo, stickList, getIndicatorHistory(displayedTimeFrame),
+                symbol, displayedTimeFrame, macd, kLine);
         macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
         macdView.setMacdLines(loadTrendLines(getTrendLineTimeFrame() + "@macd"));
         setImageView();
@@ -761,6 +768,45 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return records;
     }
 
+    private List<StickInfo> getIndicatorHistory(String displayedTimeFrame) {
+        String key = symbol + "|" + displayedTimeFrame + "|" + kLine;
+        if (indicatorHistory != null && key.equals(indicatorHistoryKey)) {
+            return indicatorHistory;
+        }
+        List<Object[]> records = new ArrayList<>();
+        if (intradayInterval != null) {
+            for (String record : intradayRecords) {
+                String[] fields = record.split(",", -1);
+                if (fields.length != 6) {
+                    continue;
+                }
+                records.add(new Object[] {fields[1], Float.parseFloat(fields[2]),
+                        Float.parseFloat(fields[3]), Float.parseFloat(fields[4]),
+                        Float.parseFloat(fields[5])});
+            }
+        } else {
+            int count = controller.getDataCount(symbol, timeFrame);
+            records = controller.getData(symbol, timeFrame, count);
+            applyRealtimeCandle(records, timeFrame, true);
+        }
+        if (!kLine.equals(Const.K_Line.Normal.toString())) {
+            indicatorHistory = calSticksOfAvgKLine(getSimpleAverage(records));
+        } else {
+            indicatorHistory = new ArrayList<>(records.size());
+            for (Object[] record : records) {
+                StickInfo stick = new StickInfo(comnInfo);
+                stick.setDate((String) record[0]);
+                stick.setOpen((float) record[1]);
+                stick.setHigh((float) record[2]);
+                stick.setLow((float) record[3]);
+                stick.setClose((float) record[4]);
+                indicatorHistory.add(stick);
+            }
+        }
+        indicatorHistoryKey = key;
+        return indicatorHistory;
+    }
+
     private int getChartDataCount(int visibleCount, boolean averageKLine) {
         int requiredCount = visibleCount;
         if (averageKLine) {
@@ -825,6 +871,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             == NetConnectorBinanceIntraday.PAGE_SIZE && added > 0;
                     if (added > 0) {
                         candleDatesKey = null;
+                        indicatorHistory = null;
                     }
                     showUI();
                 });
@@ -926,6 +973,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             indexQuote = quote;
             indexQuoteFailed = false;
             if (changed) {
+                indicatorHistory = null;
                 showUI();
             } else {
                 macdView.invalidate();
@@ -1092,6 +1140,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
             if (intradayInterval != null) {
                 if (upsertIntradayRealtimeRecord(record)) {
+                    indicatorHistory = null;
                     LogWriter.getInstance(this).log(
                             "Binance realtime candle updated: " + requestedSymbol
                                     + " " + requestedInterval);
@@ -1103,6 +1152,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     candleDatesKey = null;
                 }
                 realtimeCandle = record;
+                indicatorHistory = null;
                 LogWriter.getInstance(this).log(
                         "Binance realtime candle updated: " + requestedSymbol
                                 + " " + requestedInterval);
@@ -1153,11 +1203,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     }
 
     private void applyRealtimeCandle(List<Object[]> records, String selectedTimeFrame) {
+        applyRealtimeCandle(records, selectedTimeFrame, false);
+    }
+
+    private void applyRealtimeCandle(List<Object[]> records, String selectedTimeFrame,
+                                     boolean fullHistory) {
         if (isUsIndexSymbol()) {
-            applyIndexCandle(records, selectedTimeFrame);
+            applyIndexCandle(records, selectedTimeFrame, fullHistory);
             return;
         }
-        if (realtimeCandle == null || !isCryptoSymbol() || offset > Const.DEFAULT_OFFSET
+        if (realtimeCandle == null || !isCryptoSymbol()
+                || (!fullHistory && offset > Const.DEFAULT_OFFSET)
                 || !isBinanceTimeFrame(selectedTimeFrame)) {
             return;
         }
@@ -1203,8 +1259,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
     }
 
-    private void applyIndexCandle(List<Object[]> records, String selectedTimeFrame) {
-        if (indexQuote == null || offset > Const.DEFAULT_OFFSET
+    private void applyIndexCandle(List<Object[]> records, String selectedTimeFrame,
+                                  boolean fullHistory) {
+        if (indexQuote == null || (!fullHistory && offset > Const.DEFAULT_OFFSET)
                 || !isBinanceTimeFrame(selectedTimeFrame)) {
             return;
         }

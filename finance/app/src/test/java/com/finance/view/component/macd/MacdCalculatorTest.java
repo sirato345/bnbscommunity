@@ -25,4 +25,30 @@ public class MacdCalculatorTest {
     public void calculatesNegativeHistogramWhenSignalExceedsMacd() {
         assertEquals(-2f, MacdCalculator.calculateHistogram(1f, 3f), 0f);
     }
+
+    @Test
+    public void calculatesSeriesWithExistingSmaSeedsAndNewestFirstOrder() {
+        float[] closes = new float[36];
+        for (int i = 0; i < closes.length; i++) {
+            closes[i] = 36 - i;
+        }
+        closes[0] = 100f;
+        MacdCalculator.Series series = MacdCalculator.calculateSeries(closes, 12, 26, 9);
+        assertEquals(2, series.lastValidIndex);
+        assertEquals(7f, series.dif[1], 0.0001f);
+        assertEquals(7f, series.dea[1], 0.0001f);
+        assertEquals(12.105413f, series.dif[0], 0.0001f);
+        assertEquals(8.021083f, series.dea[0], 0.0001f);
+    }
+
+    @Test
+    public void preservesDifBeforeEnoughBarsForSignal() {
+        float[] closes = new float[30];
+        for (int i = 0; i < closes.length; i++) {
+            closes[i] = 30 - i;
+        }
+        MacdCalculator.Series series = MacdCalculator.calculateSeries(closes, 12, 26, 9);
+        assertEquals(-1, series.lastValidIndex);
+        assertEquals(7f, series.dif[0], 0.0001f);
+    }
 }

@@ -1,22 +1,21 @@
 package com.finance.view.component.macd;
 
-public final class MacdDivergenceCalculator {
+import java.util.Arrays;
 
+public final class MacdDivergenceCalculator {
     public enum Type {
-        NONE,
-        TOP,
-        TOP_DEATH_CROSS,
-        BOTTOM,
-        BOTTOM_GOLDEN_CROSS
+        NONE, TOP, TOP_DEATH_CROSS, BOTTOM, BOTTOM_GOLDEN_CROSS
     }
 
     public static final class Divergence {
         private final Type type;
         private final int comparisonIndex;
+        private final int confirmationIndex;
 
-        private Divergence(Type type, int comparisonIndex) {
+        private Divergence(Type type, int comparisonIndex, int confirmationIndex) {
             this.type = type;
             this.comparisonIndex = comparisonIndex;
+            this.confirmationIndex = confirmationIndex;
         }
 
         public Type getType() {
@@ -26,163 +25,50 @@ public final class MacdDivergenceCalculator {
         public int getComparisonIndex() {
             return comparisonIndex;
         }
+
+        public int getConfirmationIndex() {
+            return confirmationIndex;
+        }
     }
 
-    private static final int PIVOT_RADIUS = 3;
-    private static final int MIN_PIVOT_DISTANCE = 10;
+    private static final Divergence NONE = new Divergence(Type.NONE, -1, -1);
 
     private MacdDivergenceCalculator() {
     }
 
-    static Divergence[] findDivergences(float[] prices,
-                                        float[] macd, float[] signal,
-                                        float[] histogram,
-                                        int visibleCount, int lastValidIndex) {
-        return findDivergences(prices, prices, macd, signal, histogram,
-                visibleCount, lastValidIndex);
-    }
-
-    /* 顶背离比较最高价，底背离比较最低价 */
+    // Arrays are newest first. A turn at i + 1 becomes known at i.
     public static Divergence[] findDivergences(float[] highs, float[] lows,
-                                               float[] macd, float[] signal,
-                                               float[] histogram,
-                                               int visibleCount, int lastValidIndex) {
-        if (highs.length != lows.length || highs.length != macd.length
-                || highs.length != signal.length || highs.length != histogram.length) {
+                                               float[] dif, float[] dea,
+                                               int lastValidIndex, boolean inverted) {
+        int size = highs.length;
+        if (lows.length != size || dif.length != size || dea.length != size) {
             throw new IllegalArgumentException("Input arrays must have the same length");
         }
-        Divergence[] divergences = new Divergence[highs.length];
-        for (int i = 0; i < divergences.length; i++) {
-            divergences[i] = new Divergence(Type.NONE, -1);
+        if (lastValidIndex < -1 || lastValidIndex >= size) {
+            throw new IllegalArgumentException("Invalid last valid index");
         }
-        if (visibleCount < 0 || visibleCount > highs.length
-                || lastValidIndex < -1 || lastValidIndex >= highs.length) {
-            throw new IllegalArgumentException("Visible range is outside the input arrays");
-        }
-
-        int oldestVisibleIndex = Math.min(visibleCount - 1, lastValidIndex);
-        int previousHighIndex = -1;
-        int previousLowIndex = -1;
-        for (int i = oldestVisibleIndex - PIVOT_RADIUS; i >= PIVOT_RADIUS; i--) {
-            if (histogram[i] > 0f && isPivotHigh(histogram, i)) {
-                if (previousHighIndex >= 0
-                        && previousHighIndex - i >= MIN_PIVOT_DISTANCE) {
-                    if (areInverselyRelated(
-                            histogram[previousHighIndex], histogram[i],
-                            highs[previousHighIndex], highs[i])
-                            && isFirstHistogramLonger(
-                                    histogram[previousHighIndex], histogram[i])) {
-                        Type type = hasDeathCrossAfter(i, macd, signal)
-                                ? Type.TOP_DEATH_CROSS : Type.TOP;
-                        divergences[i] = new Divergence(type, previousHighIndex);
-                    }
+        Divergence[] result = new Divergence[size];
+        Arrays.fill(result, NONE);
+        int previousHigh = -1;
+        int previousLow = -1;
+        for (int confirmation = lastValidIndex - 2; confirmation >= 0; confirmation--) {
+            int pivot = confirmation + 1;
+            if (dea[pivot] > dea[pivot + 1] && dea[pivot] > dea[confirmation]) {
+                if (previousHigh >= 0 && highs[pivot] > highs[previousHigh]
+                        && dif[pivot] < dif[previousHigh]) {
+                    result[pivot] = new Divergence(inverted ? Type.BOTTOM : Type.TOP,
+                            previousHigh, confirmation);
                 }
-                previousHighIndex = i;
-            }
-            if (histogram[i] < 0f && isPivotLow(histogram, i)) {
-                if (previousLowIndex >= 0
-                        && previousLowIndex - i >= MIN_PIVOT_DISTANCE) {
-                    if (areInverselyRelated(
-                            histogram[previousLowIndex], histogram[i],
-                            lows[previousLowIndex], lows[i])
-                            && isFirstHistogramLonger(
-                                    histogram[previousLowIndex], histogram[i])) {
-                        Type type = hasGoldenCrossAfter(i, macd, signal)
-                                ? Type.BOTTOM_GOLDEN_CROSS : Type.BOTTOM;
-                        divergences[i] = new Divergence(type, previousLowIndex);
-                    }
+                previousHigh = pivot;
+            } else if (dea[pivot] < dea[pivot + 1] && dea[pivot] < dea[confirmation]) {
+                if (previousLow >= 0 && lows[pivot] < lows[previousLow]
+                        && dif[pivot] > dif[previousLow]) {
+                    result[pivot] = new Divergence(inverted ? Type.TOP : Type.BOTTOM,
+                            previousLow, confirmation);
                 }
-                previousLowIndex = i;
+                previousLow = pivot;
             }
         }
-        return divergences;
-    }
-
-    public static Divergence[] findDivergences(float[] highs, float[] lows,
-                                               float[] macd, float[] signal,
-                                               float[] histogram, int visibleCount,
-                                               int lastValidIndex, boolean inverted) {
-        Divergence[] divergences = findDivergences(highs, lows, macd, signal, histogram,
-                visibleCount, lastValidIndex);
-        if (inverted) {
-            for (int i = 0; i < divergences.length; i++) {
-                Divergence divergence = divergences[i];
-                Type type = divergence.type;
-                switch (type) {
-                    case TOP:
-                        type = Type.BOTTOM;
-                        break;
-                    case TOP_DEATH_CROSS:
-                        type = Type.BOTTOM_GOLDEN_CROSS;
-                        break;
-                    case BOTTOM:
-                        type = Type.TOP;
-                        break;
-                    case BOTTOM_GOLDEN_CROSS:
-                        type = Type.TOP_DEATH_CROSS;
-                        break;
-                    default:
-                        break;
-                }
-                if (type != divergence.type) {
-                    divergences[i] = new Divergence(type, divergence.comparisonIndex);
-                }
-            }
-        }
-        return divergences;
-    }
-
-    private static boolean isFirstHistogramLonger(float first, float second) {
-        return Math.abs(first) > Math.abs(second);
-    }
-
-    private static boolean areInverselyRelated(float firstMacd, float secondMacd,
-                                               float firstPrice, float secondPrice) {
-        return (firstMacd < secondMacd && firstPrice > secondPrice)
-                || (firstMacd > secondMacd && firstPrice < secondPrice);
-    }
-
-    private static boolean hasDeathCrossAfter(int peakIndex, float[] macd, float[] signal) {
-        for (int i = peakIndex - 1; i >= 0; i--) {
-            if (macd[i] < signal[i] && macd[i + 1] >= signal[i + 1]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean hasGoldenCrossAfter(int troughIndex, float[] macd, float[] signal) {
-        for (int i = troughIndex - 1; i >= 0; i--) {
-            if (macd[i] > signal[i] && macd[i + 1] <= signal[i + 1]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isPivotHigh(float[] values, int index) {
-        if (index < PIVOT_RADIUS || index + PIVOT_RADIUS >= values.length) {
-            return false;
-        }
-        for (int offset = 1; offset <= PIVOT_RADIUS; offset++) {
-            if (values[index] <= values[index - offset]
-                    || values[index] <= values[index + offset]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isPivotLow(float[] values, int index) {
-        if (index < PIVOT_RADIUS || index + PIVOT_RADIUS >= values.length) {
-            return false;
-        }
-        for (int offset = 1; offset <= PIVOT_RADIUS; offset++) {
-            if (values[index] >= values[index - offset]
-                    || values[index] >= values[index + offset]) {
-                return false;
-            }
-        }
-        return true;
+        return result;
     }
 }
