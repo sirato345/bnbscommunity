@@ -49,6 +49,22 @@ public class FearGreedAlignmentTest {
         assertFalse(FearGreedAlignment.supports("4h"));
     }
 
+    @Test
+    public void recognizesAdjacentPeriodsAndMissingPeriods() {
+        String[][] cases = {
+                {"d", "20260101", "20251231", "20251230"},
+                {"3d", "19700104", "19700101", "19691229"},
+                {"w", "20261115", "20261108", "20261101"},
+                {"m", "20260331", "20260228", "20260131"},
+                {"q", "20260331", "20251231", "20250930"},
+                {"y", "20261231", "20251231", "20241231"}
+        };
+        for (String[] item : cases) {
+            assertTrue(item[0], FearGreedAlignment.isPreviousPeriod(item[1], item[2], item[0]));
+            assertFalse(item[0], FearGreedAlignment.isPreviousPeriod(item[1], item[3], item[0]));
+        }
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void rejectsMalformedRecords() {
         FearGreedAlignment.latestByPeriod(Arrays.asList("not-a-date,1,1,1,1"), "d");

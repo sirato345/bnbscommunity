@@ -119,9 +119,11 @@ public class Model {
         }
     }
 
-    public void loadBmnrPremarket(@NonNull NetConnectorBmnrPremarket.Callback callback) {
+    public void loadBmnrPremarket(boolean includeHistory,
+                                  @NonNull NetConnectorBmnrPremarket.Callback callback) {
         try {
-            new NetConnectorBmnrPremarket(callback).executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
+            new NetConnectorBmnrPremarket(includeHistory, callback)
+                    .executeOnExecutor(BINANCE_REALTIME_EXECUTOR);
         } catch (RuntimeException e) {
             LogWriter.getInstance(view).error("BMNR premarket request setup failed", e);
             callback.onComplete(null, "BMNR premarket request setup failed");

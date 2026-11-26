@@ -50,6 +50,35 @@ public final class FearGreedAlignment {
         return periodKey(LocalDate.parse(date.replace("-", ""), DATE), timeframe);
     }
 
+    public static boolean isPreviousPeriod(String currentDate, String previousDate,
+                                           String timeframe) {
+        LocalDate date = LocalDate.parse(currentDate.replace("-", ""), DATE);
+        LocalDate previous;
+        switch (timeframe) {
+            case "d":
+                previous = date.minusDays(1);
+                break;
+            case "3d":
+                previous = date.minusDays(3);
+                break;
+            case "w":
+                previous = date.minusWeeks(1);
+                break;
+            case "m":
+                previous = date.minusMonths(1);
+                break;
+            case "q":
+                previous = date.minusMonths(3);
+                break;
+            case "y":
+                previous = date.minusYears(1);
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+        }
+        return periodKey(previous, timeframe).equals(periodKey(previousDate, timeframe));
+    }
+
     private static String periodKey(LocalDate date, String timeframe) {
         switch (timeframe) {
             case "d":

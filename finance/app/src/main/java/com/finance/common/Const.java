@@ -47,8 +47,8 @@ public class Const {
 
     // 文字サイズ
     public static final int FONT_SIZE = 40;
-    // 恐慌指数画面的白色背景
-    public static final int FEAR_GREED_BACKGROUND = 0xFFFFFFFF;
+    // 恐慌指数画面的背景
+    public static final int FEAR_GREED_BACKGROUND = 0xFF000000;
 
     // 文字サイズ
     public static final int FONT_SIZE_MIDDLE = 42;

@@ -82,7 +82,7 @@ public class DateView extends View {
             canvas.drawRect(0, 0, getWidth(), getHeight(), background);
         }
         Paint paint = new Paint();
-        paint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
+        paint.setColor(Color.WHITE);
         paint.setStrokeWidth(4);
         paint.setAntiAlias(true);
         paint.setTextSize(Const.FONT_SIZE);

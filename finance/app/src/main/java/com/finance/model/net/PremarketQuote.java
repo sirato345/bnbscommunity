@@ -19,6 +19,13 @@ public final class PremarketQuote {
                 && quoteTime >= sessionStart && quoteTime < sessionEnd;
     }
 
+    public boolean isAvailable(long nowSeconds) {
+        return Float.isFinite(price) && price > 0 && sessionStart > 0
+                && sessionEnd > sessionStart && nowSeconds >= sessionStart
+                && quoteTime >= sessionStart && quoteTime < sessionEnd
+                && quoteTime <= nowSeconds + 60;
+    }
+
     public boolean isStale(long nowSeconds) {
         return quoteTime > nowSeconds + 60 || nowSeconds - quoteTime > 120;
     }

@@ -62,6 +62,7 @@ public class StickView extends View {
     private static final int BOLL_MIDDLE_COLOR = Color.YELLOW;
     private static final int BOLL_OUTER_COLOR = Color.rgb(64, 196, 255);
     private static final String[] INDICATOR_LABELS = {"10", "20", "50", "200", "SAR", "BOLL"};
+    public static final int SAR_CONTROL = 4;
     public static final int ERASER_CONTROL = 6;
     // 画面表示最大のローソクの数
     private int maxStickCount;
@@ -155,10 +156,6 @@ public class StickView extends View {
 
     public void setSarHistory(List<StickInfo> sticks) {
         calculateSar(sticks);
-    }
-
-    public Float getSarValue(String date) {
-        return sarValuesByDate.get(date);
     }
 
     /* ローソク足の自身情報を計算 */
@@ -1054,40 +1051,41 @@ public class StickView extends View {
         if (activity.isFearGreedSymbol()) {
             this.drawFearGreedBands(canvas);
             this.drawFearGreedLine(canvas);
-            if (activity.isFearGreedSarDisp) {
-                this.drawSar(canvas, true);
-            }
-            this.drawTouchedLine(canvas);
-            this.drawTrandLine(canvas);
-            return;
+        } else {
+            this.drawStick(canvas);
         }
-        this.drawStick(canvas);
-        if(activity.isAvg10Disp) {
+        if (activity.isAverageDisplayed(0)) {
             this.drawAverageLine(canvas, average10, Color.CYAN);
         }
-        if(activity.isAvg20Disp) {
+        if (activity.isAverageDisplayed(1)) {
             this.drawAverageLine(canvas, average20, Color.YELLOW);
         }
-        if(activity.isAvg50Disp) {
+        if (activity.isAverageDisplayed(2)) {
             this.drawAverageLine(canvas, average50, Color.parseColor("#FFA500"));
         }
-        if (activity.isAvg200Disp) {
+        if (activity.isAverageDisplayed(3)) {
             this.drawAverageLine(canvas, average200, Color.MAGENTA);
         }
-        if (activity.isSarDisp) {
+        if (activity.isFearGreedSymbol() && activity.isFearGreedSarDisp) {
+            this.drawSar(canvas, true);
+        } else if (!activity.isFearGreedSymbol() && activity.isSarDisp) {
             this.drawSar(canvas);
         }
-        if (activity.isBollDisp) {
+        if (activity.isFearGreedSymbol() ? activity.isFearGreedBollDisp : activity.isBollDisp) {
             this.drawBollingerBands(canvas);
         }
-        this.drawText(canvas);
+        if (!activity.isFearGreedSymbol()) {
+            this.drawText(canvas);
+        }
         this.drawTouchedLine(canvas);
         this.drawTrandLine(canvas);
-        this.drawTDtdSequential(canvas);
+        if (!activity.isFearGreedSymbol()) {
+            this.drawTDtdSequential(canvas);
+        }
         this.drawIndicatorControls(canvas);
     }
 
-    /* 贪婪恐慌指数：黑底，80以上淡绿、20以下淡红，上下边界（100/0）各画一条白线 */
+    /* 贪婪恐慌指数：黑底，80以上淡绿、20以下淡红 */
     private void drawFearGreedBands(Canvas canvas) {
         if (stickList == null || stickList.isEmpty()) {
             return;
@@ -1099,10 +1097,14 @@ public class StickView extends View {
         int width = comnInfo.getScreenWidth();
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.parseColor("#1100C07A"));
-        canvas.drawRect(0, latest.getYPoint(100), width, latest.getYPoint(80), paint);
-        paint.setColor(Color.parseColor("#11FF3B3B"));
-        canvas.drawRect(0, latest.getYPoint(20), width, latest.getYPoint(0), paint);
+        float y100 = latest.getYPoint(100);
+        float y80 = latest.getYPoint(80);
+        float y20 = latest.getYPoint(20);
+        float y0 = latest.getYPoint(0);
+        paint.setColor(Color.parseColor("#3300C07A"));
+        canvas.drawRect(0, Math.min(y100, y80), width, Math.max(y100, y80), paint);
+        paint.setColor(Color.parseColor("#33FF3B3B"));
+        canvas.drawRect(0, Math.min(y20, y0), width, Math.max(y20, y0), paint);
         paint.setColor(Color.DKGRAY);
         paint.setStrokeWidth(2);
         canvas.drawLine(0, latest.getYPoint(100), width, latest.getYPoint(100), paint);
@@ -1117,6 +1119,7 @@ public class StickView extends View {
             path.lineTo(width, latest.getYPoint(v));
             canvas.drawPath(path, dash);
         }
+        paint.setColor(Color.LTGRAY);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.RIGHT);
         float margin = 4 * getResources().getDisplayMetrics().density;
@@ -1366,7 +1369,8 @@ public class StickView extends View {
                 Color.MAGENTA, sarColor, BOLL_OUTER_COLOR};
         for (int i = 0; i < INDICATOR_LABELS.length; i++) {
             paint.setColor(colors[i]);
-            canvas.drawText(INDICATOR_LABELS[i], layout.getStart(i), indicatorBaseline(paint), paint);
+            canvas.drawText(INDICATOR_LABELS[i], layout.getStart(i),
+                    indicatorBaseline(paint), paint);
         }
         drawEraser(canvas, layout.getStart(ERASER_CONTROL), indicatorBaseline(paint), paint);
     }
@@ -1416,8 +1420,7 @@ public class StickView extends View {
         getLocationOnScreen(location);
         float x = event.getRawX() - location[0];
         float y = event.getRawY() - location[1];
-        if (x < 0 || y < 0 || stickList == null || stickList.isEmpty()
-                || activity.isFearGreedSymbol()) {
+        if (x < 0 || y < 0 || stickList == null || stickList.isEmpty()) {
             return -1;
         }
         Paint paint = indicatorPaint();
@@ -1437,7 +1440,7 @@ public class StickView extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(3);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
-        paint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
+        paint.setColor(Color.WHITE);
         if (touchPoint.y <= comnInfo.getStickHeight()) {
             if (currentValue != null) {
                 // 价格线

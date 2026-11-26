@@ -53,6 +53,10 @@ public class YahooIndexQuoteTest {
         assertFalse(market.isPremarket(699));
         assertTrue(market.isPremarket(700));
         assertTrue(quote.isCurrent(market, 920));
+        assertTrue(quote.isAvailable(1000));
+        assertFalse(quote.isAvailable(699));
+        assertFalse(new PremarketQuote(101, 1000, 700, 1000).isAvailable(1100));
+        assertFalse(new PremarketQuote(101, 900, 700, 1000).isAvailable(800));
         assertFalse(quote.isStale(920));
         assertTrue(quote.isStale(921));
         assertTrue(quote.isStale(739));

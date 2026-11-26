@@ -1,6 +1,7 @@
 package com.finance.view;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -46,6 +47,7 @@ import com.finance.view.component.stick.StickInfo;
 import com.finance.view.component.trendline.TrendLine;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashSet;
@@ -68,11 +70,13 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private static final long FEAR_GREED_REFRESH_INTERVAL_MS = 60L * 1000L;
     private static final long INDEX_REFRESH_INTERVAL_MS = 15000L;
     private static final long PREMARKET_REFRESH_INTERVAL_MS = 30000L;
+    private static final long PREMARKET_RETRY_INTERVAL_MS = 60000L;
     private static final long YAHOO_RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000L;
     private static final int MIN_STICK_WIDTH = 1;
     private static final int MAX_STICK_WIDTH = 60;
     private static final long ZOOM_REFRESH_INTERVAL_MS = 32L;
     private static final String TREND_SNAP_PREF = "trend_snap_enabled";
+    private static final String PREMARKET_PREF = "bmnr_premarket";
 
     // 画面サイズ共通情報
     ComnInfo comnInfo;
@@ -109,6 +113,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean cryptoTimeframeControlGesture;
     private boolean titleTapCandidate;
     private boolean cryptoSwitchGesture;
+    private boolean fearGreedGaugeGesture;
+    private Bundle fearGreedReturnState;
+    private ArrayList<String> fearGreedReturnIntradayRecords;
     private boolean cryptoSwitchMoved;
     private float cryptoSwitchDownX;
     private float cryptoSwitchDownY;
@@ -132,6 +139,8 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private int premarketRequestId;
     private long nextPremarketRequestAt;
     private long yahooRateLimitedUntil;
+    private long finalizedPremarketSessionEnd;
+    private boolean premarketNeedsRefresh = true;
     private final Runnable premarketRefreshRunnable = this::requestBmnrPremarketIfDue;
     private final Runnable indexRefreshRunnable = new Runnable() {
         @Override
@@ -253,6 +262,35 @@ public class ChartActivity extends FragmentActivity implements Observer,
     public boolean isSarDisp;
     public boolean isBollDisp;
     public boolean isFearGreedSarDisp;
+    public boolean isFearGreedBollDisp;
+    private final boolean[] fearGreedAverageDisp = new boolean[4];
+
+    public boolean isAverageDisplayed(int index) {
+        if (isFearGreedSymbol()) {
+            return fearGreedAverageDisp[index];
+        }
+        switch (index) {
+            case 0: return isAvg10Disp;
+            case 1: return isAvg20Disp;
+            case 2: return isAvg50Disp;
+            case 3: return isAvg200Disp;
+            default: throw new IllegalArgumentException("Invalid average index: " + index);
+        }
+    }
+
+    private void toggleAverageDisplay(int index) {
+        if (isFearGreedSymbol()) {
+            fearGreedAverageDisp[index] = !fearGreedAverageDisp[index];
+            return;
+        }
+        switch (index) {
+            case 0: isAvg10Disp = !isAvg10Disp; break;
+            case 1: isAvg20Disp = !isAvg20Disp; break;
+            case 2: isAvg50Disp = !isAvg50Disp; break;
+            case 3: isAvg200Disp = !isAvg200Disp; break;
+            default: throw new IllegalArgumentException("Invalid average index: " + index);
+        }
+    }
 
     @Override
     /* 画面初期生成の場合呼び出される */
@@ -260,6 +298,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
         // UncaughtExceptionHandlerを実装したクラスをセットする。
         super.onCreate(savedInstanceState);
         trendSnapEnabled = getPreferences(MODE_PRIVATE).getBoolean(TREND_SNAP_PREF, true);
+        SharedPreferences premarketPrefs = getSharedPreferences(PREMARKET_PREF, MODE_PRIVATE);
+        if (premarketPrefs.contains("quoteTime")) {
+            PremarketQuote cached = new PremarketQuote(premarketPrefs.getFloat("price", 0),
+                    premarketPrefs.getLong("quoteTime", 0),
+                    premarketPrefs.getLong("sessionStart", 0),
+                    premarketPrefs.getLong("sessionEnd", 0));
+            if (cached.isAvailable(System.currentTimeMillis() / 1000)) {
+                premarketQuote = cached;
+            } else {
+                LogWriter.getInstance(this).error("Invalid cached BMNR premarket quote");
+            }
+        }
         if (savedInstanceState != null) {
             intradayInterval = savedInstanceState.getString("IntradayInterval");
         }
@@ -287,6 +337,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     protected void onResume() {
         super.onResume();
         activityResumed = true;
+        premarketNeedsRefresh = true;
         handler.removeCallbacks(binanceRefreshRunnable);
         handler.removeCallbacks(fearGreedRefreshRunnable);
         handler.removeCallbacks(indexRefreshRunnable);
@@ -304,6 +355,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         // DBからデータを取得し、UIに表示
         this.showUI();
+        requestBmnrPremarketIfDue();
         requestMarketData();
     }
 
@@ -544,12 +596,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
         }
         String displayedTimeFrame = intradayInterval == null ? timeFrame : intradayInterval;
         macdView.setData(comnInfo, stickList, symbol, displayedTimeFrame, macd, kLine);
-        if (fearGreedSarHistory != null && !stickList.isEmpty()) {
-            macdView.setFearGreedSarValue(stickView.getSarValue(
-                    stickList.get(0).getDate()));
-        } else {
-            macdView.setFearGreedSarValue(null);
-        }
         macdView.setKdjLines(loadTrendLines(getTrendLineTimeFrame() + "@kdj"));
         macdView.setMacdLines(loadTrendLines(getTrendLineTimeFrame() + "@macd"));
         setImageView();
@@ -769,11 +815,6 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return Const.Symbol.fng.toString().equals(symbol);
     }
 
-    public void refreshFearGreedSarDisplay() {
-        stickView.invalidate();
-        macdView.invalidate();
-    }
-
     public boolean isCryptoSymbol() {
         return isCryptoSymbol(symbol);
     }
@@ -867,9 +908,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private void requestBmnrPremarketIfDue() {
         long now = SystemClock.elapsedRealtime();
+        long nowSeconds = System.currentTimeMillis() / 1000;
         if (!activityResumed || !Const.Symbol.bmnr.toString().equals(symbol)
-                || indexQuote == null || !indexQuote.isPremarket(System.currentTimeMillis() / 1000)
                 || premarketQuoteLoading || isBmnrRateLimited()) {
+            return;
+        }
+        boolean active = (indexQuote != null && indexQuote.isPremarket(nowSeconds))
+                || (premarketQuote != null && nowSeconds >= premarketQuote.sessionStart
+                && nowSeconds < premarketQuote.sessionEnd);
+        boolean needsFinal = premarketQuote != null && nowSeconds >= premarketQuote.sessionEnd
+                && premarketQuote.sessionEnd > finalizedPremarketSessionEnd;
+        if (!premarketNeedsRefresh && !active && !needsFinal) {
             return;
         }
         handler.removeCallbacks(premarketRefreshRunnable);
@@ -878,10 +927,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
             return;
         }
         premarketQuoteLoading = true;
-        nextPremarketRequestAt = now + PREMARKET_REFRESH_INTERVAL_MS;
-        handler.postDelayed(premarketRefreshRunnable, PREMARKET_REFRESH_INTERVAL_MS);
+        long interval = active ? PREMARKET_REFRESH_INTERVAL_MS : PREMARKET_RETRY_INTERVAL_MS;
+        nextPremarketRequestAt = now + interval;
+        handler.postDelayed(premarketRefreshRunnable, interval);
         int requestId = ++premarketRequestId;
-        controller.loadBmnrPremarket((quote, error) -> {
+        controller.loadBmnrPremarket(premarketNeedsRefresh || needsFinal, (quote, error) -> {
             if (requestId != premarketRequestId) {
                 return;
             }
@@ -896,13 +946,37 @@ public class ChartActivity extends FragmentActivity implements Observer,
                 premarketQuoteFailed = true;
                 LogWriter.getInstance(this).error("BMNR premarket quote failed: "
                         + (error == null ? "empty response" : error));
-            } else if (!isBmnrRateLimited()
-                    && quote.isCurrent(indexQuote, System.currentTimeMillis() / 1000)) {
+            } else if (!isBmnrRateLimited() && quote.isAvailable(System.currentTimeMillis() / 1000)
+                    && (premarketQuote == null || quote.quoteTime >= premarketQuote.quoteTime)) {
                 premarketQuote = quote;
                 premarketQuoteFailed = false;
+                premarketNeedsRefresh = false;
+                if (System.currentTimeMillis() / 1000 >= quote.sessionEnd) {
+                    finalizedPremarketSessionEnd = quote.sessionEnd;
+                }
+                if (!getSharedPreferences(PREMARKET_PREF, MODE_PRIVATE).edit()
+                        .putFloat("price", quote.price)
+                        .putLong("quoteTime", quote.quoteTime)
+                        .putLong("sessionStart", quote.sessionStart)
+                        .putLong("sessionEnd", quote.sessionEnd).commit()) {
+                    LogWriter.getInstance(this).error("Failed to save BMNR premarket quote");
+                }
             } else if (!isBmnrRateLimited()) {
                 premarketQuoteFailed = true;
-                LogWriter.getInstance(this).error("BMNR premarket quote session changed");
+                LogWriter.getInstance(this).error("BMNR premarket quote is invalid or older than cached");
+                if (quote.isAvailable(System.currentTimeMillis() / 1000)
+                        && premarketQuote != null && quote.quoteTime < premarketQuote.quoteTime
+                        && System.currentTimeMillis() / 1000 >= premarketQuote.sessionEnd) {
+                    premarketNeedsRefresh = false;
+                    finalizedPremarketSessionEnd = premarketQuote.sessionEnd;
+                }
+            }
+            long currentSeconds = System.currentTimeMillis() / 1000;
+            if ((indexQuote != null && indexQuote.isPremarket(currentSeconds))
+                    || (premarketQuote != null && currentSeconds >= premarketQuote.sessionStart
+                    && currentSeconds < premarketQuote.sessionEnd)) {
+                nextPremarketRequestAt = Math.min(nextPremarketRequestAt,
+                        now + PREMARKET_REFRESH_INTERVAL_MS);
             }
             macdView.invalidate();
             requestBmnrPremarketIfDue();
@@ -1461,10 +1535,15 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     public void selectSymbol(@NonNull Const.Symbol selectedSymbol) {
         applySymbolSelection(selectedSymbol.toString());
+        refreshSelectedSymbol();
+    }
+
+    private void refreshSelectedSymbol() {
         showUI();
         if (isUsIndexSymbol() && activityResumed && !indexQuoteLoading) {
             requestYahooIndex();
         }
+        requestBmnrPremarketIfDue();
         if (isBinanceRealtimeEligible()) {
             requestBinanceRealtimeCandle();
             // 从恐慌指数等非加密货币画面切换过来时，确保定时刷新在运行
@@ -1476,14 +1555,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
 
     private void applySymbolSelection(String newSymbol) {
         if (!symbol.equals(newSymbol)) {
+            if (isFearGreedSymbol()) {
+                fearGreedReturnState = null;
+                fearGreedReturnIntradayRecords = null;
+            }
             realtimeCandle = null;
             indexQuote = null;
             indexQuoteFailed = false;
             indexQuoteLoading = false;
             indexRequestId++;
-            premarketQuote = null;
             premarketQuoteFailed = false;
             premarketQuoteLoading = false;
+            premarketNeedsRefresh = true;
             premarketRequestId++;
             handler.removeCallbacks(premarketRefreshRunnable);
             pricePan = 0f;
@@ -1508,6 +1591,52 @@ public class ChartActivity extends FragmentActivity implements Observer,
         setOffset(0);
     }
 
+    void toggleFearGreedChart() {
+        if (isCryptoSymbol()) {
+            Bundle previous = new Bundle();
+            previous.putString(Const.KEY_SYMBOL, symbol);
+            previous.putString(Const.KEY_TIME_FRAME, timeFrame);
+            previous.putString("IntradayInterval", intradayInterval);
+            previous.putInt("Offset", offset);
+            previous.putInt(Const.KEY_STICK_WIDTH, stickWidth);
+            previous.putFloat("PricePan", pricePan);
+            previous.putFloat("PriceZoom", priceZoom);
+            previous.putBoolean("PriceAxisInverted", priceAxisInverted);
+            previous.putString(Const.KEY_MACD, macd);
+            previous.putString(Const.KEY_K_LINE, kLine);
+            previous.putBoolean("FearGreedPanel", macdView.isFearGreedPanel());
+            previous.putBoolean("IntradayHasMore", intradayHasMore);
+            ArrayList<String> records = new ArrayList<>(intradayRecords);
+            applySymbolSelection(Const.Symbol.fng.toString());
+            fearGreedReturnState = previous;
+            fearGreedReturnIntradayRecords = records;
+            refreshSelectedSymbol();
+        } else if (isFearGreedSymbol()) {
+            Bundle previous = fearGreedReturnState;
+            ArrayList<String> records = fearGreedReturnIntradayRecords;
+            if (previous == null || !isCryptoSymbol(previous.getString(Const.KEY_SYMBOL))) {
+                selectSymbol(Const.Symbol.btc);
+                return;
+            }
+            applySymbolSelection(previous.getString(Const.KEY_SYMBOL));
+            timeFrame = previous.getString(Const.KEY_TIME_FRAME);
+            intradayInterval = previous.getString("IntradayInterval");
+            if (intradayInterval != null && records != null) {
+                intradayRecords.addAll(records);
+                intradayHasMore = previous.getBoolean("IntradayHasMore", true);
+            }
+            setOffset(previous.getInt("Offset"));
+            stickWidth = previous.getInt(Const.KEY_STICK_WIDTH);
+            pricePan = previous.getFloat("PricePan");
+            priceZoom = previous.getFloat("PriceZoom", 1f);
+            priceAxisInverted = previous.getBoolean("PriceAxisInverted");
+            macd = previous.getString(Const.KEY_MACD);
+            kLine = previous.getString(Const.KEY_K_LINE);
+            macdView.setFearGreedPanel(previous.getBoolean("FearGreedPanel"));
+            refreshSelectedSymbol();
+        }
+    }
+
     @Override
     /* Activityが切られる前に状態保持 */
     protected void onSaveInstanceState(Bundle outState) {
@@ -1526,9 +1655,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
         outState.putBoolean("SarDisp", this.isSarDisp);
         outState.putBoolean("BollDisp", this.isBollDisp);
         outState.putBoolean("FearGreedSarDisp", this.isFearGreedSarDisp);
+        outState.putBoolean("FearGreedBollDisp", this.isFearGreedBollDisp);
+        outState.putBooleanArray("FearGreedAverageDisp", fearGreedAverageDisp);
         outState.putBoolean("FearGreedPanel", macdView.isFearGreedPanel());
         outState.putFloat("PricePan", pricePan);
         outState.putBoolean("PriceAxisInverted", priceAxisInverted);
+        outState.putBundle("FearGreedReturnState", fearGreedReturnState);
     }
 
     @Override
@@ -1548,9 +1680,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
         this.isSarDisp = savedInstanceState.getBoolean("SarDisp");
         this.isBollDisp = savedInstanceState.getBoolean("BollDisp");
         this.isFearGreedSarDisp = savedInstanceState.getBoolean("FearGreedSarDisp");
+        this.isFearGreedBollDisp = savedInstanceState.getBoolean("FearGreedBollDisp");
+        boolean[] savedFearGreedAverages = savedInstanceState.getBooleanArray("FearGreedAverageDisp");
+        if (savedFearGreedAverages != null
+                && savedFearGreedAverages.length == fearGreedAverageDisp.length) {
+            System.arraycopy(savedFearGreedAverages, 0, fearGreedAverageDisp, 0,
+                    fearGreedAverageDisp.length);
+        }
         macdView.setFearGreedPanel(savedInstanceState.getBoolean("FearGreedPanel"));
         this.pricePan = savedInstanceState.getFloat("PricePan", 0f);
         this.priceAxisInverted = savedInstanceState.getBoolean("PriceAxisInverted", false);
+        fearGreedReturnState = savedInstanceState.getBundle("FearGreedReturnState");
     }
 
     /* 当面選択された銘柄 */
@@ -1583,7 +1723,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     /* 长按：用于显示选中位置的价格和日期 */
     public void onLongPress(MotionEvent e) {
-        if (mCurrentMotionX == 0 ||
+        if (fearGreedGaugeGesture || mCurrentMotionX == 0 ||
                 mCurrentMotionY == 0 ||
                 Math.abs(mCurrentMotionX - mLastMotionX) > 10 ||
                 Math.abs(mCurrentMotionY - mLastMotionY) > 10) {
@@ -1718,12 +1858,18 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private void clearCandleChart() {
         controller.deleteCandleTrendLines(symbol, getTrendLineTimeFrame());
         stickView.clearLineSelection();
-        isAvg10Disp = false;
-        isAvg20Disp = false;
-        isAvg50Disp = false;
-        isAvg200Disp = false;
-        isSarDisp = false;
-        isBollDisp = false;
+        if (isFearGreedSymbol()) {
+            Arrays.fill(fearGreedAverageDisp, false);
+            isFearGreedSarDisp = false;
+            isFearGreedBollDisp = false;
+        } else {
+            isAvg10Disp = false;
+            isAvg20Disp = false;
+            isAvg50Disp = false;
+            isAvg200Disp = false;
+            isSarDisp = false;
+            isBollDisp = false;
+        }
         showUI();
     }
 
@@ -1771,6 +1917,17 @@ public class ChartActivity extends FragmentActivity implements Observer,
     /* 触摸 */
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN && !isLongPress
+                && macdView.isFearGreedGaugeHit(event)) {
+            fearGreedGaugeGesture = true;
+        }
+        if (fearGreedGaugeGesture) {
+            ges.onTouchEvent(event);
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                fearGreedGaugeGesture = false;
+            }
+            return true;
+        }
         if (!isLongPress && action == MotionEvent.ACTION_DOWN
                 && macdView.isCryptoSwitchHit(event)) {
             cryptoSwitchGesture = true;
@@ -1874,32 +2031,24 @@ public class ChartActivity extends FragmentActivity implements Observer,
                             // 平均K線表示非表示
                             int indicatorRow = stickView.getIndicatorControlRow(event);
                             if (indicatorRow >= 0) {
-                                if (indicatorRow == 0) {
-                                    this.isAvg10Disp = !this.isAvg10Disp;
+                                if (indicatorRow < 4) {
+                                    toggleAverageDisplay(indicatorRow);
                                     isDispOperate = true;
                                     this.showUI();
-                                } else if (indicatorRow == 1) {
-                                    this.isAvg20Disp = !this.isAvg20Disp;
-                                    isDispOperate = true;
-                                    this.showUI();
-                                } else if (indicatorRow == 2) {
-                                    this.isAvg50Disp = !this.isAvg50Disp;
-                                    isDispOperate = true;
-                                    this.showUI();
-                                } else if (indicatorRow == 3) {
-                                    this.isAvg200Disp = !this.isAvg200Disp;
-                                    isDispOperate = true;
-                                    this.showUI();
-                                } else if (indicatorRow == 4) {
+                                } else if (indicatorRow == StickView.SAR_CONTROL) {
                                     if (isFearGreedSymbol()) {
-                                        isDispOperate = true;
+                                        this.isFearGreedSarDisp = !this.isFearGreedSarDisp;
                                     } else {
                                         this.isSarDisp = !this.isSarDisp;
-                                        isDispOperate = true;
-                                        this.showUI();
                                     }
-                                } else if (indicatorRow == 5 && !isFearGreedSymbol()) {
-                                    this.isBollDisp = !this.isBollDisp;
+                                    isDispOperate = true;
+                                    this.showUI();
+                                } else if (indicatorRow == 5) {
+                                    if (isFearGreedSymbol()) {
+                                        this.isFearGreedBollDisp = !this.isFearGreedBollDisp;
+                                    } else {
+                                        this.isBollDisp = !this.isBollDisp;
+                                    }
                                     isDispOperate = true;
                                     this.showUI();
                                 }
@@ -2077,6 +2226,12 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (isLongPress) {
             return true;
         }
+        if (fearGreedGaugeGesture || macdView.isFearGreedGaugeHit(e)) {
+            if (fearGreedGaugeGesture && macdView.isFearGreedGaugeHit(e)) {
+                toggleFearGreedChart();
+            }
+            return true;
+        }
         if (isCryptoSymbol() && stickView.isPriceLimitHit(e)) {
             priceAxisInverted = !priceAxisInverted;
             showUI();
@@ -2142,7 +2297,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     @Override
     /* 滑动：K线移动 */
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-        if (cryptoTimeframeControlGesture) {
+        if (!fearGreedGaugeGesture && cryptoTimeframeControlGesture) {
             macdView.handleCryptoTimeframeScroll(e1, distanceX);
         }
         return true;
@@ -2157,13 +2312,11 @@ public class ChartActivity extends FragmentActivity implements Observer,
         if (macdView.isSymbolTitleHit(e)) {
             return true;
         }
-        if (macdView.handleFearGreedGaugeTap(e)) {
+        if (macdView.isFearGreedGaugeHit(e)) {
+            macdView.handleFearGreedGaugeTap(e);
             return true;
         }
         if (macdView.handleIntradayControlTap(e)) {
-            return true;
-        }
-        if (macdView.handleFearGreedSarTap(e)) {
             return true;
         }
         // 按下位置判断

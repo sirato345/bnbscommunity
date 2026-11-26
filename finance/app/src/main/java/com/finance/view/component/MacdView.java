@@ -43,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -163,7 +164,6 @@ public class MacdView  extends View {
             "#.###", DecimalFormatSymbols.getInstance(Locale.US));
     private SignalLight firstIndicatorSignal = SignalLight.RED;
     private SignalLight secondIndicatorSignal = SignalLight.RED;
-    private Float fearGreedSarValue;
     private boolean fearGreedPanel;
     private List<String> fearGreedRecords = new ArrayList<>();
     private List<String> cachedFearGreedRecords = new ArrayList<>();
@@ -218,11 +218,6 @@ public class MacdView  extends View {
         this.calculateMacdDivergences();
         this.calculateKdj();
         this.calculateSignals();
-    }
-
-    public void setFearGreedSarValue(Float sarValue) {
-        fearGreedSarValue = sarValue;
-        invalidate();
     }
 
     public boolean isFearGreedPanel() {
@@ -571,7 +566,6 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         }
         this.drawText(canvas);
-        drawFearGreedSarControl(canvas);
         drawSignals(canvas);
         if (!fearGreedPanel && isKdjMode()) {
             drawKdjValues(canvas);
@@ -732,9 +726,8 @@ public class MacdView  extends View {
                 : com.finance.model.net.FearGreedIndex.getValue();
     }
 
-    private RectF getFearGreedGaugeBounds() {
-        if (!(activity.isCryptoSymbol() || activity.isFearGreedSymbol())
-                || getFearGreedGaugeValue() < 0) {
+    RectF getFearGreedGaugeBounds() {
+        if (!(activity.isCryptoSymbol() || activity.isFearGreedSymbol())) {
             return null;
         }
         float density = getResources().getDisplayMetrics().density;
@@ -749,6 +742,17 @@ public class MacdView  extends View {
                 ? switchBounds.right : 8 * density + getTitleBounds().width();
         float width = Math.min(markerSize * 2.2f, right - titleRight - 8 * density);
         if (width < markerSize) {
+            if (activity.isFearGreedSymbol()) {
+                float top = Math.max(getTitleBaseline() + getTitleBounds().bottom,
+                        centerY + markerSize / 2) + 8 * density;
+                width = Math.min(markerSize * 2.2f,
+                        Math.min(getWidth() - 16 * density,
+                                2 * (getTimeframeControlsTop() - top - 4 * density)));
+                if (width > 0) {
+                    float left = (getWidth() - width) / 2;
+                    return new RectF(left, top, left + width, top + width / 2);
+                }
+            }
             return null;
         }
         return new RectF(right - width, centerY - width / 4, right, centerY + width / 4);
@@ -764,16 +768,7 @@ public class MacdView  extends View {
     }
 
     public boolean handleFearGreedGaugeTap(MotionEvent event) {
-        if (!activity.isCryptoSymbol()) {
-            return false;
-        }
-        RectF bounds = getFearGreedGaugeBounds();
-        if (bounds == null) {
-            return false;
-        }
-        int[] location = new int[2];
-        getLocationOnScreen(location);
-        if (!bounds.contains(event.getRawX() - location[0], event.getRawY() - location[1])) {
+        if (!activity.isCryptoSymbol() || !isFearGreedGaugeHit(event)) {
             return false;
         }
         if (!FearGreedAlignment.supports(timeFrame)) {
@@ -783,6 +778,16 @@ public class MacdView  extends View {
         }
         setFearGreedPanel(!fearGreedPanel);
         return true;
+    }
+
+    public boolean isFearGreedGaugeHit(MotionEvent event) {
+        RectF bounds = getFearGreedGaugeBounds();
+        if (bounds == null) {
+            return false;
+        }
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+        return bounds.contains(event.getRawX() - location[0], event.getRawY() - location[1]);
     }
 
     private void drawGaugeShape(Canvas canvas, float centerX, float bottom, float width, int value) {
@@ -801,30 +806,31 @@ public class MacdView  extends View {
                 new float[] {0f, 0.5f, 0.625f, 0.75f, 0.875f, 1f}));
         canvas.drawArc(oval, 180, 180, false, arc);
 
-        // 指针：沿弧内侧，指向对应数值的位置
-        double angle = Math.toRadians(180 + value * 1.8);
-        float pointerRadius = radius - stroke * 1.2f;
-        float tipRadius = pointerRadius + stroke * 0.7f;
-        float baseHalf = stroke * 0.45f;
-        float cos = (float) Math.cos(angle);
-        float sin = (float) Math.sin(angle);
-        float bx = centerX + cos * pointerRadius;
-        float by = arcCenterY + sin * pointerRadius;
-        Path pointer = new Path();
-        pointer.moveTo(centerX + cos * tipRadius, arcCenterY + sin * tipRadius);
-        pointer.lineTo(bx - sin * baseHalf, by + cos * baseHalf);
-        pointer.lineTo(bx + sin * baseHalf, by - cos * baseHalf);
-        pointer.close();
-        Paint pointerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pointerPaint.setColor(Color.rgb(140, 150, 170));
-        canvas.drawPath(pointer, pointerPaint);
+        if (value >= 0) {
+            double angle = Math.toRadians(180 + value * 1.8);
+            float pointerRadius = radius - stroke * 1.2f;
+            float tipRadius = pointerRadius + stroke * 0.7f;
+            float baseHalf = stroke * 0.45f;
+            float cos = (float) Math.cos(angle);
+            float sin = (float) Math.sin(angle);
+            float bx = centerX + cos * pointerRadius;
+            float by = arcCenterY + sin * pointerRadius;
+            Path pointer = new Path();
+            pointer.moveTo(centerX + cos * tipRadius, arcCenterY + sin * tipRadius);
+            pointer.lineTo(bx - sin * baseHalf, by + cos * baseHalf);
+            pointer.lineTo(bx + sin * baseHalf, by - cos * baseHalf);
+            pointer.close();
+            Paint pointerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            pointerPaint.setColor(Color.rgb(140, 150, 170));
+            canvas.drawPath(pointer, pointerPaint);
+        }
 
         Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-        text.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.rgb(240, 242, 246));
+        text.setColor(Color.rgb(240, 242, 246));
         text.setTextAlign(Paint.Align.CENTER);
         text.setFakeBoldText(true);
         text.setTextSize(width * 0.34f);
-        canvas.drawText(String.valueOf(value), centerX, bottom, text);
+        canvas.drawText(value >= 0 ? String.valueOf(value) : "--", centerX, bottom, text);
     }
 
     private float getSignalControlsTop(float buttonHeight, float markerSize) {
@@ -851,7 +857,7 @@ public class MacdView  extends View {
     }
 
     /* 标题字号与右侧价格一致；没有价格时用默认大字号 */
-    private float getTitleTextSize() {
+    float getTitleTextSize() {
         return (getCurrentPriceText() == null ? Const.FONT_SIZE_ARROW : getPriceTextSize())
                 - 1.6f * getResources().getDisplayMetrics().density;
     }
@@ -893,13 +899,6 @@ public class MacdView  extends View {
     }
 
     private float getSignalRightCenter(float density, float markerSize, float markerGap) {
-        if (activity.isFearGreedSymbol()) {
-            Paint sarPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            sarPaint.setTextSize(getTitleTextSize());
-            sarPaint.setFakeBoldText(true);
-            float sarLeft = getWidth() - 8 * density - sarPaint.measureText("SAR");
-            return sarLeft - markerGap - markerSize / 2;
-        }
         String price = getCurrentPriceText();
         if (price == null) {
             return getWidth() - 8 * density - 29 * density;
@@ -955,12 +954,15 @@ public class MacdView  extends View {
         }
     }
 
-    private void drawKdj(Canvas canvas) {
+    void drawKdj(Canvas canvas) {
         if (sizeOfStick < KdjCalculator.PERIOD || maxStickCount == 0) {
             return;
         }
         float top = kdjTop();
         float bottom = kdjBottom();
+        if (bottom <= top) {
+            return;
+        }
         Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         guidePaint.setColor(GUIDE_COLOR);
         guidePaint.setStrokeWidth(2);
@@ -1031,29 +1033,40 @@ public class MacdView  extends View {
                 activity.isPriceAxisInverted());
     }
 
-    private void drawKdjValues(Canvas canvas) {
-        if (sizeOfStick == 0 || Float.isNaN(kdjK[0])) {
-            return;
-        }
+    private Paint kdjValuesPaint() {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(Const.FONT_SIZE_LARGE);
         paint.setTextAlign(Paint.Align.LEFT);
         paint.setFakeBoldText(true);
-        String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
-        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
-        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
+        return paint;
+    }
+
+    float kdjValuesBaseline(Paint paint) {
         float density = getResources().getDisplayMetrics().density;
         float panelBottom = isBothMode() ? getHeight() / 2f : getHeight();
         float baseline = panelBottom - paint.descent();
         if (!isBothMode() && showsTimeframeControls()) {
-            float controlsLeft = getTimeframeControlsLeft();
+            String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
+            String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
+            String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
             float valuesRight = paint.measureText(kValue) + paint.measureText(dValue)
                     + paint.measureText(jValue) + 24;
-            if (valuesRight + 4 * density > controlsLeft) {
-                float controlsTop = getHeight() - 7 * density - 34 * density * 0.88f;
-                baseline = controlsTop - 4 * density - paint.descent();
+            if (valuesRight + 4 * density > getTimeframeControlsLeft()) {
+                baseline = getTimeframeControlsTop() - 4 * density - paint.descent();
             }
         }
+        return baseline;
+    }
+
+    private void drawKdjValues(Canvas canvas) {
+        if (sizeOfStick == 0 || Float.isNaN(kdjK[0])) {
+            return;
+        }
+        Paint paint = kdjValuesPaint();
+        String kValue = String.format(Locale.US, "K: %.1f", kdjK[0]);
+        String dValue = String.format(Locale.US, "D: %.1f", kdjD[0]);
+        String jValue = String.format(Locale.US, "J: %.1f", kdjJ[0]);
+        float baseline = kdjValuesBaseline(paint);
         paint.setColor(Color.rgb(255, 193, 7));
         canvas.drawText(kValue, 0, baseline, paint);
         float nextX = paint.measureText(kValue) + 12;
@@ -1115,7 +1128,7 @@ public class MacdView  extends View {
             canvas.drawRoundRect(left, top, right, bottom, 10 * density,
                     10 * density, intervalButtonPaint);
             intervalButtonPaint.setStyle(Paint.Style.FILL);
-            intervalButtonPaint.setColor(activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE);
+            intervalButtonPaint.setColor(Color.WHITE);
             Paint.FontMetrics fontMetrics = intervalButtonPaint.getFontMetrics();
             float textY = top + (buttonHeight - fontMetrics.ascent - fontMetrics.descent) / 2;
             canvas.drawText(getCryptoTimeframeLabel(timeframe), (left + right) / 2,
@@ -1729,7 +1742,7 @@ public class MacdView  extends View {
     private boolean isKdjEditable() {
         return !fearGreedPanel && isKdjMode() && stickList != null
                 && !stickList.isEmpty() && comnInfo != null && maxStickCount > 0
-                && getHeight() > 0;
+                && getHeight() > 0 && kdjBottom() > kdjTop();
     }
 
     private float kdjTop() {
@@ -1738,8 +1751,19 @@ public class MacdView  extends View {
 
     private float kdjBottom() {
         float height = isBothMode() ? getHeight() / 2f : getHeight();
-        return height - (isBothMode() ? Const.MACD_BOTH_INNER_INSET
+        float bottom = height - (isBothMode() ? Const.MACD_BOTH_INNER_INSET
                 : Const.MACD_CHART_VERTICAL_INSET);
+        if (sizeOfStick == 0 || Float.isNaN(kdjK[0])) {
+            return bottom;
+        }
+        Paint paint = kdjValuesPaint();
+        return kdjPlotBottom(bottom, kdjValuesBaseline(paint), paint.ascent(),
+                4 * getResources().getDisplayMetrics().density);
+    }
+
+    static float kdjPlotBottom(float bottom, float valuesBaseline, float valuesAscent,
+                               float gap) {
+        return Math.min(bottom, valuesBaseline + valuesAscent - gap);
     }
 
     private float kdjValueAt(float y) {
@@ -2240,7 +2264,7 @@ public class MacdView  extends View {
 
     /* 銘柄、タイムフレーム文字を表示 */
     private int getTextColor() {
-        return activity.isFearGreedSymbol() ? Color.BLACK : Color.WHITE;
+        return Color.WHITE;
     }
 
     private void drawText(Canvas canvas) {
@@ -2327,15 +2351,19 @@ public class MacdView  extends View {
         if (price == null) {
             return;
         }
-        if (Const.Symbol.fng.toString().equals(symbol)) {
-            return;
-        }
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(getPriceTextSize());
         paint.setFakeBoldText(true);
         paint.setTextAlign(Paint.Align.RIGHT);
         paint.setColor(stickList == null || stickList.isEmpty()
                 ? Color.LTGRAY : stickList.get(0).getColor());
+        if (activity.isFearGreedSymbol() && stickList != null && !stickList.isEmpty()) {
+            StickInfo current = stickList.get(0);
+            StickInfo previous = stickList.size() > 1 ? stickList.get(1) : null;
+            paint.setColor(fearGreedPriceColor(current.getClose(), current.getDate(),
+                    previous == null ? null : previous.getClose(),
+                    previous == null ? null : previous.getDate(), timeFrame));
+        }
         if (activity.isUsIndexSymbol() && (activity.getIndexQuote() == null
                 || activity.isIndexQuoteFailed()
                 || !"Open".equals(activity.getIndexQuote().status(System.currentTimeMillis() / 1000)))) {
@@ -2370,20 +2398,31 @@ public class MacdView  extends View {
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
             String premarketLabel = null;
-            if (Const.Symbol.bmnr.toString().equals(symbol)
-                    && quote != null && quote.isPremarket(now)) {
+            if (Const.Symbol.bmnr.toString().equals(symbol)) {
                 PremarketQuote premarket = activity.getPremarketQuote();
-                if (activity.isBmnrRateLimited()) {
-                    premarketLabel = getResources().getString(R.string.premarket_rate_limited);
-                } else if (activity.isPremarketQuoteFailed()) {
-                    premarketLabel = getResources().getString(R.string.premarket_error);
-                } else if (premarket == null || !premarket.isCurrent(quote, now)) {
-                    premarketLabel = getResources().getString(R.string.premarket_loading);
+                if (premarket == null || !premarket.isAvailable(now)) {
+                    premarketLabel = getResources().getString(activity.isBmnrRateLimited()
+                            ? R.string.premarket_rate_limited : activity.isPremarketQuoteFailed()
+                            ? R.string.premarket_error : R.string.premarket_loading);
                 } else {
-                    SimpleDateFormat time = new SimpleDateFormat("HH:mm", Locale.US);
-                    time.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
-                    premarketLabel = getResources().getString(premarket.isStale(now)
-                                    ? R.string.premarket_price_stale : R.string.premarket_price,
+                    TimeZone japan = TimeZone.getTimeZone("Asia/Tokyo");
+                    Calendar today = Calendar.getInstance(japan);
+                    today.setTimeInMillis(now * 1000);
+                    Calendar quoted = Calendar.getInstance(japan);
+                    quoted.setTimeInMillis(premarket.quoteTime * 1000);
+                    String pattern = today.get(Calendar.YEAR) == quoted.get(Calendar.YEAR)
+                            ? "MM-dd HH:mm" : "yyyy-MM-dd HH:mm";
+                    SimpleDateFormat time = new SimpleDateFormat(pattern, Locale.US);
+                    time.setTimeZone(japan);
+                    boolean active = now < premarket.sessionEnd
+                            || (quote != null && quote.isPremarket(now));
+                    boolean stale = active && (premarket.isStale(now)
+                            || (quote != null && quote.isPremarket(now)
+                            && !premarket.isCurrent(quote, now)));
+                    int resource = activity.isBmnrRateLimited() ? R.string.premarket_price_limited
+                            : activity.isPremarketQuoteFailed() ? R.string.premarket_price_error
+                            : stale ? R.string.premarket_price_stale : R.string.premarket_price;
+                    premarketLabel = getResources().getString(resource,
                             marketPriceFormat.format(premarket.price),
                             time.format(new Date(premarket.quoteTime * 1000)));
                 }
@@ -2401,52 +2440,18 @@ public class MacdView  extends View {
         }
     }
 
-    private void drawFearGreedSarControl(Canvas canvas) {
-        if (!activity.isFearGreedSymbol()) {
-            return;
+    static int fearGreedPriceColor(float current, String currentDate, Float previous,
+                                   String previousDate, String timeframe) {
+        if (previous != null && previousDate != null && Float.isFinite(current)
+                && Float.isFinite(previous) && FearGreedAlignment.supports(timeframe)
+                && FearGreedAlignment.isPreviousPeriod(currentDate, previousDate, timeframe)
+                && Math.round(current) > Math.round(previous)) {
+            return StickInfo.RISING_COLOR;
         }
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setTextSize(getTitleTextSize());
-        paint.setFakeBoldText(true);
-        paint.setTextAlign(Paint.Align.RIGHT);
-        paint.setColor(fearGreedSarValue == null || Float.isNaN(fearGreedSarValue)
-                || stickList == null || stickList.isEmpty()
-                ? Color.GRAY
-                : fearGreedSarValue < stickList.get(0).getClose()
-                        ? Color.parseColor("#00E676") : Color.parseColor("#FF5252"));
-        float right = getWidth() - 8 * getResources().getDisplayMetrics().density;
-        canvas.drawText("SAR", right, getTitleBaseline(), paint);
+        return StickInfo.FALLING_COLOR;
     }
 
-    public boolean handleFearGreedSarTap(MotionEvent event) {
-        if (!activity.isFearGreedSymbol()) {
-            return false;
-        }
-        int[] location = new int[2];
-        getLocationOnScreen(location);
-        float x = event.getRawX() - location[0];
-        float y = event.getRawY() - location[1];
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setTextSize(getTitleTextSize());
-        paint.setFakeBoldText(true);
-        Rect bounds = new Rect();
-        paint.getTextBounds("SAR", 0, 3, bounds);
-        float density = getResources().getDisplayMetrics().density;
-        float right = getWidth() - 8 * density;
-        float left = right - paint.measureText("SAR");
-        float top = getTitleBaseline() + bounds.top - 8 * density;
-        float bottom = getTitleBaseline() + bounds.bottom + 8 * density;
-        if (x < left - 8 * density || x > right + 8 * density
-                || y < top || y > bottom) {
-            return false;
-        }
-        activity.isFearGreedSarDisp = !activity.isFearGreedSarDisp;
-        invalidate();
-        activity.refreshFearGreedSarDisplay();
-        return true;
-    }
-
-    private String getCurrentPriceText() {
+    String getCurrentPriceText() {
         if (activity.isUsIndexSymbol()) {
             YahooIndexQuote quote = activity.getIndexQuote();
             return quote == null ? "--" : marketPriceFormat.format(quote.price);
@@ -2746,6 +2751,9 @@ public class MacdView  extends View {
         }
         float top = kdjTop();
         float bottom = kdjBottom();
+        if (bottom <= top) {
+            return;
+        }
         float value = IndicatorAxis.valueForY(y, -20f, 120f, top, bottom,
                 activity.isPriceAxisInverted());
         String text = String.format(Locale.US, "%.1f", value);

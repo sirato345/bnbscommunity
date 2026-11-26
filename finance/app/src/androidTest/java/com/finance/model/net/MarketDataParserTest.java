@@ -97,20 +97,40 @@ public class MarketDataParserTest {
     @Test
     public void parsesLatestValidBmnrPremarketMinute() throws Exception {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
-                + "\"meta\":{\"symbol\":\"BMNR\",\"currentTradingPeriod\":{"
-                + "\"pre\":{\"start\":700,\"end\":1000},"
-                + "\"regular\":{\"start\":1000,\"end\":1300}}},"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"tradingPeriods\":{"
+                + "\"pre\":[[{\"start\":700,\"end\":1000}]],"
+                + "\"regular\":[[{\"start\":1000,\"end\":1300}]]}},"
                 + "\"timestamp\":[500,850,810,870,1000,980],"
                 + "\"indicators\":{\"quote\":[{\"close\":[90,102,101,null,103,104]}]}}]}}";
         PremarketQuote quote = NetConnectorBmnrPremarket.parse(response, 880);
         assertEquals(850, quote.quoteTime);
         assertEquals(102f, quote.price, 0f);
-        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(response, 1000));
+        assertEquals(980, NetConnectorBmnrPremarket.parse(response, 1100).quoteTime);
         assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
                 response.replace("\"BMNR\"", "\"OTHER\""), 880));
         assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
                 response.replace("\"close\":[90,102,101,null,103,104]",
                         "\"close\":[null,null,null,null,null,null]"), 880));
+    }
+
+    @Test
+    public void findsMostRecentPremarketAcrossSessionsWithoutUsingAfterHours() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"tradingPeriods\":{"
+                + "\"pre\":[[{\"start\":700,\"end\":1000}],[{\"start\":1700,\"end\":2000}]],"
+                + "\"regular\":[[{\"start\":1000,\"end\":1300}],"
+                + "[{\"start\":2000,\"end\":2300}]]}},"
+                + "\"timestamp\":[850,1200,1750,1900,2100,2400],"
+                + "\"indicators\":{\"quote\":[{\"close\":[101,200,102,103,300,400]}]}}]}}";
+        PremarketQuote previous = NetConnectorBmnrPremarket.parse(response, 1600);
+        assertEquals(850, previous.quoteTime);
+        assertEquals(101f, previous.price, 0f);
+        PremarketQuote latest = NetConnectorBmnrPremarket.parse(response, 2500);
+        assertEquals(1900, latest.quoteTime);
+        assertEquals(103f, latest.price, 0f);
+        assertThrows(Exception.class, () -> NetConnectorBmnrPremarket.parse(
+                response.replace("\"start\":2000,\"end\":2300",
+                        "\"start\":2001,\"end\":2300"), 2500));
     }
 
     @Test

@@ -43,6 +43,7 @@ public class StickInfo {
     // ローソク足間の間隔
     public static int BETWEEN_SPACE = 2;
     public static final int RISING_COLOR = Color.GREEN;
+    public static final int FALLING_COLOR = 0xFFFFB6C1;
 
     ////////////////// 計算値 //////////////////
     // ローソク足の色
@@ -110,7 +111,7 @@ public class StickInfo {
     /* ローソク足の色を設定 */
     private void setColor() {
         if (open >= close) {// PINK
-            color = Color.parseColor("#FFB6C1");
+            color = FALLING_COLOR;
         } else {// LIME
             color = RISING_COLOR;
         }

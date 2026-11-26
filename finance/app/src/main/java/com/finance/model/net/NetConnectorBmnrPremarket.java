@@ -20,8 +20,10 @@ public class NetConnectorBmnrPremarket
     }
 
     private final Callback callback;
+    private final boolean includeHistory;
 
-    public NetConnectorBmnrPremarket(Callback callback) {
+    public NetConnectorBmnrPremarket(boolean includeHistory, Callback callback) {
+        this.includeHistory = includeHistory;
         this.callback = callback;
     }
 
@@ -30,7 +32,8 @@ public class NetConnectorBmnrPremarket
         HttpURLConnection connection = null;
         try {
             URL url = new URL("https://query1.finance.yahoo.com/v8/finance/chart/BMNR"
-                    + "?range=1d&interval=1m&includePrePost=true");
+                    + (includeHistory ? "?range=5d" : "?range=1d")
+                    + "&interval=1m&includePrePost=true");
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; FinanceApp/1.0)");
             connection.setRequestProperty("Accept", "application/json");
@@ -73,38 +76,54 @@ public class NetConnectorBmnrPremarket
         if (!"BMNR".equals(meta.getString("symbol"))) {
             throw new IOException("Unexpected premarket symbol");
         }
-        JSONObject periods = meta.getJSONObject("currentTradingPeriod");
-        JSONObject pre = periods.getJSONObject("pre");
-        long start = pre.getLong("start");
-        long end = pre.getLong("end");
-        if (start <= 0 || end <= start || end != periods.getJSONObject("regular").getLong("start")
-                || nowSeconds < start || nowSeconds >= end) {
-            throw new IOException("BMNR premarket session is not active");
-        }
+        JSONObject periods = meta.getJSONObject("tradingPeriods");
+        JSONArray prePeriods = periods.getJSONArray("pre");
+        JSONArray regularPeriods = periods.getJSONArray("regular");
         JSONArray times = result.getJSONArray("timestamp");
         JSONArray closes = result.getJSONObject("indicators").getJSONArray("quote")
                 .getJSONObject(0).getJSONArray("close");
         long latest = -1;
+        long sessionStart = 0;
+        long sessionEnd = 0;
         float price = 0;
-        for (int i = 0; i < times.length(); i++) {
-            if (i >= closes.length() || times.isNull(i) || closes.isNull(i)) {
-                continue;
+        if (prePeriods.length() != regularPeriods.length()) {
+            throw new IOException("BMNR premarket session count mismatch");
+        }
+        for (int day = 0; day < prePeriods.length(); day++) {
+            JSONArray preDay = prePeriods.getJSONArray(day);
+            JSONArray regularDay = regularPeriods.getJSONArray(day);
+            if (preDay.length() != 1 || regularDay.length() != 1) {
+                throw new IOException("Invalid BMNR trading periods");
             }
-            long time = times.getLong(i);
-            if (time < start || time >= end || time > nowSeconds + 60 || time <= latest) {
-                continue;
+            JSONObject pre = preDay.getJSONObject(0);
+            long start = pre.getLong("start");
+            long end = pre.getLong("end");
+            if (start <= 0 || end <= start || end != regularDay.getJSONObject(0).getLong("start")) {
+                throw new IOException("Invalid BMNR premarket session");
             }
-            float value = (float) closes.getDouble(i);
-            if (!Float.isFinite(value) || value <= 0) {
-                throw new IOException("Invalid BMNR premarket price");
+            for (int i = 0; i < times.length(); i++) {
+                if (i >= closes.length() || times.isNull(i) || closes.isNull(i)) {
+                    continue;
+                }
+                long time = times.getLong(i);
+                if (time < start || time >= end || time > nowSeconds + 60
+                        || nowSeconds < start || time <= latest) {
+                    continue;
+                }
+                float value = (float) closes.getDouble(i);
+                if (!Float.isFinite(value) || value <= 0) {
+                    throw new IOException("Invalid BMNR premarket price");
+                }
+                latest = time;
+                sessionStart = start;
+                sessionEnd = end;
+                price = value;
             }
-            latest = time;
-            price = value;
         }
         if (latest < 0) {
-            throw new IOException("No BMNR premarket price for the current session");
+            throw new IOException("No BMNR premarket price in the response");
         }
-        return new PremarketQuote(price, latest, start, end);
+        return new PremarketQuote(price, latest, sessionStart, sessionEnd);
     }
 
     @Override

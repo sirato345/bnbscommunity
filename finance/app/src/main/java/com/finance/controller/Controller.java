@@ -126,8 +126,9 @@ public class Controller {
         model.loadYahooIndex(symbol, callback);
     }
 
-    public void loadBmnrPremarket(@NonNull NetConnectorBmnrPremarket.Callback callback) {
-        model.loadBmnrPremarket(callback);
+    public void loadBmnrPremarket(boolean includeHistory,
+                                  @NonNull NetConnectorBmnrPremarket.Callback callback) {
+        model.loadBmnrPremarket(includeHistory, callback);
     }
 
     /**

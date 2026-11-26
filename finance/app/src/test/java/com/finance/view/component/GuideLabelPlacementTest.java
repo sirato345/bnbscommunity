@@ -32,4 +32,11 @@ public class GuideLabelPlacementTest {
         assertEquals(gap, atTop - 14 - 10, 0f);
         assertEquals(gap, 310 - (atBottom + 2), 0f);
     }
+
+    @Test
+    public void kdjPlotKeepsItsLinesAboveTheValueLabels() {
+        assertEquals(244f, MacdView.kdjPlotBottom(300f, 290f, -38f, 8f), 0f);
+        assertEquals(200f, MacdView.kdjPlotBottom(200f, 290f, -38f, 8f), 0f);
+        assertEquals(154f, MacdView.kdjPlotBottom(300f, 200f, -38f, 8f), 0f);
+    }
 }
