@@ -46,9 +46,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by gu zihan on 08/30/2015.
@@ -84,6 +86,7 @@ public class MacdView  extends View {
     private MacdCalculator.Series indicatorSeries;
     private final Map<String, Integer> indicatorIndexByDate = new HashMap<>();
     private final List<Integer> divergenceIndices = new ArrayList<>();
+    private final Set<String> invalidDivergenceWarnings = new HashSet<>();
     private int indicatorOffset;
     private boolean indicatorInverted;
     // 正在拖动的背离线端点
@@ -471,9 +474,9 @@ public class MacdView  extends View {
             canvas.save();
             canvas.translate(0, getHeight() / 2f);
             this.drawMacd(canvas, Color.parseColor("#FF9900"));
-            this.drawMacdDivergences(canvas);
             this.drawMacdLines(canvas);
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
+            this.drawMacdDivergences(canvas);
             canvas.restore();
             Paint divider = new Paint();
             divider.setColor(Color.DKGRAY);
@@ -488,9 +491,9 @@ public class MacdView  extends View {
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
         } else {// シングル線
             this.drawMacd(canvas, Color.parseColor("#FF9900"));
-            this.drawMacdDivergences(canvas);
             this.drawMacdLines(canvas);
             this.drawSignalLine(canvas, Color.parseColor("#00FFFF"));
+            this.drawMacdDivergences(canvas);
         }
         this.drawText(canvas);
         drawSignals(canvas);
@@ -1323,15 +1326,28 @@ public class MacdView  extends View {
                             || (start == null && end == null)) {
                         throw new IllegalArgumentException("Invalid saved endpoints");
                     }
+                    if (!hasValidDivergenceEndpoints(line, startValue, endValue)) {
+                        throw new IllegalArgumentException("Saved endpoints cross the zero axis");
+                    }
+                    int startIndex = (start != null ? start : end + span) - indicatorOffset;
+                    int endIndex = (end != null ? end : start - span) - indicatorOffset;
+                    if (!MacdDivergenceCalculator.areEndpointsFarEnough(startIndex, endIndex)) {
+                        throw new IllegalArgumentException("Saved endpoints are too close");
+                    }
                     line.startDate = fields[0];
                     line.endDate = fields[1];
                     line.startMacd = startValue;
                     line.endMacd = endValue;
-                    line.startIndex = (start != null ? start : end + span) - indicatorOffset;
-                    line.endIndex = (end != null ? end : start - span) - indicatorOffset;
+                    line.startIndex = startIndex;
+                    line.endIndex = endIndex;
                 } catch (IllegalArgumentException e) {
-                    LogWriter.getInstance(activity).error(
-                            "Invalid saved divergence line: " + line.key, e);
+                    if (invalidDivergenceWarnings.add(line.key)) {
+                        LogWriter.getInstance(activity).error(
+                                "Invalid saved divergence line: " + line.key, e);
+                        android.widget.Toast.makeText(activity,
+                                "已保存的背离线不符合当前规则，暂时显示自动位置",
+                                android.widget.Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
             if (Math.max(line.startIndex, line.endIndex) < 0
@@ -1359,6 +1375,12 @@ public class MacdView  extends View {
 
     private int getPivotY(MacdInfo info, float macd) {
         return info.getYPoint(macd);
+    }
+
+    private boolean hasValidDivergenceEndpoints(DivergenceLine line,
+                                                 float startMacd, float endMacd) {
+        boolean actualTop = line.isTop != activity.isPriceAxisInverted();
+        return MacdDivergenceCalculator.areEndpointsOnCorrectSide(startMacd, endMacd, actualTop);
     }
 
     private float macdOffsetY() {
@@ -2089,7 +2111,9 @@ public class MacdView  extends View {
             }
             int start = draggingDivergenceStart ? nearest : line.startIndex;
             int end = draggingDivergenceStart ? line.endIndex : nearest;
-            if (start == end) {
+            if (!MacdDivergenceCalculator.areEndpointsFarEnough(start, end)) {
+                android.widget.Toast.makeText(activity, "背离线端点至少相隔8根K线",
+                        android.widget.Toast.LENGTH_SHORT).show();
                 return;
             }
             MacdInfo nearestInfo = macdList.get(nearest);
@@ -2097,6 +2121,11 @@ public class MacdView  extends View {
             String endDate = draggingDivergenceStart ? line.endDate : nearestInfo.getDate();
             float startMacd = draggingDivergenceStart ? nearestInfo.getMacd() : line.startMacd;
             float endMacd = draggingDivergenceStart ? line.endMacd : nearestInfo.getMacd();
+            if (!hasValidDivergenceEndpoints(line, startMacd, endMacd)) {
+                android.widget.Toast.makeText(activity, "背离线端点不能跨越零轴",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
             getContext().getSharedPreferences(DIVERGENCE_PREFS, Context.MODE_PRIVATE)
                     .edit()
                     .putString(line.key, startDate + "|" + endDate + "|" + startMacd + "|"

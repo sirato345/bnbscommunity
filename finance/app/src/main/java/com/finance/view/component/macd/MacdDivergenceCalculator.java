@@ -32,8 +32,19 @@ public final class MacdDivergenceCalculator {
     }
 
     private static final Divergence NONE = new Divergence(Type.NONE, -1, -1);
+    private static final int MIN_TURN_DISTANCE = 8;
 
     private MacdDivergenceCalculator() {
+    }
+
+    public static boolean areEndpointsOnCorrectSide(float firstDif, float secondDif,
+                                                     boolean top) {
+        return top ? firstDif > 0f && secondDif > 0f
+                : firstDif < 0f && secondDif < 0f;
+    }
+
+    public static boolean areEndpointsFarEnough(int firstIndex, int secondIndex) {
+        return Math.abs((long) firstIndex - secondIndex) >= MIN_TURN_DISTANCE;
     }
 
     // Arrays are newest first. A turn at i + 1 becomes known at i.
@@ -54,14 +65,18 @@ public final class MacdDivergenceCalculator {
         for (int confirmation = lastValidIndex - 2; confirmation >= 0; confirmation--) {
             int pivot = confirmation + 1;
             if (dea[pivot] > dea[pivot + 1] && dea[pivot] > dea[confirmation]) {
-                if (previousHigh >= 0 && highs[pivot] > highs[previousHigh]
+                if (previousHigh >= 0 && areEndpointsFarEnough(previousHigh, pivot)
+                        && areEndpointsOnCorrectSide(dif[previousHigh], dif[pivot], true)
+                        && highs[pivot] > highs[previousHigh]
                         && dif[pivot] < dif[previousHigh]) {
                     result[pivot] = new Divergence(inverted ? Type.BOTTOM : Type.TOP,
                             previousHigh, confirmation);
                 }
                 previousHigh = pivot;
             } else if (dea[pivot] < dea[pivot + 1] && dea[pivot] < dea[confirmation]) {
-                if (previousLow >= 0 && lows[pivot] < lows[previousLow]
+                if (previousLow >= 0 && areEndpointsFarEnough(previousLow, pivot)
+                        && areEndpointsOnCorrectSide(dif[previousLow], dif[pivot], false)
+                        && lows[pivot] < lows[previousLow]
                         && dif[pivot] > dif[previousLow]) {
                     result[pivot] = new Divergence(inverted ? Type.TOP : Type.BOTTOM,
                             previousLow, confirmation);
