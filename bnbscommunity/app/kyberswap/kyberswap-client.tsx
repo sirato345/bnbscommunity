@@ -157,7 +157,7 @@ function KyberSwapContent() {
       ? connectedProvider.provider
       : undefined;
   const wallet = {
-    address: activeProvider ? account.address : undefined,
+    address: account.isConnected ? account.address : undefined,
     chainId: account.chainId ?? BNB_CHAIN_ID,
   };
   const selectedWalletName = account.connector?.name;

@@ -109,3 +109,9 @@ Bitmine 曾实施 1:20 反向拆股，生效时间为 2025-05-16 美东时间 9:
 - Next 行及 OTC 行的位置和颜色规则保持不变。OTC 价格仅在可以可靠比较时按最近常规收盘价着色：高于为绿色，低于为红色，相等或缺少比较基准为灰色；标签、更新时间和状态文字保持灰色。
 - 颜色及收盘价选择的本地测试、调试包和设备测试包构建通过；设备解析测试和真机界面未运行或验证。
 - 修改后 `ExtendedQuoteTimeTest`、`YahooIndexQuoteTest` 通过，调试 APK 与 Android 测试 APK 均构建成功；未安装应用、未运行设备测试，真机界面尚未验证。
+
+## 銘柄选择与快捷切换
+
+- 銘柄选择画面按行排列为：BTC、ETH、BMNR；Dollar Index、10-year Yield、Fear & Greed；Dow Jones、S&P500、Nasdaq。三个美国股指放在最下行。
+- 图表标题快捷銘柄列表中，BTC、ETH、BMNR、Fear & Greed 归为一组；BMNR 可从 BTC/ETH/Fear & Greed 图表标题菜单中切换。
+- 修改后单元测试、调试 APK 与 Android 测试 APK 构建成功；未安装应用或进行设备界面验证。

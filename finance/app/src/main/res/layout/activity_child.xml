@@ -41,6 +41,43 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:text="@string/symbol_bmnr"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_symbol"
+            android:id="@+id/button_bmnr"
+            android:onClick="onClick_Bmnr" />
+    </LinearLayout>
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="5"
+        android:weightSum="3">
+        <Button
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent"
+            android:text="@string/symbol_dollor"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_symbol"
+            android:id="@+id/button_dollor"
+            android:onClick="onClick_Dollor" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="@string/symbol_usbond"
+            android:textSize="@dimen/button_text_size"
+            android:layout_margin="1dp"
+            android:background="@drawable/button_symbol"
+            android:id="@+id/button_usbond"
+            android:onClick="onClick_Usbond" />
+        <Button
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
             android:text="@string/symbol_fng"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
@@ -56,8 +93,8 @@
         android:weightSum="3">
         <Button
             android:layout_width="0dp"
-            android:layout_weight="1"
             android:layout_height="match_parent"
+            android:layout_weight="1"
             android:text="@string/symbol_dow"
             android:textSize="@dimen/button_text_size"
             android:layout_margin="1dp"
@@ -84,43 +121,6 @@
             android:background="@drawable/button_symbol"
             android:id="@+id/button_nasdaq"
             android:onClick="onClick_Nasdaq" />
-    </LinearLayout>
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="5"
-        android:weightSum="3">
-        <Button
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="@string/symbol_dollor"
-            android:textSize="@dimen/button_text_size"
-            android:layout_margin="1dp"
-            android:background="@drawable/button_symbol"
-            android:id="@+id/button_dollor"
-            android:onClick="onClick_Dollor" />
-        <Button
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="@string/symbol_usbond"
-            android:textSize="@dimen/button_text_size"
-            android:layout_margin="1dp"
-            android:background="@drawable/button_symbol"
-            android:id="@+id/button_usbond"
-            android:onClick="onClick_Usbond" />
-        <Button
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="@string/symbol_bmnr"
-            android:textSize="@dimen/button_text_size"
-            android:layout_margin="1dp"
-            android:background="@drawable/button_symbol"
-            android:id="@+id/button_bmnr"
-            android:onClick="onClick_Bmnr" />
     </LinearLayout>
     <LinearLayout
         android:orientation="horizontal"

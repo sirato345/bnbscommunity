@@ -2526,10 +2526,9 @@ public class MacdView  extends View {
         boolean cryptoMenu = isCryptoMenuSymbol(selectedSymbol);
         Const.Symbol[] symbols = cryptoMenu
                 ? new Const.Symbol[] {Const.Symbol.btc, Const.Symbol.eth,
-                                        Const.Symbol.fng}
+                        Const.Symbol.bmnr, Const.Symbol.fng}
                 : new Const.Symbol[] {Const.Symbol.dow, Const.Symbol.sp500,
-                        Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond,
-                        Const.Symbol.bmnr};
+                        Const.Symbol.nasdaq, Const.Symbol.usdx, Const.Symbol.usbond};
         List<Const.Symbol> otherSymbols = new ArrayList<>();
         for (Const.Symbol optionSymbol : symbols) {
             if (optionSymbol != selectedSymbol) {
@@ -2637,7 +2636,7 @@ public class MacdView  extends View {
 
     private boolean isCryptoMenuSymbol(Const.Symbol target) {
         return target == Const.Symbol.btc || target == Const.Symbol.eth
-                || target == Const.Symbol.fng;
+                || target == Const.Symbol.bmnr || target == Const.Symbol.fng;
     }
 
     /* 单击事件，由Activity转发事件 */
