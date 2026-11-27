@@ -24,7 +24,7 @@ function parseToken(value: unknown): KyberToken | undefined {
 
   return {
     chainId: value.chainId,
-    address: value.address,
+    address: value.address.toLowerCase(),
     symbol: value.symbol,
     name: value.name,
     decimals: value.decimals,
