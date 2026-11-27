@@ -23,8 +23,6 @@ import com.finance.R;
 import com.finance.common.Const;
 import com.finance.common.LogWriter;
 import com.finance.model.net.YahooIndexQuote;
-import com.finance.model.net.PremarketQuote;
-import com.finance.model.net.ExtendedHoursQuote;
 import com.finance.model.net.UsMarketSchedule;
 import com.finance.view.ChartActivity;
 import com.finance.view.component.macd.MacdDivergenceCalculator;
@@ -2342,9 +2340,7 @@ public class MacdView  extends View {
             Float extendedPriceValue = null;
             boolean fullDayLabel = false;
             if (Const.Symbol.bmnr.toString().equals(symbol)) {
-                PremarketQuote premarket = activity.getPremarketQuote();
-                ExtendedHoursQuote postmarket = activity.getPostmarketQuote();
-                if (showFullDayQuote(premarket, postmarket, quote, now)) {
+                if (showOtcQuote(quote, now)) {
                     fullDayLabel = true;
                     if (quote == null || quote.fullDayPrice == null) {
                         extendedLabel = getResources().getString(activity.isBmnrRateLimited()
@@ -2359,53 +2355,8 @@ public class MacdView  extends View {
                         extendedPrice = marketPriceFormat.format(extendedPriceValue);
                         extendedLabel = getResources().getString(resource,
                                 extendedPrice,
-                                formatFullDaySyncTime(activity.getFullDayReceivedAt()));
+                                formatOtcUpdateTime(activity.getOtcReceivedAt()));
                     }
-                } else if (showPostmarketQuote(premarket, postmarket, quote, now)) {
-                    if (postmarket == null || !postmarket.isAvailable(now)) {
-                        extendedLabel = getResources().getString(activity.isBmnrRateLimited()
-                                ? R.string.postmarket_rate_limited : activity.isPostmarketQuoteFailed()
-                                ? R.string.postmarket_error : R.string.postmarket_loading);
-                    } else {
-                        boolean active = now < postmarket.sessionEnd
-                                || (quote != null && quote.isPostmarket(now));
-                        boolean stale = active && (postmarket.isStale(now)
-                                || (quote != null && quote.isPostmarket(now)
-                                && (postmarket.sessionStart != quote.postmarketOpen
-                                || postmarket.sessionEnd != quote.postmarketClose)));
-                        int resource = activity.isBmnrRateLimited() ? R.string.postmarket_price_limited
-                                : activity.isPostmarketQuoteFailed() ? R.string.postmarket_price_error
-                                : stale ? R.string.postmarket_price_stale : R.string.postmarket_price;
-                        extendedPrice = marketPriceFormat.format(postmarket.price);
-                        if (quote != null && quote.isPostmarket(now)
-                                && postmarket.sessionStart == quote.postmarketOpen
-                                && postmarket.sessionEnd == quote.postmarketClose) {
-                            extendedPriceValue = postmarket.price;
-                        }
-                        extendedLabel = getResources().getString(resource,
-                                extendedPrice,
-                                formatExtendedQuoteTime(postmarket.quoteTime));
-                    }
-                } else if (premarket == null || !premarket.isAvailable(now)) {
-                    extendedLabel = getResources().getString(activity.isBmnrRateLimited()
-                            ? R.string.premarket_rate_limited : activity.isPremarketQuoteFailed()
-                            ? R.string.premarket_error : R.string.premarket_loading);
-                } else {
-                    boolean active = now < premarket.sessionEnd
-                            || (quote != null && quote.isPremarket(now));
-                    boolean stale = active && (premarket.isStale(now)
-                            || (quote != null && quote.isPremarket(now)
-                            && !premarket.isCurrent(quote, now)));
-                    int resource = activity.isBmnrRateLimited() ? R.string.premarket_price_limited
-                            : activity.isPremarketQuoteFailed() ? R.string.premarket_price_error
-                            : stale ? R.string.premarket_price_stale : R.string.premarket_price;
-                    extendedPrice = marketPriceFormat.format(premarket.price);
-                    if (premarket.isCurrent(quote, now)) {
-                        extendedPriceValue = premarket.price;
-                    }
-                    extendedLabel = getResources().getString(resource,
-                            extendedPrice,
-                            formatExtendedQuoteTime(premarket.quoteTime));
                 }
             }
             if (extendedLabel == null) {
@@ -2446,33 +2397,11 @@ public class MacdView  extends View {
         return price > close ? Color.GREEN : price < close ? Color.RED : Color.LTGRAY;
     }
 
-    static boolean showFullDayQuote(PremarketQuote premarket, ExtendedHoursQuote postmarket,
-                                    YahooIndexQuote market, long now) {
-        return (market == null || (!market.isPremarket(now) && !market.isPostmarket(now)))
-                && !isExtendedSessionActive(premarket, now)
-                && !isExtendedSessionActive(postmarket, now);
+    static boolean showOtcQuote(YahooIndexQuote market, long now) {
+        return market == null || !market.isMarketOpen(now);
     }
 
-    private static boolean isExtendedSessionActive(ExtendedHoursQuote quote, long now) {
-        return quote != null && quote.sessionStart > 0 && quote.sessionEnd > quote.sessionStart
-                && now >= quote.sessionStart && now < quote.sessionEnd;
-    }
-
-    static boolean showPostmarketQuote(PremarketQuote premarket, ExtendedHoursQuote postmarket,
-                                       YahooIndexQuote market, long now) {
-        boolean hasPre = premarket != null && premarket.isAvailable(now);
-        boolean hasPost = postmarket != null && postmarket.isAvailable(now);
-        if (hasPre || hasPost) {
-            return hasPost && (!hasPre || postmarket.quoteTime > premarket.quoteTime);
-        }
-        return market != null && market.isPostmarket(now);
-    }
-
-    static String formatExtendedQuoteTime(long quoteTime) {
-        return formatJapaneseTime(quoteTime, "HH:mm:ss");
-    }
-
-    static String formatFullDaySyncTime(long receivedAt) {
+    static String formatOtcUpdateTime(long receivedAt) {
         return formatJapaneseTime(receivedAt, "HH:mm:ss");
     }
 
