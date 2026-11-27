@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class YahooIndexQuoteTest {
@@ -86,5 +87,23 @@ public class YahooIndexQuoteTest {
         YahooIndexQuote invalid = new YahooIndexQuote("20261127", 100, 105, 98, 102,
                 1200, 1000, 1300, 700, 1000, 1301, 1600);
         assertFalse(invalid.isPostmarket(1400));
+    }
+
+    @Test
+    public void latestCloseUsesPreviousSessionOnlyWhileTheMarketIsOpen() {
+        YahooIndexQuote market = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                1200, 1000, 1300, 700, 1000, 1300, 1600, 104f, 99f);
+        assertEquals(99f, market.latestRegularClose(1200), 0f);
+        assertNull(market.latestRegularClose(800));
+        assertNull(market.latestRegularClose(1300));
+        YahooIndexQuote beforeOpen = new YahooIndexQuote("20261126", 100, 105, 98, 102,
+                600, 1000, 1300, 700, 1000, 1300, 1600, 104f, 99f);
+        assertEquals(102f, beforeOpen.latestRegularClose(800), 0f);
+        YahooIndexQuote closed = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                1300, 1000, 1300, 700, 1000, 1300, 1600, 104f, 99f);
+        assertEquals(102f, closed.latestRegularClose(1400), 0f);
+        YahooIndexQuote noPreviousClose = new YahooIndexQuote("20261127", 100, 105, 98, 102,
+                1200, 1000, 1300);
+        assertNull(noPreviousClose.latestRegularClose(1200));
     }
 }

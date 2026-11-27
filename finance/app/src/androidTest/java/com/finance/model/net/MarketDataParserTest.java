@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(AndroidJUnit4.class)
@@ -66,6 +67,7 @@ public class MarketDataParserTest {
     public void parsesYahooIndexQuoteAndMatchesNewYorkTradingDate() throws Exception {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"^DJI\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
+                + "\"fulldayPrice\":104.5,"
                 + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793975400,"
                 + "\"end\":1793998800}}},\"timestamp\":[1793802600,1793889000],"
                 + "\"indicators\":{\"quote\":[{\"open\":[90,100],\"high\":[95,101],"
@@ -76,12 +78,14 @@ public class MarketDataParserTest {
         assertEquals(102f, quote.high, 0f);
         assertEquals(98f, quote.low, 0f);
         assertEquals(102f, quote.price, 0f);
+        assertNull(quote.fullDayPrice);
     }
 
     @Test
     public void parsesBmnrQuoteWithUsMarketSession() throws Exception {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,\"regularMarketPrice\":102,"
+                + "\"fulldayPrice\":104.5,"
                 + "\"currentTradingPeriod\":{\"regular\":{\"start\":1793889000,"
                 + "\"end\":1793912400},\"post\":{\"start\":1793912400,"
                 + "\"end\":1793926800}}},\"timestamp\":[1793889000],"
@@ -91,10 +95,31 @@ public class MarketDataParserTest {
         assertEquals("20261105", quote.date);
         assertEquals(100f, quote.open, 0f);
         assertEquals(102f, quote.price, 0f);
+        assertEquals(104.5f, quote.fullDayPrice, 0f);
         assertEquals(1793889000L, quote.marketOpen);
         assertEquals(1793912400L, quote.marketClose);
         assertEquals(1793912400L, quote.postmarketOpen);
         assertEquals(1793926800L, quote.postmarketClose);
+        assertNull(NetConnectorYahooIndex.parse(
+                response.replace("\"fulldayPrice\":104.5,", ""), "BMNR").fullDayPrice);
+        assertNull(NetConnectorYahooIndex.parse(
+                response.replace("\"fulldayPrice\":104.5,", "\"fulldayPrice\":0,"),
+                "BMNR").fullDayPrice);
+    }
+
+    @Test
+    public void parsesPreviousBmnrRegularCloseFromThePreviousDailyBar() throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,"
+                + "\"regularMarketPrice\":102,\"currentTradingPeriod\":{\"regular\":"
+                + "{\"start\":1793889000,\"end\":1793912400}}},"
+                + "\"timestamp\":[1793802600,1793889000],"
+                + "\"indicators\":{\"quote\":[{\"open\":[90,100],\"high\":[95,103],"
+                + "\"low\":[85,98],\"close\":[92,102]}]}}]}}";
+        assertEquals(92f, NetConnectorYahooIndex.parse(response, "BMNR").previousRegularClose, 0f);
+        assertNull(NetConnectorYahooIndex.parse(
+                response.replace("\"close\":[92,102]", "\"close\":[null,102]"),
+                "BMNR").previousRegularClose);
     }
 
     @Test

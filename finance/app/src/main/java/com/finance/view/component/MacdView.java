@@ -2338,10 +2338,30 @@ public class MacdView  extends View {
             paint.setFakeBoldText(false);
             float labelBaseline = priceBaseline + paint.getFontSpacing();
             String extendedLabel = null;
+            String extendedPrice = null;
+            Float extendedPriceValue = null;
+            boolean fullDayLabel = false;
             if (Const.Symbol.bmnr.toString().equals(symbol)) {
                 PremarketQuote premarket = activity.getPremarketQuote();
                 ExtendedHoursQuote postmarket = activity.getPostmarketQuote();
-                if (showPostmarketQuote(premarket, postmarket, quote, now)) {
+                if (showFullDayQuote(premarket, postmarket, quote, now)) {
+                    fullDayLabel = true;
+                    if (quote == null || quote.fullDayPrice == null) {
+                        extendedLabel = getResources().getString(activity.isBmnrRateLimited()
+                                ? R.string.fullday_rate_limited
+                                : quote == null && !activity.isIndexQuoteFailed()
+                                ? R.string.fullday_loading : R.string.fullday_error);
+                    } else {
+                        int resource = activity.isBmnrRateLimited() ? R.string.fullday_price_limited
+                                : activity.isIndexQuoteFailed() ? R.string.fullday_price_error
+                                : R.string.fullday_price;
+                        extendedPriceValue = quote.fullDayPrice;
+                        extendedPrice = marketPriceFormat.format(extendedPriceValue);
+                        extendedLabel = getResources().getString(resource,
+                                extendedPrice,
+                                formatFullDaySyncTime(activity.getFullDayReceivedAt()));
+                    }
+                } else if (showPostmarketQuote(premarket, postmarket, quote, now)) {
                     if (postmarket == null || !postmarket.isAvailable(now)) {
                         extendedLabel = getResources().getString(activity.isBmnrRateLimited()
                                 ? R.string.postmarket_rate_limited : activity.isPostmarketQuoteFailed()
@@ -2356,8 +2376,14 @@ public class MacdView  extends View {
                         int resource = activity.isBmnrRateLimited() ? R.string.postmarket_price_limited
                                 : activity.isPostmarketQuoteFailed() ? R.string.postmarket_price_error
                                 : stale ? R.string.postmarket_price_stale : R.string.postmarket_price;
+                        extendedPrice = marketPriceFormat.format(postmarket.price);
+                        if (quote != null && quote.isPostmarket(now)
+                                && postmarket.sessionStart == quote.postmarketOpen
+                                && postmarket.sessionEnd == quote.postmarketClose) {
+                            extendedPriceValue = postmarket.price;
+                        }
                         extendedLabel = getResources().getString(resource,
-                                marketPriceFormat.format(postmarket.price),
+                                extendedPrice,
                                 formatExtendedQuoteTime(postmarket.quoteTime));
                     }
                 } else if (premarket == null || !premarket.isAvailable(now)) {
@@ -2373,8 +2399,12 @@ public class MacdView  extends View {
                     int resource = activity.isBmnrRateLimited() ? R.string.premarket_price_limited
                             : activity.isPremarketQuoteFailed() ? R.string.premarket_price_error
                             : stale ? R.string.premarket_price_stale : R.string.premarket_price;
+                    extendedPrice = marketPriceFormat.format(premarket.price);
+                    if (premarket.isCurrent(quote, now)) {
+                        extendedPriceValue = premarket.price;
+                    }
                     extendedLabel = getResources().getString(resource,
-                            marketPriceFormat.format(premarket.price),
+                            extendedPrice,
                             formatExtendedQuoteTime(premarket.quoteTime));
                 }
             }
@@ -2382,13 +2412,50 @@ public class MacdView  extends View {
                 canvas.drawText(label, getWidth() - 8 * density, labelBaseline, paint);
             } else {
                 float textWidth = Math.max(paint.measureText(label), paint.measureText(extendedLabel));
-                float left = getWidth() - 8 * density - textWidth;
+                float left = getWidth() - 8 * density - textWidth - 55;
                 paint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(label, left, labelBaseline - 7, paint);
-                canvas.drawText(extendedLabel, left,
-                        labelBaseline + paint.getFontSpacing() - 15, paint);
+                canvas.drawText(label, left, labelBaseline - 12, paint);
+                float extendedBaseline = labelBaseline + paint.getFontSpacing()
+                        - (fullDayLabel ? 25 : 15);
+                int priceStart = extendedPrice == null ? -1 : extendedLabel.indexOf(extendedPrice);
+                if (priceStart < 0) {
+                    canvas.drawText(extendedLabel, left, extendedBaseline, paint);
+                } else {
+                    int priceEnd = priceStart + extendedPrice.length();
+                    canvas.drawText(extendedLabel, 0, priceStart, left, extendedBaseline, paint);
+                    Float close = quote == null || activity.isIndexQuoteFailed()
+                            || activity.isBmnrRateLimited() ? null : quote.latestRegularClose(now);
+                    paint.setColor(extendedPriceColor(extendedPriceValue, close));
+                    canvas.drawText(extendedLabel, priceStart, priceEnd,
+                            left + paint.measureText(extendedLabel, 0, priceStart),
+                            extendedBaseline, paint);
+                    paint.setColor(Color.LTGRAY);
+                    canvas.drawText(extendedLabel, priceEnd, extendedLabel.length(),
+                            left + paint.measureText(extendedLabel, 0, priceEnd),
+                            extendedBaseline, paint);
+                }
             }
         }
+    }
+
+    static int extendedPriceColor(Float price, Float close) {
+        if (price == null || close == null || !Float.isFinite(price)
+                || !Float.isFinite(close) || price <= 0 || close <= 0) {
+            return Color.LTGRAY;
+        }
+        return price > close ? Color.GREEN : price < close ? Color.RED : Color.LTGRAY;
+    }
+
+    static boolean showFullDayQuote(PremarketQuote premarket, ExtendedHoursQuote postmarket,
+                                    YahooIndexQuote market, long now) {
+        return (market == null || (!market.isPremarket(now) && !market.isPostmarket(now)))
+                && !isExtendedSessionActive(premarket, now)
+                && !isExtendedSessionActive(postmarket, now);
+    }
+
+    private static boolean isExtendedSessionActive(ExtendedHoursQuote quote, long now) {
+        return quote != null && quote.sessionStart > 0 && quote.sessionEnd > quote.sessionStart
+                && now >= quote.sessionStart && now < quote.sessionEnd;
     }
 
     static boolean showPostmarketQuote(PremarketQuote premarket, ExtendedHoursQuote postmarket,
@@ -2402,7 +2469,15 @@ public class MacdView  extends View {
     }
 
     static String formatExtendedQuoteTime(long quoteTime) {
-        SimpleDateFormat time = new SimpleDateFormat("HH:mm", Locale.US);
+        return formatJapaneseTime(quoteTime, "HH:mm:ss");
+    }
+
+    static String formatFullDaySyncTime(long receivedAt) {
+        return formatJapaneseTime(receivedAt, "HH:mm:ss");
+    }
+
+    private static String formatJapaneseTime(long quoteTime, String pattern) {
+        SimpleDateFormat time = new SimpleDateFormat(pattern, Locale.US);
         time.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
         return time.format(new Date(quoteTime * 1000));
     }

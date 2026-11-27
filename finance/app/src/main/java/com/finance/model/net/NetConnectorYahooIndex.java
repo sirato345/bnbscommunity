@@ -97,6 +97,9 @@ public class NetConnectorYahooIndex
         JSONObject postmarket = periods.optJSONObject("post");
         long postmarketOpen = postmarket == null ? 0 : postmarket.optLong("start", 0);
         long postmarketClose = postmarket == null ? 0 : postmarket.optLong("end", 0);
+        float fullDay = (float) meta.optDouble("fulldayPrice", Double.NaN);
+        Float fullDayPrice = "BMNR".equals(expectedTicker)
+                && Float.isFinite(fullDay) && fullDay > 0 ? fullDay : null;
         if (quoteTime <= 0 || openTime <= 0 || closeTime <= openTime
                 || !Float.isFinite(price) || price <= 0) {
             throw new IOException("Invalid Yahoo index quote or market session");
@@ -109,6 +112,7 @@ public class NetConnectorYahooIndex
         JSONArray opens = values.getJSONArray("open");
         JSONArray highs = values.getJSONArray("high");
         JSONArray lows = values.getJSONArray("low");
+        JSONArray closes = values.optJSONArray("close");
         for (int i = timestamps.length() - 1; i >= 0; i--) {
             if (!date.equals(format.format(new Date(timestamps.getLong(i) * 1000L)))) {
                 continue;
@@ -124,9 +128,25 @@ public class NetConnectorYahooIndex
                     || open <= 0 || low <= 0 || high < low || open > high || open < low) {
                 throw new IOException("Invalid Yahoo index daily candle");
             }
+            Float previousClose = null;
+            if ("BMNR".equals(expectedTicker) && closes != null) {
+                for (int j = i - 1; j >= 0; j--) {
+                    long previousTime = timestamps.optLong(j, 0);
+                    if (previousTime <= 0 || date.compareTo(
+                            format.format(new Date(previousTime * 1000L))) <= 0) {
+                        continue;
+                    }
+                    float close = (float) closes.optDouble(j, Double.NaN);
+                    if (Float.isFinite(close) && close > 0) {
+                        previousClose = close;
+                    }
+                    break;
+                }
+            }
             return new YahooIndexQuote(date, open, Math.max(high, price),
                     Math.min(low, price), price, quoteTime, openTime, closeTime,
-                    premarketOpen, premarketClose, postmarketOpen, postmarketClose);
+                    premarketOpen, premarketClose, postmarketOpen, postmarketClose,
+                    fullDayPrice, previousClose);
         }
         throw new IOException("Yahoo index quote has no matching daily candle");
     }

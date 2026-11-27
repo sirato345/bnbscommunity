@@ -52,5 +52,11 @@
     <string name="postmarket_loading">Post loading</string>
     <string name="postmarket_error">Post quote error</string>
     <string name="postmarket_rate_limited">Post rate limited</string>
+    <string name="fullday_price">OTC %1$s %2$s</string>
+    <string name="fullday_price_error">OTC error %1$s %2$s</string>
+    <string name="fullday_price_limited">OTC limited %1$s %2$s</string>
+    <string name="fullday_loading">OTC loading</string>
+    <string name="fullday_error">OTC unavailable</string>
+    <string name="fullday_rate_limited">OTC rate limited</string>
     <string name="icon_label">BNBs Finance</string>
 </resources>

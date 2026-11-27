@@ -13,6 +13,8 @@ public final class YahooIndexQuote {
     public final long premarketClose;
     public final long postmarketOpen;
     public final long postmarketClose;
+    public final Float fullDayPrice;
+    public final Float previousRegularClose;
 
     public YahooIndexQuote(String date, float open, float high, float low, float price,
                            long quoteTime, long marketOpen, long marketClose) {
@@ -30,6 +32,23 @@ public final class YahooIndexQuote {
                            long quoteTime, long marketOpen, long marketClose,
                            long premarketOpen, long premarketClose,
                            long postmarketOpen, long postmarketClose) {
+        this(date, open, high, low, price, quoteTime, marketOpen, marketClose,
+                premarketOpen, premarketClose, postmarketOpen, postmarketClose, null);
+    }
+
+    public YahooIndexQuote(String date, float open, float high, float low, float price,
+                           long quoteTime, long marketOpen, long marketClose,
+                           long premarketOpen, long premarketClose,
+                           long postmarketOpen, long postmarketClose, Float fullDayPrice) {
+        this(date, open, high, low, price, quoteTime, marketOpen, marketClose,
+                premarketOpen, premarketClose, postmarketOpen, postmarketClose, fullDayPrice, null);
+    }
+
+    public YahooIndexQuote(String date, float open, float high, float low, float price,
+                           long quoteTime, long marketOpen, long marketClose,
+                           long premarketOpen, long premarketClose,
+                           long postmarketOpen, long postmarketClose, Float fullDayPrice,
+                           Float previousRegularClose) {
         this.date = date;
         this.open = open;
         this.high = high;
@@ -42,6 +61,8 @@ public final class YahooIndexQuote {
         this.premarketClose = premarketClose;
         this.postmarketOpen = postmarketOpen;
         this.postmarketClose = postmarketClose;
+        this.fullDayPrice = fullDayPrice;
+        this.previousRegularClose = previousRegularClose;
     }
 
     public boolean isPremarket(long nowSeconds) {
@@ -58,6 +79,21 @@ public final class YahooIndexQuote {
 
     public boolean isMarketOpen(long nowSeconds) {
         return nowSeconds >= marketOpen && nowSeconds < marketClose;
+    }
+
+    public Float latestRegularClose(long nowSeconds) {
+        if (quoteTime <= 0 || quoteTime > nowSeconds + 60) {
+            return null;
+        }
+        if (isMarketOpen(nowSeconds)) {
+            return quoteTime >= marketOpen && quoteTime < marketClose
+                    ? previousRegularClose : null;
+        }
+        if (nowSeconds >= marketClose && quoteTime >= marketOpen
+                && quoteTime < marketClose - 60) {
+            return null;
+        }
+        return price;
     }
 
     public String status(long nowSeconds) {

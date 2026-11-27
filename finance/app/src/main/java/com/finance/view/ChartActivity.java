@@ -137,6 +137,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
     private boolean indexQuoteFailed;
     private boolean indexQuoteLoading;
     private int indexRequestId;
+    private long fullDayReceivedAt;
     private PremarketQuote premarketQuote;
     private ExtendedHoursQuote postmarketQuote;
     private boolean premarketQuoteFailed;
@@ -901,6 +902,10 @@ public class ChartActivity extends FragmentActivity implements Observer,
         return indexQuoteFailed;
     }
 
+    public long getFullDayReceivedAt() {
+        return fullDayReceivedAt;
+    }
+
     public PremarketQuote getPremarketQuote() {
         return premarketQuote;
     }
@@ -958,6 +963,9 @@ public class ChartActivity extends FragmentActivity implements Observer,
             if (Const.Symbol.bmnr.toString().equals(responseSymbol) && isBmnrRateLimited()) {
                 return;
             }
+            if (Const.Symbol.bmnr.toString().equals(responseSymbol) && quote.fullDayPrice == null) {
+                LogWriter.getInstance(this).error("BMNR full-day price is missing or invalid");
+            }
             if (indexQuote != null && quote.quoteTime < indexQuote.quoteTime) {
                 indexQuoteFailed = true;
                 LogWriter.getInstance(this).error("Yahoo index quote moved backwards: " + responseSymbol);
@@ -971,6 +979,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
                     || indexQuote.open != quote.open || indexQuote.high != quote.high
                     || indexQuote.low != quote.low || indexQuote.price != quote.price;
             indexQuote = quote;
+            fullDayReceivedAt = quote.fullDayPrice == null ? 0 : System.currentTimeMillis() / 1000;
             indexQuoteFailed = false;
             if (changed) {
                 indicatorHistory = null;
@@ -1685,6 +1694,7 @@ public class ChartActivity extends FragmentActivity implements Observer,
             }
             realtimeCandle = null;
             indexQuote = null;
+            fullDayReceivedAt = 0;
             indexQuoteFailed = false;
             indexQuoteLoading = false;
             indexRequestId++;
