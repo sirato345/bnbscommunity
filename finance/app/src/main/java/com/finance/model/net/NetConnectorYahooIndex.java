@@ -125,9 +125,12 @@ public class NetConnectorYahooIndex
             float high = (float) highs.getDouble(i);
             float low = (float) lows.getDouble(i);
             if (!Float.isFinite(open) || !Float.isFinite(high) || !Float.isFinite(low)
-                    || open <= 0 || low <= 0 || high < low || open > high || open < low) {
+                    || open <= 0 || high <= 0 || low <= 0) {
                 throw new IOException("Invalid Yahoo index daily candle");
             }
+            // Yahoo can return a daily range that excludes the open or current market price.
+            high = Math.max(high, Math.max(open, price));
+            low = Math.min(low, Math.min(open, price));
             Float previousClose = null;
             if ("BMNR".equals(expectedTicker) && closes != null) {
                 for (int j = i - 1; j >= 0; j--) {
@@ -143,8 +146,7 @@ public class NetConnectorYahooIndex
                     break;
                 }
             }
-            return new YahooIndexQuote(date, open, Math.max(high, price),
-                    Math.min(low, price), price, quoteTime, openTime, closeTime,
+            return new YahooIndexQuote(date, open, high, low, price, quoteTime, openTime, closeTime,
                     premarketOpen, premarketClose, postmarketOpen, postmarketClose,
                     fullDayPrice, previousClose);
         }

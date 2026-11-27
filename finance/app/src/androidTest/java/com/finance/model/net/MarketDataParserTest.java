@@ -108,6 +108,25 @@ public class MarketDataParserTest {
     }
 
     @Test
+    public void preservesBmnrPriceWhenYahooDailyRangeExcludesOpenAndCurrentPrice()
+            throws Exception {
+        String response = "{\"chart\":{\"error\":null,\"result\":[{"
+                + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,"
+                + "\"regularMarketPrice\":13.42,\"currentTradingPeriod\":{\"regular\":"
+                + "{\"start\":1793889000,\"end\":1793912400}}},"
+                + "\"timestamp\":[1793889000],"
+                + "\"indicators\":{\"quote\":[{\"open\":[12.57],\"high\":[13.4],"
+                + "\"low\":[13.39]}]}}]}}";
+
+        YahooIndexQuote quote = NetConnectorYahooIndex.parse(response, "BMNR");
+
+        assertEquals(13.42f, quote.price, 0f);
+        assertEquals(12.57f, quote.open, 0f);
+        assertEquals(13.42f, quote.high, 0f);
+        assertEquals(12.57f, quote.low, 0f);
+    }
+
+    @Test
     public void parsesPreviousBmnrRegularCloseFromThePreviousDailyBar() throws Exception {
         String response = "{\"chart\":{\"error\":null,\"result\":[{"
                 + "\"meta\":{\"symbol\":\"BMNR\",\"regularMarketTime\":1793914551,"

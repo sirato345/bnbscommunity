@@ -115,3 +115,8 @@ Bitmine 曾实施 1:20 反向拆股，生效时间为 2025-05-16 美东时间 9:
 - 銘柄选择画面按行排列为：BTC、ETH、BMNR；Dollar Index、10-year Yield、Fear & Greed；Dow Jones、S&P500、Nasdaq。三个美国股指放在最下行。
 - 图表标题快捷銘柄列表中，BTC、ETH、BMNR、Fear & Greed 归为一组；BMNR 可从 BTC/ETH/Fear & Greed 图表标题菜单中切换。
 - 修改后单元测试、调试 APK 与 Android 测试 APK 构建成功；未安装应用或进行设备界面验证。
+
+## 交易时段报价解析故障（2026-11-27）
+
+- 设备 Logcat 多次记录 `Invalid Yahoo index daily candle`。对应时段 Yahoo 返回的日线 OHLC 曾出现低点高于开盘价的矛盾，解析器因此拒绝整条行情，界面显示 `Quote error`；常规行情接口本身仍返回了有效的 `regularMarketPrice`。
+- 现在仍校验 OHLC 为有限正数，但把日内高低区间扩展至包含开盘价和当前价，避免异常的日线区间阻断有效的交易时段价格。已新增回归测试；单元测试、调试 APK 与 Android 测试 APK 均构建成功，`git diff --check` 通过。未在设备上运行测试或安装 APK。
