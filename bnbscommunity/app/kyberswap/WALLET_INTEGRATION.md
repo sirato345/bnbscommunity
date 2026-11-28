@@ -9,7 +9,7 @@
 - LI.FI 钱包配置也保持稳定，避免不必要的钱包列表刷新。
 - MUI 主题启用 `cssVariables`：LI.FI 钱包组件依赖 `theme.vars.palette` 和 `theme.vars.shape`，普通主题会导致运行时错误。
 - 钱包弹窗采用圆角、描边和无阴影卡片，接近 LI.FI 参考样式；标题使用原生的 “Select a wallet”。钱包范围仍限制为 EVM，不显示与 KyberSwap 交易不兼容的其他生态。
-- 交易使用当前 Wagmi 连接器对应的 EIP-1193 provider；切换钱包时不会继续使用旧 provider。
+- 交易改用 Wagmi 的 `useSendTransaction`（每次发送时由连接器重新取得 provider），不再缓存 EIP-1193 provider 后直接调用 `eth_sendTransaction`。原因：手机 Chrome 抓取的日志显示，从 MetaMask 返回后页面经 Back-Forward Cache 恢复，MetaMask SDK 重连成功，但点击兑换后中继通道上没有任何交易消息发出，怀疑缓存的 provider 已失效（推断，未被日志直接证实）。切链使用 Wagmi 的 `useSwitchChain`（链未添加时由 Wagmi 按配置自动添加），页面不再缓存任何 EIP-1193 provider。需真机验证。
 - KyberSwap `connectedAccount.address` 直接使用 Wagmi 已确认连接后的地址，不等待异步取得 EIP-1193 provider；Widget 会据此立即刷新当前代币余额。EIP-1193 provider 仍仅用于切链和交易签名。
 - 代币列表和默认 BSC USDT 地址统一转为小写；KyberSwap Widget 按地址字符串键存取余额，统一大小写可避免 USDT 查询结果与默认输入代币键不匹配。
 - 账户地址和链 ID 由 Wagmi 同步，交易仍由钱包签名，网络不匹配时禁止提交。

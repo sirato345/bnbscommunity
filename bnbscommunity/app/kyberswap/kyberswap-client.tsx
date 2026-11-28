@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Copy, ExternalLink, Power } from 'lucide-react';
 import { getConnectorIcon, useWalletMenu } from '@lifi/wallet-management';
 import type { TxData, WidgetProps } from '@kyberswap/widgets';
-import { useAccount as useWagmiAccount, useDisconnect } from 'wagmi';
+import { useAccount as useWagmiAccount, useDisconnect, useSendTransaction, useSwitchChain } from 'wagmi';
 import { fetchKyberTokenList, type KyberToken } from './token-data';
 import { KyberWalletProviders } from './wallet-providers';
 import styles from './page.module.css';
@@ -95,10 +95,6 @@ const theme: NonNullable<WidgetProps['theme']> = {
   boxShadow: '0 4px 16px rgba(31, 41, 55, 0.06)',
 };
 
-interface Eip1193Provider {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-}
-
 function getWalletError(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (
@@ -124,19 +120,7 @@ function getErrorCode(error: unknown): number | undefined {
   return undefined;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isEip1193Provider(value: unknown): value is Eip1193Provider {
-  return isRecord(value) && typeof value.request === 'function';
-}
-
 function KyberSwapContent() {
-  const [connectedProvider, setConnectedProvider] = useState<{
-    connector: NonNullable<ReturnType<typeof useWagmiAccount>['connector']>;
-    provider: Eip1193Provider;
-  } | null>(null);
   const [walletError, setWalletError] = useState('');
   const [tokenError, setTokenError] = useState('');
   const [tokenList, setTokenList] = useState<KyberToken[]>([]);
@@ -150,12 +134,10 @@ function KyberSwapContent() {
   const walletAreaRef = useRef<HTMLDivElement>(null);
   const account = useWagmiAccount();
   const { disconnectAsync } = useDisconnect();
+  const { sendTransactionAsync } = useSendTransaction();
+  const { switchChainAsync } = useSwitchChain();
   const { closeWalletMenu, openWalletMenu } = useWalletMenu();
   const pathname = usePathname();
-  const activeProvider =
-    account.isConnected && connectedProvider && connectedProvider.connector === account.connector
-      ? connectedProvider.provider
-      : undefined;
   const wallet = {
     address: account.isConnected ? account.address : undefined,
     chainId: account.chainId ?? BNB_CHAIN_ID,
@@ -212,37 +194,6 @@ function KyberSwapContent() {
   }, []);
 
   useEffect(() => {
-    let disposed = false;
-    const connector = account.connector;
-
-    if (!account.isConnected || !connector || !account.address) {
-      setConnectedProvider(null);
-      return;
-    }
-
-    void connector.getProvider()
-      .then((provider) => {
-        if (!isEip1193Provider(provider)) {
-          throw new Error('The connected wallet does not provide an EVM provider.');
-        }
-        if (disposed) return;
-
-        setConnectedProvider({ connector, provider });
-        setWalletError('');
-      })
-      .catch((error: unknown) => {
-        if (!disposed) {
-          setConnectedProvider(null);
-          setWalletError(getWalletError(error));
-        }
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, [account.address, account.connector, account.isConnected]);
-
-  useEffect(() => {
     if (!walletMenuOpen) return;
 
     const closeOnOutsideClick = (event: PointerEvent) => {
@@ -263,33 +214,13 @@ function KyberSwapContent() {
   }, [walletMenuOpen]);
 
   const switchToSelectedChain = useCallback(async () => {
-    const provider = activeProvider;
-    if (!provider) {
+    if (!account.isConnected) {
       setWalletError('No EVM wallet found. Install or enable a browser wallet to continue.');
       return;
     }
 
     try {
-      try {
-        await provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${selectedChainId.toString(16)}` }],
-        });
-      } catch (error) {
-        if (getErrorCode(error) !== 4902 || selectedChainId !== BNB_CHAIN_ID) throw error;
-
-        await provider.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0x38',
-            chainName: 'BNB Smart Chain',
-            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-            rpcUrls: ['https://bsc-dataseed.binance.org/'],
-            blockExplorerUrls: ['https://bscscan.com'],
-          }],
-        });
-      }
-
+      await switchChainAsync({ chainId: selectedChainId });
       setWalletError('');
     } catch (error) {
       setWalletError(
@@ -298,13 +229,12 @@ function KyberSwapContent() {
           : getWalletError(error),
       );
     }
-  }, [activeProvider, selectedChainId, selectedNetwork.name]);
+  }, [account.isConnected, selectedChainId, selectedNetwork.name, switchChainAsync]);
 
   const disconnectWallet = useCallback(async () => {
     setWalletMenuOpen(false);
     try {
       await disconnectAsync();
-      setConnectedProvider(null);
       setWalletError('');
     } catch (error) {
       setWalletError(getWalletError(error));
@@ -324,32 +254,23 @@ function KyberSwapContent() {
 
   const submitTransaction = useCallback(
     async (transaction: TxData) => {
-      const provider = activeProvider;
-      if (!provider || !wallet.address) {
+      if (!account.isConnected || !wallet.address) {
         throw new Error('Connect a wallet before submitting a swap.');
       }
       if (wallet.chainId !== selectedChainId) {
         throw new Error(`Switch your wallet to ${selectedNetwork.name} before submitting a swap.`);
       }
 
-      const hash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [
-          {
-            from: wallet.address,
-            to: transaction.to,
-            value: transaction.value,
-            data: transaction.data,
-            gas: transaction.gasLimit,
-          },
-        ],
+      return sendTransactionAsync({
+        account: wallet.address,
+        chainId: selectedChainId,
+        to: transaction.to as `0x${string}`,
+        value: BigInt(transaction.value || '0'),
+        data: transaction.data as `0x${string}`,
+        gas: transaction.gasLimit ? BigInt(transaction.gasLimit) : undefined,
       });
-      if (typeof hash !== 'string') {
-        throw new Error('The wallet did not return a transaction hash.');
-      }
-      return hash;
     },
-    [activeProvider, selectedChainId, selectedNetwork.name, wallet.address, wallet.chainId],
+    [account.isConnected, selectedChainId, selectedNetwork.name, sendTransactionAsync, wallet.address, wallet.chainId],
   );
 
   const walletButtonLabel = wallet.address ? `Switch to ${selectedNetwork.name}` : 'Connect wallet';
