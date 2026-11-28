@@ -280,9 +280,6 @@ function KyberSwapContent() {
       <section className={styles.content}>
         <div className={styles.walletRow}>
           <div className={styles.networkControl}>
-            <p className={styles.networkNotice} role="note">
-              Only same-chain swaps are supported
-            </p>
             <label className={styles.networkPicker}>
               <span>Network</span>
               <select
@@ -411,12 +408,10 @@ function KyberSwapContent() {
           </p>
         )}
 
-        {selectedChainId === BNB_CHAIN_ID && (
-          <div className={styles.featuredToken}>
-            <img src="/BNBs.svg" alt="" />
-            <span>BNBs token is pinned at the top of the token list</span>
-          </div>
-        )}
+        <div className={styles.featuredToken}>
+          <img src="/BNBs.svg" alt="" />
+          <span>Only same-chain swaps are supported</span>
+        </div>
 
         <div className={styles.widgetCard} ref={widthRef}>
           {tokensLoading ? (

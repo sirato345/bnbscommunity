@@ -3,11 +3,11 @@
 ## Migration in progress
 
 - Replace the `/holders` iframe with the native BNBs Light holders interface.
-- Migrate the CSV upload interface to `/holders/csv`; keep the existing Django backend.
+- Migrate the CSV upload interface to `/csv` (originally `/holders/csv`); keep the existing Django backend.
 - Preserve the original project and its existing deployment.
 - Copied the existing holders components, styles, and images; added the Recharts dependency.
 - The existing Django `/csv` endpoint responded successfully to a read-only request from the community origin.
-- `/holders` now renders the copied interface without an iframe. `/holders/csv` uploads to the existing backend and returns to `/holders`.
+- `/holders` now renders the copied interface without an iframe. `/csv` uploads to the existing backend and returns to `/holders`.
 - The interface displays errors on data or upload failures; unavailable token prices no longer fall back to fabricated values.
 - Added valid table markup for native rendering and adjusted images and navigation for Next.js.
 - `npm install` completed with an existing React Native peer-dependency warning. The existing community development server responded on port 3000.
