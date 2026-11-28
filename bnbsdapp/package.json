@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test:token-priority": "node --test tests/token-priority.test.mjs",
     "preview": "vite preview",
-    "postinstall": "node scripts/patch-lifi-widget.mjs"
+    "postinstall": "node scripts/patch-lifi-widget.mjs && node scripts/patch-wagmi-metamask.mjs"
   },
   "dependencies": {
     "@bigmi/react": "^0.6.4",
