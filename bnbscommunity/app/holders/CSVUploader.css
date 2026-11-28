@@ -1,20 +1,93 @@
-.CsvUploader-upload-btn {
-  padding: 10px 20px;
-  margin-top: 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 0 4px 4px 0;
+.CsvUploader-div {
+  width: min(calc(100% - 82px), 370px);
+  margin: 40px auto;
+  padding: 28px 24px;
+  border: 1px solid #e3e6ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(31, 41, 55, 0.06);
+  text-align: center;
+}
+
+.CsvUploader-title {
+  margin: 0 0 20px;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.CsvUploader-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 16px;
+  border: 2px dashed #c5cbe0;
+  border-radius: 12px;
+  background: #f8f9fd;
+  color: #536df3;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.CsvUploader-dropzone:hover,
+.CsvUploader-dropzone:focus-within {
+  border-color: #536df3;
+  background: #f0f3ff;
+}
+
+.CsvUploader-dropzone-hint {
+  color: #737b8d;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .CsvUploader-file-input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.CsvUploader-div {
-  height: 100px;
+.CsvUploader-file-info {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f4f8;
+  color: #374151;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.CsvUploader-error {
+  margin: 14px 0 0;
+  color: #d93025;
+  font-size: 13px;
+}
+
+.CsvUploader-upload-btn {
   width: 100%;
-  margin-top: 15%;
-  text-align: center;
+  min-height: 44px;
+  padding: 0;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #536df3, #7654d9);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.CsvUploader-upload-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.CsvUploader-upload-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

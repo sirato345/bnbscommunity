@@ -54,10 +54,13 @@ const CSVUploader = () => {
 
   return (
     <div className="CsvUploader-div">
-      <h2>CSV Upload</h2>
+      <h2 className="CsvUploader-title">CSV Upload</h2>
 
       <div>
-        <label htmlFor="myFile">📁 Choose CSV file</label>
+        <label htmlFor="myFile" className="CsvUploader-dropzone">
+          <span>📁 Choose CSV file</span>
+          <span className="CsvUploader-dropzone-hint">.csv</span>
+        </label>
         <input
           type="file"
           id="myFile"
@@ -66,13 +69,17 @@ const CSVUploader = () => {
           onChange={(e) => setFile(e.target.files?.[0] || null)}
         />
         {file && (
-          <div style={{ marginTop: "10px" }}>
+          <div className="CsvUploader-file-info">
             <strong>Choosed CSV:</strong> {file.name} (
             {(file.size / 1024).toFixed(2)} KB)
           </div>
         )}
       </div>
-      {error && <p role="alert">Upload failed. Please try again.</p>}
+      {error && (
+        <p role="alert" className="CsvUploader-error">
+          Upload failed. Please try again.
+        </p>
+      )}
 
       <div>
         <button
